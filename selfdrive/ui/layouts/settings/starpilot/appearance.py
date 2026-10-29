@@ -9,6 +9,7 @@ from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 
 from openpilot.selfdrive.ui.lib.starpilot_state import starpilot_state
+from openpilot.selfdrive.ui.onroad.starpilot.turn_signals import FRAME_PATTERN as SIGNAL_FRAME_PATTERN
 from openpilot.selfdrive.ui.layouts.settings.starpilot.panel import _SettingsPage
 from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import (
     AetherSliderDialog,
@@ -29,6 +30,10 @@ THEME_KEY_CONFIG = {
     "BootLogo": {
         "default": "starpilot",
         "extra": [],
+    },
+    "SignalAnimation": {
+        "default": "stock",
+        "extra": [("stock", "None"), ("frog", "Frog")],
     },
 }
 
@@ -252,6 +257,10 @@ class StarPilotAppearanceLayout(_SettingsPage):
 
         # ═══ 2. Driving Widgets & HUD ═══
         self._hud_rows = [
+            SettingRow("SignalAnimation", "value", tr_noop("Turn Signal Animation"),
+                       subtitle=tr_noop("Choose a turn-signal animation. Enables saved custom themes and disables random themes."),
+                       get_value=lambda: self._get_theme_value("SignalAnimation"),
+                       on_click=lambda: self._show_theme_selector("SignalAnimation")),
             SettingRow("Compass", "toggle", tr_noop("Compass"),
                        subtitle="",
                        get_state=lambda: self._params.get_bool("Compass"),
@@ -570,16 +579,26 @@ class StarPilotAppearanceLayout(_SettingsPage):
     def _build_theme_options(self, key: str) -> tuple[list[str], dict[str, str], str]:
         config = THEME_KEY_CONFIG[key]
         options_map = {display: slug for slug, display in config["extra"]}
+        if key == "SignalAnimation" and (THEME_SAVE_PATH / "theme_packs").is_dir():
+            for theme in sorted((THEME_SAVE_PATH / "theme_packs").iterdir()):
+                if any(SIGNAL_FRAME_PATTERN.fullmatch(path.name) and path.is_file() for path in (theme / "signals").glob("*")):
+                    options_map[_theme_display_name(theme.name)] = theme.name
         current_slug = self._params.get(key, encoding='utf-8') or config["default"]
-        current_display = _theme_display_name(current_slug)
+        current_display = next((display for display, slug in options_map.items() if slug == current_slug), _theme_display_name(current_slug))
         if current_display not in options_map:
-            options_map[current_display] = current_slug
+            if key == "SignalAnimation":
+                current_display = "None"
+            else:
+                options_map[current_display] = current_slug
         options = sorted(options_map.keys(), key=str.casefold)
         return options, options_map, current_display
 
     def _get_theme_value(self, key: str) -> str:
+        if key == "SignalAnimation" and not self._params.get_bool("CustomThemes"):
+            return tr("None")
         default = THEME_KEY_CONFIG[key]["default"]
-        return _theme_display_name(self._params.get(key, encoding='utf-8') or default)
+        slug = self._params.get(key, encoding='utf-8') or default
+        return next((display for value, display in THEME_KEY_CONFIG[key]["extra"] if value == slug), _theme_display_name(slug))
 
     def _show_theme_selector(self, key):
         themes, option_map, current = self._build_theme_options(key)
@@ -593,7 +612,12 @@ class StarPilotAppearanceLayout(_SettingsPage):
                     return
                 self._params.put(key, selected_slug)
 
-        dialog = MultiOptionDialog(tr(key), themes, current, callback=on_select)
+                if key == "SignalAnimation" and selected_slug not in ("stock", "none"):
+                    self._params.put_bool("RandomThemes", False)
+                    self._params.put_bool("CustomThemes", True)
+
+        title = tr("Turn Signal Animation") if key == "SignalAnimation" else tr(key)
+        dialog = MultiOptionDialog(title, themes, current, callback=on_select)
         gui_app.push_widget(dialog)
 
     # ── Widget helpers ──

@@ -18,6 +18,7 @@ from openpilot.selfdrive.ui.onroad.starpilot.pulse_glide import get_pulse_glide_
 from openpilot.selfdrive.ui.onroad.starpilot.pip_sidecam import PipSideCamera
 from openpilot.selfdrive.ui.onroad.starpilot.favorite_radial_menu import FavoriteRadialMenu
 from openpilot.selfdrive.ui.onroad.starpilot.weather_icon import render_weather_icon
+from openpilot.selfdrive.ui.onroad.starpilot.turn_signals import TurnSignalRenderer
 from openpilot.selfdrive.ui.lib.starpilot_status import (
   get_screen_edge_color,
 )
@@ -42,6 +43,7 @@ class StarPilotOnroadView(AugmentedRoadView):
     self._font_bold = gui_app.font(FontWeight.BOLD)
     self._font_medium = gui_app.font(FontWeight.MEDIUM)
     self._torque_bar = TorqueBar()
+    self._turn_signals = TurnSignalRenderer()
     self._min_fps = 99.9
     self._max_fps = 0.0
     self._avg_fps = 0.0
@@ -130,11 +132,13 @@ class StarPilotOnroadView(AugmentedRoadView):
       if self._draw_hud_controls:
         dm = self.driver_state_renderer
         self.layout_manager.update_layout(self._content_rect, is_rhd=dm.is_rhd if dm else False)
+        self._render_turn_signals()
         self._render_speed_card()
         self._render_overlays()
         self._render_road_name()
       else:
         self._unified_speed_widget.collapse_sources()
+        self._turn_signals.render(self._content_rect, ui_state, enabled=False)
 
       self._pip_sidecam.render(self._content_rect)
 
@@ -153,6 +157,22 @@ class StarPilotOnroadView(AugmentedRoadView):
         self._favorite_radial_menu.collapse()
     finally:
       gui_app.mouse_events[:] = original_events
+
+  def close(self) -> None:
+    if (signals := getattr(self, "_turn_signals", None)) is not None:
+      signals.close()
+    super().close()
+
+  def _render_turn_signals(self) -> None:
+    alert, _ = self.alert_renderer.will_render()
+    bottom_margin = self._content_rect.y + self._content_rect.height - self.alert_renderer.rect.y if alert is not None else 0
+    rl.begin_scissor_mode(int(self._content_rect.x), int(self._content_rect.y),
+                          int(self._content_rect.width), int(self._content_rect.height))
+    try:
+      self._turn_signals.render(self._content_rect, ui_state,
+                                enabled=alert is None or alert.size != AlertSize.full, bottom_margin=bottom_margin)
+    finally:
+      rl.end_scissor_mode()
 
   def _draw_border(self, rect: rl.Rectangle):
     border_width = self._get_border_width()
