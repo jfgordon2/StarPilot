@@ -205,6 +205,22 @@ VASM_CONFIGURATION_KEYS = {"VASMEnabled", "VASMConfidenceThreshold", "VASMSmooth
 PIP_PREVIEW_CONFIGURATION_KEYS = {"PIPPreviewEnabled", "PIPPreviewMask", "PIPPreviewShowOnBlinker", "PIPPreviewShowOnBSM", "PIPPreviewInvert"}
 MODEL_SMOOTHING_KEYS = {"LatSmoothSeconds", "LongSmoothSeconds"}
 GALAXY_DEVELOPER_ONLY_KEYS = {"TurnSteeringLimitMuteSpeed"}
+
+# Turn-signal animations bundled with StarPilot, in the order the device menus
+# offer them: indicators (stay beside the speed), then animations (travel across).
+# Keep in sync with BUNDLED_SIGNAL_PATHS in selfdrive/ui/onroad/starpilot/turn_signals.py.
+SIGNAL_ANIMATION_PARAM = "SignalAnimation"
+BUNDLED_SIGNAL_ANIMATIONS = (
+  ("sequential", "Sequential"),
+  ("flow", "Flow"),
+  ("open_flow", "Open Flow"),
+  ("glide", "Glide"),
+  ("frog", "Frog"),
+  ("pouncing_cat", "Pouncing Cat"),
+  ("shooting_star", "Shooting Star"),
+  ("bouncing_ball", "Bouncing Ball"),
+)
+SIGNAL_FRAME_PATTERN = re.compile(r"turn_signal(?:_(\d+))?\.png", re.IGNORECASE)
 PULSE_GLIDE_BUTTON_KEYS = {
   "CancelButtonControl", "DistanceButtonControl",
   "LongCancelButtonControl", "LongDistanceButtonControl",
@@ -3463,6 +3479,46 @@ _cached_static_default_values = None
 
 GALAXY_MANUAL_BOOL_PARAM_KEYS = {"IsRHD", "IsRHDOverride"}
 
+def _installed_signal_packs():
+  """Downloaded theme packs with PNG signal frames the raylib renderer can draw (GIF-only packs are skipped)."""
+  bundled = {slug for slug, _ in BUNDLED_SIGNAL_ANIMATIONS}
+  packs_dir = THEME_SAVE_PATH / "theme_packs"
+  try:
+    candidates = sorted(packs_dir.iterdir()) if packs_dir.is_dir() else []
+  except OSError:
+    return []
+  packs = []
+  for pack in candidates:
+    signals = pack / "signals"
+    if pack.name in bundled or not signals.is_dir():
+      continue
+    try:
+      if any(SIGNAL_FRAME_PATTERN.fullmatch(frame.name) for frame in signals.iterdir()):
+        packs.append({"value": pack.name, "label": utilities.normalize_theme_name(pack.name)})
+    except OSError:
+      continue
+  return sorted(packs, key=lambda option: option["label"].casefold())
+
+
+def _get_signal_animation_options():
+  """Choices for the Turn Signal Animation dropdown: None, bundled animations, then downloaded packs."""
+  options = [{"value": "stock", "label": "None"}]
+  options += [{"value": slug, "label": label} for slug, label in BUNDLED_SIGNAL_ANIMATIONS]
+  options += _installed_signal_packs()
+  saved = (params.get(SIGNAL_ANIMATION_PARAM, encoding="utf-8") or "stock").strip()
+  if saved not in ("stock", "none") and all(option["value"] != saved for option in options):
+    options.append({"value": saved, "label": f"{utilities.normalize_theme_name(saved)} (not installed)", "missing": True})
+  return options
+
+
+def _get_effective_signal_animation():
+  """The animation actually in effect: like the device menus, Custom Themes off means none."""
+  if not params.get_bool("CustomThemes"):
+    return "stock"
+  saved = (params.get(SIGNAL_ANIMATION_PARAM, encoding="utf-8") or "stock").strip()
+  return "stock" if saved in ("", "none") else saved
+
+
 def _get_param_type_info():
   global _cached_allowed_keys, _cached_param_types
   if _cached_allowed_keys is None:
@@ -5970,6 +6026,10 @@ def setup(app):
 
     return jsonify(message=f"{', '.join(saved)} saved successfully!")
 
+  @app.route("/api/turn_signal_animations", methods=["GET"])
+  def get_turn_signal_animations():
+    return jsonify(_get_signal_animation_options()), 200
+
   @app.route("/api/fingerprints/makes", methods=["GET"])
   def get_fingerprint_makes():
     return jsonify(_get_fingerprint_catalog()["makes"]), 200
@@ -6308,6 +6368,28 @@ def setup(app):
       allowed_keys, _ = _get_param_type_info()
       if key not in allowed_keys:
         return jsonify({"error": f"Parameter '{key}' is not editable."}), 403
+
+      if key == SIGNAL_ANIMATION_PARAM:
+        choice = str_val.strip()
+        choice = "stock" if choice in ("", "none") else choice
+        options = {option["value"]: option for option in _get_signal_animation_options() if not option.get("missing")}
+        if choice not in options:
+          return jsonify({"error": f"Unknown turn signal animation '{choice}'."}), 400
+
+        params.put(SIGNAL_ANIMATION_PARAM, choice)
+        updated = {SIGNAL_ANIMATION_PARAM: choice}
+        if choice != "stock":
+          # Same as the device menus: an animation needs Custom Themes, and Random
+          # Themes would otherwise replace the selection.
+          params.put_bool("CustomThemes", True)
+          params.put_bool("RandomThemes", False)
+          updated.update({"CustomThemes": True, "RandomThemes": False})
+
+        update_starpilot_toggles()
+        return jsonify({
+          "message": f"Turn signal animation set to {options[choice]['label']}.",
+          "updated": updated,
+        }), 200
 
       if key == "CustomPersonalities":
         if type(data["value"]) is not bool:
@@ -6833,6 +6915,8 @@ def setup(app):
         result[key] = None
 
     result["CarMake"] = _get_effective_car_make(result.get("CarMake"))
+    if SIGNAL_ANIMATION_PARAM in result:
+      result[SIGNAL_ANIMATION_PARAM] = _get_effective_signal_animation()
     result["TeslaCANWakeAvailable"] = supports_tesla_can_wake(params)
     result["HasRadar"] = _get_has_radar()
     result["VehicleParked"] = _get_vehicle_parked()
