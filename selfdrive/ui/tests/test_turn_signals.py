@@ -567,21 +567,22 @@ def test_comma4_holiday_themes_toggle_saves_and_refreshes_starpilot_toggles():
   assert notifications == [{"HolidayThemes": False}]  # saved before StarPilot is told to refresh
 
 
-@pytest.mark.parametrize("pack", ["pouncing_cat", "shooting_star"])
-def test_bundled_signal_packs_match_the_frog_layout(pack):
+@pytest.mark.parametrize("pack,style", [("pouncing_cat", "traditional"), ("shooting_star", "traditional"),
+                                        ("sequential", "static")])
+def test_bundled_signal_packs_match_the_frog_layout(pack, style):
   import struct
   directory = turn_signals.ASSETS_PATH / f"signal_packs/{pack}/signals"
   assert turn_signals.BUNDLED_SIGNAL_PATHS[pack] == directory
   names = sorted(path.name for path in directory.iterdir())
-  assert names == ["traditional_125", *(f"turn_signal_{i}.png" for i in range(1, 7)), "turn_signal_blindspot.png"]
-  for name in names[1:]:
+  assert names == sorted([f"{style}_125", *(f"turn_signal_{i}.png" for i in range(1, 7)), "turn_signal_blindspot.png"])
+  for name in (n for n in names if n.endswith(".png")):
     header = (directory / name).read_bytes()[:26]
     assert header[:8] == b"\x89PNG\r\n\x1a\n"
     assert struct.unpack(">II", header[16:24]) == (350, 500)
     assert header[25] == 6  # RGBA: transparent background like the frog frames
 
 
-@pytest.mark.parametrize("pack", ["frog", "pouncing_cat", "shooting_star"])
+@pytest.mark.parametrize("pack", ["frog", "pouncing_cat", "shooting_star", "sequential"])
 def test_bundled_packs_render_before_the_theme_manager_links_them(scene, monkeypatch, tmp_path, pack):
   stock = tmp_path / "stock_theme/signals"
   stock.mkdir(parents=True)
@@ -624,14 +625,14 @@ def test_comma3_menu_offers_cat_once_whether_or_not_it_is_installed(tmp_path):
                       dict(namespace, THEME_SAVE_PATH=tmp_path, SIGNAL_FRAME_PATTERN=turn_signals.FRAME_PATTERN, tr=str))
   layout = cls()
   layout._params = Params(SignalAnimation="pouncing_cat", CustomThemes=True)
-  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat", "Shooting Star"]
-  for pack in ("frog", "pouncing_cat", "shooting_star"):  # after boot these are also installed theme packs
+  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat", "Sequential", "Shooting Star"]
+  for pack in ("frog", "pouncing_cat", "shooting_star", "sequential"):  # after boot these are also installed theme packs
     (tmp_path / f"theme_packs/{pack}/signals").mkdir(parents=True)
     (tmp_path / f"theme_packs/{pack}/signals/turn_signal_1.png").touch()
   options, mapping, current = layout._build_theme_options("SignalAnimation")
-  assert options == ["Frog", "None", "Pouncing Cat", "Shooting Star"]
+  assert options == ["Frog", "None", "Pouncing Cat", "Sequential", "Shooting Star"]
   assert mapping["Pouncing Cat"] == "pouncing_cat" and current == "Pouncing Cat"
-  assert mapping["Shooting Star"] == "shooting_star"
+  assert mapping["Shooting Star"] == "shooting_star" and mapping["Sequential"] == "sequential"
   assert layout._get_theme_value("SignalAnimation") == "Pouncing Cat"
 
 
@@ -649,7 +650,7 @@ def test_comma4_menu_offers_and_saves_the_cat():
   labels = []
   button.set_value = labels.append
   button._show_selector()
-  assert dialogs[0]["options"] == ["None", "Frog", "Pouncing Cat", "Shooting Star"]
+  assert dialogs[0]["options"] == ["None", "Sequential", "Frog", "Pouncing Cat", "Shooting Star"]
   assert dialogs[0]["default"] == "Frog"
   dialogs[0]["right_btn_callback"]()
   assert button._params.values["SignalAnimation"] == "pouncing_cat"
@@ -675,3 +676,38 @@ def test_shooting_star_trail_points_back_along_its_arc():
       assert y2 > y1  # rising: trail trails downwards
     elif t > 3:
       assert y2 < y1  # falling: trail trails upwards
+
+
+def test_sequential_indicator_stays_beside_the_speed_and_blinks_in_place(scene):
+  """Static style: the card never moves; left sits left of centre, right is mirrored right of centre."""
+  scene.state.starpilot_toggles["signal_icons"] = "sequential"
+  scene.car.rightBlinker = True  # hazards: both sides
+  for index in range(6):
+    scene.clock[0] = 10 + index * 0.126
+    scene.renderer.render(scene.rect, scene.state)
+  left = [d for d in scene.draws if d.source.width > 0]
+  right = [d for d in scene.draws if d.source.width < 0]
+  assert [d.texture.name for d in left] == [f"turn_signal_{i}.png" for i in range(1, 7)]
+  assert len({d.dest.x for d in left}) == 1 and len({d.dest.x for d in right}) == 1
+  assert len({d.dest.y for d in scene.draws}) == 1
+  rect = scene.rect
+  assert left[0].dest.x + left[0].dest.width == pytest.approx(rect.x + rect.width * 0.375)
+  assert right[0].dest.x == pytest.approx(rect.x + rect.width * 0.625)
+  assert left[0].dest.y < rect.y + rect.height / 2  # upper half, beside the speed
+
+
+def test_sequential_chevrons_light_towards_the_turn():
+  import importlib.util
+  spec = importlib.util.spec_from_file_location("sequential", ROOT / "starpilot/tools/make_sequential_signals.py")
+  seq = importlib.util.module_from_spec(spec)
+  try:
+    spec.loader.exec_module(seq)
+  except ModuleNotFoundError:
+    pytest.skip("cairosvg is a dev-only dependency of the drawing script")
+  # Frames point left (mirrored for right turns): chevron 0 is nearest the speed.
+  assert seq.CHEVRON_X == sorted(seq.CHEVRON_X, reverse=True)
+  assert seq.SEQUENCE == [(), (0,), (0, 1), (0, 1, 2), (0, 1, 2), ()]
+  # Card uses the shared on-road widget tokens.
+  style = (ROOT / "selfdrive/ui/onroad/starpilot/widget_style.py").read_text()
+  assert f"CONTROL_RADIUS = {seq.RADIUS}" in style and f"CONTROL_BORDER_WIDTH = {seq.BORDER_WIDTH}" in style
+  assert "CONTROL_BG = rl.Color(0, 0, 0, 166)" in style and "CONTROL_BORDER = rl.Color(196, 205, 208, 180)" in style
