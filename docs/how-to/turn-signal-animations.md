@@ -1,14 +1,23 @@
 # Turn-signal animations in the raylib UI
 
-The raylib UI supports animated turn signals on comma 3/3X and comma 4. Four are
-bundled, so no download is needed:
+The raylib UI supports animated turn signals on comma 3/3X and comma 4. Seven are
+bundled, so no download is needed.
 
-- **Sequential**: a professional indicator in the on-road widget design language.
-  It uses the Set Speed card's translucent fill, border and corner radius, and
-  three green chevrons light in sequence towards the turn. It stays in place
-  beside the current speed (left of centre for left turns, right of centre for
-  right turns, both for hazards); for blind-spot warnings the border and
-  chevrons turn traffic red.
+**Indicators** follow the on-road widget design language: the Set Speed card's
+translucent fill, border and corner radius, with green chevrons pointing towards
+the turn. They stay in place level with the current speed (left of centre for
+left turns, right of centre for right turns, both for hazards). For blind-spot
+warnings the chevrons stop and the card turns traffic red.
+
+- **Sequential**: three chevrons light one after another towards the turn.
+- **Flow**: chevrons glide continuously towards the turn inside the card, fading
+  in beside the speed and out at the far edge.
+- **Open Flow**: the same motion without a card; the floating chevrons have a
+  soft shadow so they stay readable over bright scenes.
+- **Glide**: a compact card the width of the Set Speed card, where one bold
+  chevron slides out and fades while the next fades in behind it.
+
+**Animations** hop across the bottom of the screen:
 
 - **Frog**: StarPilot's original six-frame jumping frog.
 - **Pouncing Cat**: an orange tabby that crouches, leaps and pounces, then
@@ -19,9 +28,9 @@ bundled, so no download is needed:
 To choose one:
 
 - **Comma 3/3X:** StarPilot settings → Appearance → Driving Widgets & HUD →
-  Turn Signal Animation → Sequential, Frog, Pouncing Cat or Shooting Star.
-- **Comma 4:** Settings → Visuals → Turn Signal Animation → Sequential, Frog,
-  Pouncing Cat or Shooting Star.
+  Turn Signal Animation (listed alphabetically).
+- **Comma 4:** Settings → Visuals → Turn Signal Animation (indicators first, then
+  animations).
 - Select **None** to disable the selected animation.
 
 The comma 3/3X picker also lists downloaded packs containing supported PNG signal
@@ -53,24 +62,30 @@ including numbered frames, `turn_signal_blindspot.png`, and the existing
 themes are not supported by this renderer.
 Bundled assets live in `starpilot/assets/holiday_themes/world_frog_day/signals`
 (Frog) and `starpilot/assets/signal_packs/<slug>/signals` (`pouncing_cat`,
-`shooting_star`, `sequential`). At boot the theme manager copies them into
+`shooting_star`, `sequential`, `flow`, `open_flow`, `glide`). At boot the theme manager copies them into
 `theme_packs/<slug>/signals`, and the installed copy takes precedence, so
 edits there are used once the theme manager activates that pack. When switching
 animations, the bundled frames appear immediately if the active link still points
 at another pack, then the installed copy loads at the next signal after relinking.
 To add another bundled animation, put its `signals` folder under
 `starpilot/assets/signal_packs/<slug>/` and add the slug to `BUNDLED_SIGNAL_PATHS`
-in `turn_signals.py` and to both pickers. The cat, star and Sequential frames are
-drawn by `starpilot/tools/make_pouncing_cat_signals.py`,
-`make_shooting_star_signals.py` and `make_sequential_signals.py` (dev-only:
-`pip install cairosvg`). Sequential's card values mirror `widget_style.py`; a test
-fails if the two drift apart, so regenerate the frames after changing them.
+in `turn_signals.py` and to both pickers (a test checks every bundled pack is
+offered on both devices). The bundled frames are drawn by scripts in
+`starpilot/tools/`: `make_pouncing_cat_signals.py`, `make_shooting_star_signals.py`,
+`make_sequential_signals.py` and `make_motion_signals.py` (Flow, Open Flow and
+Glide); dev-only: `pip install cairosvg`. The indicator cards mirror
+`widget_style.py`; a test fails if the two drift apart, so regenerate the frames
+after changing those values.
 Unlike the frog and cat, the star's six frames form one continuous arc, so each
 loop starts as a new star rather than cutting off a second hop.
-Sequential uses the `static` style (`static_125`), so it blinks in place rather
-than moving across the screen. Unlike Qt, static signals are not hidden while the
-car is stopped, which suits an indicator; the other bundled animations use the
-traditional style.
+The indicators use the `static` style, so they animate in place rather than
+moving across the screen: Sequential with six frames at 125 ms (`static_125`),
+Flow, Open Flow and Glide with twelve frames at 62 ms (`static_62`) for smooth
+motion. The static style places a frame half its height below the top of the
+view, so the indicators use a short 350x170 canvas that keeps them level with the
+speed digits (and uses about a third of the texture memory of a 350x500 frame).
+Unlike Qt, static signals are not hidden while the car is stopped, which suits an
+indicator; the hopping animations use the traditional style.
 
 Host regression tests (no vehicle or graphics window required):
 

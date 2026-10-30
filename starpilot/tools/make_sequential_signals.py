@@ -8,7 +8,9 @@ light in sequence towards the turn, like a premium car's sequential indicator.
 
 It uses the renderer's "static" style, so the card stays put beside the current
 speed (left of centre for left turns, mirrored right of centre for right turns)
-instead of moving across the screen. Frames at 125 ms:
+instead of moving across the screen. The static style places a frame half its
+height below the top of the view, so the short 350x170 canvas keeps the card
+level with the speed digits. Frames at 125 ms:
   off, 1, 1-2, 1-2-3, 1-2-3, off  ->  a 750 ms cycle, close to a real blinker.
 The blind-spot image is the same card with a traffic-red border and red chevrons.
 
@@ -20,7 +22,7 @@ from pathlib import Path
 
 import cairosvg
 
-W, H = 350, 500
+W, H = 350, 170
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "assets/signal_packs/sequential/signals"
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT
 
@@ -38,7 +40,7 @@ DIM, DIM_OPACITY = "#FFFFFF", 0.16
 
 # Card geometry: right-aligned so it sits just left of the speed for left turns.
 CARD_W, CARD_H = 300, 112
-CARD_X, CARD_Y = W - CARD_W - BORDER_WIDTH / 2 - 2, BORDER_WIDTH / 2 + 2
+CARD_X, CARD_Y = W - CARD_W - BORDER_WIDTH / 2 - 2, 9  # same height as the motion signals
 CHEVRON_H, CHEVRON_W, CHEVRON_STROKE = 54, 26, 15
 # Chevron 1 is nearest the speed (lights first); 3 is outermost (lights last).
 CHEVRON_X = [CARD_X + CARD_W * f for f in (0.74, 0.5, 0.26)]

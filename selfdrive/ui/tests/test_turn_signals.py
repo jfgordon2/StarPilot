@@ -567,22 +567,48 @@ def test_comma4_holiday_themes_toggle_saves_and_refreshes_starpilot_toggles():
   assert notifications == [{"HolidayThemes": False}]  # saved before StarPilot is told to refresh
 
 
-@pytest.mark.parametrize("pack,style", [("pouncing_cat", "traditional"), ("shooting_star", "traditional"),
-                                        ("sequential", "static")])
-def test_bundled_signal_packs_match_the_frog_layout(pack, style):
+# Hopping animations use the frog's 350x500 frames; static indicators use a short
+# 350x170 canvas so the static style places them level with the current speed.
+BUNDLED_LAYOUTS = {
+  "pouncing_cat": ("traditional_125", 6, (350, 500)),
+  "shooting_star": ("traditional_125", 6, (350, 500)),
+  "sequential": ("static_125", 6, (350, 170)),
+  "flow": ("static_62", 12, (350, 170)),
+  "open_flow": ("static_62", 12, (350, 170)),
+  "glide": ("static_62", 12, (350, 170)),
+}
+STATIC_PACKS = ["sequential", "flow", "open_flow", "glide"]
+
+
+def _png_size(path):
   import struct
+  header = path.read_bytes()[:26]
+  assert header[:8] == b"\x89PNG\r\n\x1a\n"
+  return struct.unpack(">II", header[16:24]), header[25]
+
+
+@pytest.mark.parametrize("pack", sorted(BUNDLED_LAYOUTS))
+def test_bundled_signal_packs_have_the_expected_layout(pack):
+  marker, frames, size = BUNDLED_LAYOUTS[pack]
   directory = turn_signals.ASSETS_PATH / f"signal_packs/{pack}/signals"
   assert turn_signals.BUNDLED_SIGNAL_PATHS[pack] == directory
   names = sorted(path.name for path in directory.iterdir())
-  assert names == sorted([f"{style}_125", *(f"turn_signal_{i}.png" for i in range(1, 7)), "turn_signal_blindspot.png"])
+  assert names == sorted([marker, *(f"turn_signal_{i}.png" for i in range(1, frames + 1)), "turn_signal_blindspot.png"])
   for name in (n for n in names if n.endswith(".png")):
-    header = (directory / name).read_bytes()[:26]
-    assert header[:8] == b"\x89PNG\r\n\x1a\n"
-    assert struct.unpack(">II", header[16:24]) == (350, 500)
-    assert header[25] == 6  # RGBA: transparent background like the frog frames
+    png_size, color_type = _png_size(directory / name)
+    assert png_size == size
+    assert color_type == 6  # RGBA: transparent background like the frog frames
 
 
-@pytest.mark.parametrize("pack", ["frog", "pouncing_cat", "shooting_star", "sequential"])
+def test_every_bundled_pack_is_offered_on_both_devices():
+  appearance = (ROOT / "selfdrive/ui/layouts/settings/starpilot/appearance.py").read_text()
+  visuals = (ROOT / "selfdrive/ui/mici/layouts/settings/visuals.py").read_text()
+  for slug in turn_signals.BUNDLED_SIGNAL_PATHS:
+    assert f'("{slug}", ' in appearance
+    assert f': "{slug}"' in visuals
+
+
+@pytest.mark.parametrize("pack", ["frog", *sorted(BUNDLED_LAYOUTS)])
 def test_bundled_packs_render_before_the_theme_manager_links_them(scene, monkeypatch, tmp_path, pack):
   stock = tmp_path / "stock_theme/signals"
   stock.mkdir(parents=True)
@@ -625,14 +651,16 @@ def test_comma3_menu_offers_cat_once_whether_or_not_it_is_installed(tmp_path):
                       dict(namespace, THEME_SAVE_PATH=tmp_path, SIGNAL_FRAME_PATTERN=turn_signals.FRAME_PATTERN, tr=str))
   layout = cls()
   layout._params = Params(SignalAnimation="pouncing_cat", CustomThemes=True)
-  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat", "Sequential", "Shooting Star"]
-  for pack in ("frog", "pouncing_cat", "shooting_star", "sequential"):  # after boot these are also installed theme packs
+  expected = ["Flow", "Frog", "Glide", "None", "Open Flow", "Pouncing Cat", "Sequential", "Shooting Star"]
+  assert layout._build_theme_options("SignalAnimation")[0] == expected
+  for pack in turn_signals.BUNDLED_SIGNAL_PATHS:  # after boot these are also installed theme packs
     (tmp_path / f"theme_packs/{pack}/signals").mkdir(parents=True)
     (tmp_path / f"theme_packs/{pack}/signals/turn_signal_1.png").touch()
   options, mapping, current = layout._build_theme_options("SignalAnimation")
-  assert options == ["Frog", "None", "Pouncing Cat", "Sequential", "Shooting Star"]
+  assert options == expected
   assert mapping["Pouncing Cat"] == "pouncing_cat" and current == "Pouncing Cat"
   assert mapping["Shooting Star"] == "shooting_star" and mapping["Sequential"] == "sequential"
+  assert mapping["Open Flow"] == "open_flow"
   assert layout._get_theme_value("SignalAnimation") == "Pouncing Cat"
 
 
@@ -650,7 +678,8 @@ def test_comma4_menu_offers_and_saves_the_cat():
   labels = []
   button.set_value = labels.append
   button._show_selector()
-  assert dialogs[0]["options"] == ["None", "Sequential", "Frog", "Pouncing Cat", "Shooting Star"]
+  assert dialogs[0]["options"] == ["None", "Sequential", "Flow", "Open Flow", "Glide", "Frog", "Pouncing Cat",
+                                   "Shooting Star"]
   assert dialogs[0]["default"] == "Frog"
   dialogs[0]["right_btn_callback"]()
   assert button._params.values["SignalAnimation"] == "pouncing_cat"
@@ -678,36 +707,91 @@ def test_shooting_star_trail_points_back_along_its_arc():
       assert y2 < y1  # falling: trail trails upwards
 
 
-def test_sequential_indicator_stays_beside_the_speed_and_blinks_in_place(scene):
-  """Static style: the card never moves; left sits left of centre, right is mirrored right of centre."""
-  scene.state.starpilot_toggles["signal_icons"] = "sequential"
+@pytest.mark.parametrize("pack", STATIC_PACKS)
+def test_static_indicators_stay_level_with_the_speed_and_animate_in_place(scene, monkeypatch, pack):
+  """The card never moves; left sits left of centre, right is mirrored right of centre, both at speed height."""
+  def load(path):  # real frame sizes, so the 350x170 placement is exercised
+    (width, height), _ = _png_size(Path(path))
+    texture = SimpleNamespace(id=len(scene.uploaded) + 1, width=width, height=height, name=Path(path).name)
+    scene.uploaded.append(texture)
+    return texture
+  monkeypatch.setattr(turn_signals.rl, "load_texture", load)
+  marker, frames, _ = BUNDLED_LAYOUTS[pack]
+  step = int(marker.split("_")[1]) / 1000 + 0.001
+  scene.state.starpilot_toggles["signal_icons"] = pack
   scene.car.rightBlinker = True  # hazards: both sides
-  for index in range(6):
-    scene.clock[0] = 10 + index * 0.126
+  for index in range(frames):
+    scene.clock[0] = 10 + index * step
     scene.renderer.render(scene.rect, scene.state)
   left = [d for d in scene.draws if d.source.width > 0]
   right = [d for d in scene.draws if d.source.width < 0]
-  assert [d.texture.name for d in left] == [f"turn_signal_{i}.png" for i in range(1, 7)]
+  assert [d.texture.name for d in left] == [f"turn_signal_{i}.png" for i in range(1, frames + 1)]
   assert len({d.dest.x for d in left}) == 1 and len({d.dest.x for d in right}) == 1
   assert len({d.dest.y for d in scene.draws}) == 1
   rect = scene.rect
   assert left[0].dest.x + left[0].dest.width == pytest.approx(rect.x + rect.width * 0.375)
   assert right[0].dest.x == pytest.approx(rect.x + rect.width * 0.625)
-  assert left[0].dest.y < rect.y + rect.height / 2  # upper half, beside the speed
+  # Current speed is centred at y=180 on a 2160x1080 screen; the cards (canvas y 9..121) straddle it.
+  scale = min(rect.width / 2160, rect.height / 1080)
+  card_top, card_bottom = left[0].dest.y + 9 * scale, left[0].dest.y + 121 * scale
+  assert card_top < 180 < card_bottom
 
 
 def test_sequential_chevrons_light_towards_the_turn():
-  import importlib.util
-  spec = importlib.util.spec_from_file_location("sequential", ROOT / "starpilot/tools/make_sequential_signals.py")
-  seq = importlib.util.module_from_spec(spec)
-  try:
-    spec.loader.exec_module(seq)
-  except ModuleNotFoundError:
-    pytest.skip("cairosvg is a dev-only dependency of the drawing script")
+  seq = _load_tool("make_sequential_signals")
   # Frames point left (mirrored for right turns): chevron 0 is nearest the speed.
   assert seq.CHEVRON_X == sorted(seq.CHEVRON_X, reverse=True)
   assert seq.SEQUENCE == [(), (0,), (0, 1), (0, 1, 2), (0, 1, 2), ()]
-  # Card uses the shared on-road widget tokens.
+
+
+def _load_tool(name):
+  import importlib.util
+  spec = importlib.util.spec_from_file_location(name, ROOT / f"starpilot/tools/{name}.py")
+  module = importlib.util.module_from_spec(spec)
+  try:
+    spec.loader.exec_module(module)
+  except ModuleNotFoundError:
+    pytest.skip("cairosvg is a dev-only dependency of the drawing scripts")
+  return module
+
+
+def test_flow_chevrons_glide_towards_the_turn_and_loop_seamlessly():
+  motion = _load_tool("make_motion_signals")
+  step = 2 * motion.FLOW_SPACING / motion.FRAMES
+  x, _, w, _ = motion.FLOW_CARD
+  for frame in range(motion.FRAMES):
+    now, nxt = motion.flow_chevrons(frame), motion.flow_chevrons(frame + 1)
+    # every chevron that stays visible has moved left (towards a left turn) by one step
+    moved = {round(cx - step, 3) for cx, _ in now}
+    assert {round(cx, 3) for cx, _ in nxt if round(cx, 3) in moved}
+    assert all(x < cx < x + w for cx, _ in now)
+    assert all(0 < opacity <= 1 for _, opacity in now)
+  start = sorted(round(cx, 3) for cx, _ in motion.flow_chevrons(0))
+  assert sorted(round(cx, 3) for cx, _ in motion.flow_chevrons(motion.FRAMES)) == start  # seamless loop
+  # chevrons appear at the inner (speed) edge and fade out at the outer edge
+  assert motion.edge_fade(x + 18, x + 18, x + w - 18) == 0 == motion.edge_fade(x + w - 18, x + 18, x + w - 18)
+
+
+def test_glide_chevrons_slide_out_and_fade():
+  motion = _load_tool("make_motion_signals")
+  x, _, w, _ = motion.GLIDE_CARD
+  assert w == 176  # Set Speed card width (CONTROL_WIDTH)
+  for frame in range(motion.FRAMES):
+    marks = motion.glide_chevrons(frame)
+    assert 1 <= len(marks) <= 2
+    assert all(x < cx < x + w and 0 < opacity <= 1 for cx, opacity in marks)
+  # The lead chevron (offset 0) moves left every frame and fades in, then out.
+  lead = [motion.glide_chevrons(f)[0] for f in range(1, motion.FRAMES)]
+  xs, opacities = [cx for cx, _ in lead], [o for _, o in lead]
+  assert xs == sorted(xs, reverse=True)
+  peak = opacities.index(max(opacities))
+  assert opacities[:peak + 1] == sorted(opacities[:peak + 1]) and opacities[peak:] == sorted(opacities[peak:], reverse=True)
+
+
+@pytest.mark.parametrize("tool", ["make_sequential_signals", "make_motion_signals"])
+def test_indicator_cards_use_the_on_road_widget_tokens(tool):
+  module = _load_tool(tool)
   style = (ROOT / "selfdrive/ui/onroad/starpilot/widget_style.py").read_text()
-  assert f"CONTROL_RADIUS = {seq.RADIUS}" in style and f"CONTROL_BORDER_WIDTH = {seq.BORDER_WIDTH}" in style
+  assert f"CONTROL_RADIUS = {module.RADIUS}" in style and f"CONTROL_BORDER_WIDTH = {module.BORDER_WIDTH}" in style
   assert "CONTROL_BG = rl.Color(0, 0, 0, 166)" in style and "CONTROL_BORDER = rl.Color(196, 205, 208, 180)" in style
+  assert (module.W, module.H) == (350, 170)

@@ -34,7 +34,8 @@ THEME_KEY_CONFIG = {
     "SignalAnimation": {
         "default": "stock",
         "extra": [("stock", "None"), ("frog", "Frog"), ("pouncing_cat", "Pouncing Cat"),
-                  ("shooting_star", "Shooting Star"), ("sequential", "Sequential")],
+                  ("shooting_star", "Shooting Star"), ("sequential", "Sequential"), ("flow", "Flow"),
+                  ("open_flow", "Open Flow"), ("glide", "Glide")],
     },
 }
 

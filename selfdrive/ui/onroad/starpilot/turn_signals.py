@@ -16,6 +16,9 @@ FROG_SIGNALS_PATH = ASSETS_PATH / "holiday_themes/world_frog_day/signals"
 POUNCING_CAT_SIGNALS_PATH = ASSETS_PATH / "signal_packs/pouncing_cat/signals"
 SHOOTING_STAR_SIGNALS_PATH = ASSETS_PATH / "signal_packs/shooting_star/signals"
 SEQUENTIAL_SIGNALS_PATH = ASSETS_PATH / "signal_packs/sequential/signals"
+FLOW_SIGNALS_PATH = ASSETS_PATH / "signal_packs/flow/signals"
+OPEN_FLOW_SIGNALS_PATH = ASSETS_PATH / "signal_packs/open_flow/signals"
+GLIDE_SIGNALS_PATH = ASSETS_PATH / "signal_packs/glide/signals"
 # Animations that ship with StarPilot. The theme manager copies each one into
 # theme_packs/<slug>/signals at boot; until it links that copy, render these.
 BUNDLED_SIGNAL_PATHS = {
@@ -23,6 +26,9 @@ BUNDLED_SIGNAL_PATHS = {
   "pouncing_cat": POUNCING_CAT_SIGNALS_PATH,
   "shooting_star": SHOOTING_STAR_SIGNALS_PATH,
   "sequential": SEQUENTIAL_SIGNALS_PATH,
+  "flow": FLOW_SIGNALS_PATH,
+  "open_flow": OPEN_FLOW_SIGNALS_PATH,
+  "glide": GLIDE_SIGNALS_PATH,
 }
 FRAME_PATTERN = re.compile(r"turn_signal(?:_(\d+))?\.png", re.IGNORECASE)
 STYLE_PATTERN = re.compile(r"(traditional|static)_(\d+)", re.IGNORECASE)
