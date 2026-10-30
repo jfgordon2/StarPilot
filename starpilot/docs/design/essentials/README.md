@@ -51,7 +51,7 @@ Defaults are in **bold**.
 | Control | Choices | Params |
 | --- | --- | --- |
 | Driving Style | Relaxed · **Standard** · Sport | `LongitudinalPersonality` `AccelProfile` `DecelProfile` `HumanLaneChanges` |
-| Speed Limits | Off · Show · **Match** (offset **+3**) | `ShowSpeedLimits` `SetSpeedLimit` `SLCConfirmation` `SLCFallback` `SLCPriority` `SLCMapboxFiller` `VisionSpeedLimit` `ConfigureOffsets` `UseVienna` (from region) |
+| Speed Limits | Off · Show · **Match** (offset **+3**). Higher limits: **Tap to confirm** · Update automatically | `ShowSpeedLimits` `SetSpeedLimit` `SLCConfirmation` `SLCConfirmationLower` `SLCConfirmationHigher` `SLCFallback` `SLCPriority` `SLCMapboxFiller` `VisionSpeedLimit` `ConfigureOffsets` `UseVienna` (from region) |
 | Lane Changes | Nudge · **Auto** | `NudgelessLaneChange` `OneLaneChange` `LaneChangeTime` `MinimumLaneChangeSpeed` `LaneDetectionWidth` `LaneChangeSmoothing` |
 | Smart Slowdowns | **On** · Off | `ConditionalExperimental` `CECurves` `CEStopLights` `CEStoppedLead` `CESlowerLead` `CurveSpeedController` `MapDecel` |
 | Always-On Steering | **On** · Off | `AlwaysOnLateral` `PauseAOLOnBrake` `TeslaAOLDisengageOnBrake` |
@@ -144,7 +144,10 @@ Rules:
 ## Alerts and dialogs
 
 - **Three onroad alert levels.** Info is a small banner and the border stays green. Warning has an amber border and a two-line banner. Critical is a full-screen red takeover. Clean Screen never hides any of them.
-- **Speed limit confirmation** appears as a card on the speed sign, with Ignore and Match buttons and an 8 second timeout. Pressing Resume on the wheel also matches. This is the Match default with `SLCConfirmation` on.
+- **New speed limits.** Under Match, a "Higher limits" choice offers **Tap to confirm** (the default) or **Update automatically**.
+  - **Lower limits always apply on their own.** If a lower limit waited for a tap, ignoring the prompt would leave the car above the posted limit. In both modes `SLCConfirmationLower` stays off.
+  - **Tap to confirm** sets `SLCConfirmation` and `SLCConfirmationHigher` on. A higher limit shows a card on the speed sign with Ignore and Match buttons, ignored after 8 seconds. Pressing Resume on the wheel also matches.
+  - **Update automatically** sets `SLCConfirmation` off, so every change applies with no taps. The blue "Matching limit" status chip explains the speed change.
 - **Confirm dialogs come in two kinds.** Destructive actions get a red button and a "can't be undone" line. Actions that need a restart get a blue "Restart now" button and a Later option.
 - **Every long-running job uses the same four states:** in progress (bar and cancel), blocked (lock icon and the reason, e.g. "park to download"), done (a 4 second toast, never shown while driving) and empty (a short explanation and the next action).
 
