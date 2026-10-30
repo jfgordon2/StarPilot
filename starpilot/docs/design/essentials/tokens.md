@@ -1,6 +1,6 @@
 # Essentials design tokens
 
-The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes below. This page explains how they map onto the app. The values themselves live in [`selfdrive/ui/lib/essentials_style.py`](../../../../selfdrive/ui/lib/essentials_style.py), next to the current `aether_style.py`.
+The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes below. This page explains how they map onto the app. The values themselves live in [`selfdrive/ui/essentials/tokens.py`](../../../../selfdrive/ui/essentials/tokens.py). The components that use them are described in [`selfdrive/ui/essentials/README.md`](../../../../selfdrive/ui/essentials/README.md).
 
 ## Converting mock values
 
@@ -10,7 +10,7 @@ The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes belo
 
 ## Fonts
 
-All five Figtree weights and JetBrains Mono are registered in `FontWeight` (`system/ui/lib/application.py`):
+Figtree is now the only UI typeface: every `FontWeight` member (`system/ui/lib/application.py`) points at a Figtree weight, and Inter has been removed, installer included. JetBrains Mono is `FontWeight.MONO`.
 
 | Weight | Token | Used for |
 | --- | --- | --- |
@@ -21,9 +21,9 @@ All five Figtree weights and JetBrains Mono are registered in `FontWeight` (`sys
 | 800 ExtraBold | `FONT_EXTRABOLD` | Screen titles, the speed, big values |
 | JetBrains Mono Medium | `FONT_MONO` | Numbers in Developer View and Tuner Mode |
 
-- The `.ttf` files are in `selfdrive/assets/fonts`. The bitmap fonts (`.fnt`/`.png`) were generated with that folder's `process.py`, using the same character set as Inter, which covers every non-CJK translation. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont.
+- The `.ttf` files are in `selfdrive/assets/fonts`. The bitmap fonts (`.fnt`/`.png`) were generated with that folder's `process.py`, using the shared character set (ASCII, the `EXTRA_CHARS` list, and every non-CJK translation). `·`, `…`, `−` and `›` were added to `EXTRA_CHARS` for this design. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont.
 - The mocks show JetBrains Mono at 700 in a few places, but only Medium ships. Medium is used for all mono text.
-- **Memory.** Every `FontWeight` entry loads a 2048×2048 atlas at startup, so these six fonts add six textures. Inter stays loaded until no screen uses it any more. Once the Essentials screens fully replace the old ones, the Inter entries no longer used can be removed.
+- **Startup.** Every distinct `FontWeight` file loads one 2048×2048 atlas at startup. The app now loads eight: Figtree Regular, Medium, SemiBold, Bold and ExtraBold, plus mono, unifont and the brand font. Before this change it loaded six (four Inter weights, unifont and the brand font). Inter is gone, but the design adds ExtraBold and mono. If startup time matters, load mono lazily, since only Developer View and Tuner Mode use it.
 
 ## Type scale
 
@@ -58,7 +58,7 @@ The mocks used about 60 hex values. These are merged into the named set below. W
 | Switch | Track on `ACCENT`, knob on `#0E1520`; track off `#343A44`, knob off `TEXT` |
 | Onroad | Bar scrim: a vertical gradient from `#0B0D10` at 0% to 55% · `ONROAD_CONTROL` `#1F2328` at 80% · `ONROAD_CARD` `#0B0D10` at 90% · `LEAD_MARKER #E9B44C` · steering arc track white 18%, comfortable white 90%, working `WARNING`, at limit `#FF6A3D` |
 
-This palette replaces Aether's purple accent (`aether_style.ACCENT*`) with blue. Screens move over one at a time by importing `essentials_style` instead of `aether_style`. Nothing in `aether_style.py` changes.
+This palette replaces Aether's purple accent (`aether_style.ACCENT*`) with blue. Screens move over one at a time to the Essentials components. Once no screen uses `aether_style.py` and `aethergrid.py`, both are deleted.
 
 ## Shape and layout
 

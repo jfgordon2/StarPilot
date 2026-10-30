@@ -1,0 +1,33 @@
+"""Essentials: the component library for StarPilot's settings and onroad screens.
+
+Screens are composed from these components instead of drawing with raylib directly:
+
+  page = SettingsPage(
+    sidebar=Sidebar("Driving", [SidebarItem("Everyday"), SidebarItem("Weather", value="Auto")], selected=0),
+    content=ListPanel([
+      SettingRow("Driving Style", "Sets following gap, acceleration and braking together",
+                 Segmented(["Relaxed", "Standard", "Sport"], selected=get_style, on_change=set_style)),
+      SettingRow("Smart Slowdowns", "Slows for curves and stop lights", Switch(get_smart, set_smart)),
+    ], title="Everyday"),
+    nav=BottomNav(["StarPilot", "Device", "Network", "Bluetooth", "Software"], selected=0, on_select=open_tab),
+  )
+
+Values can be plain or callables (read every frame), so rows can bind straight to Params.
+Tokens and drawing helpers are in `tokens` and `draw`; see starpilot/docs/design/essentials/tokens.md.
+"""
+from openpilot.selfdrive.ui.essentials import draw, layout, tokens
+from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.essentials.chrome import BottomNav, HubGrid, HubTile, PageHeader, SettingsPage, Sidebar, SidebarItem, close_glyph
+from openpilot.selfdrive.ui.essentials.controls import (Badge, Button, ButtonStyle, Chip, ProgressBar, Segmented, Slider, Stepper, Switch,
+                                                        Tone, ValueButton, back_glyph)
+from openpilot.selfdrive.ui.essentials.overlays import Dialog, Sheet, Toast
+from openpilot.selfdrive.ui.essentials.rows import Banner, ListPanel, SectionHeader, SettingRow, Text
+
+__all__ = [
+  "draw", "layout", "tokens",
+  "Bindable", "Component", "resolve", "size_of",
+  "BottomNav", "HubGrid", "HubTile", "PageHeader", "SettingsPage", "Sidebar", "SidebarItem", "close_glyph",
+  "Badge", "Button", "ButtonStyle", "Chip", "ProgressBar", "Segmented", "Slider", "Stepper", "Switch", "Tone", "ValueButton", "back_glyph",
+  "Dialog", "Sheet", "Toast",
+  "Banner", "ListPanel", "SectionHeader", "SettingRow", "Text",
+]

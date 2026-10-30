@@ -4,7 +4,7 @@ An opinionated take on the StarPilot 3X settings UI. Instead of exposing a contr
 
 This builds on the visual direction in *StarPilot 3X UI Directions*, pages 6–9: the hub, the sidebar panel, the option sheet and the onroad bar. The look stays the same. The number of choices goes down.
 
-For fonts, colors, sizes, states and motion, and how to convert mock values to the device, see [tokens.md](tokens.md). The code side is `selfdrive/ui/lib/essentials_style.py`.
+For fonts, colors, sizes, states and motion, and how to convert mock values to the device, see [tokens.md](tokens.md). The code side is `selfdrive/ui/essentials/`: tokens plus the component library (see its README).
 
 Open any `.html` file in this folder in a browser. Each screen is 1125×563, the same frame as the PDF. Screenshots are in `screenshots/`.
 

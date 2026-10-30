@@ -1,4 +1,4 @@
-"""StarPilot Essentials: tokens for the design in starpilot/docs/design/essentials.
+"""Essentials design tokens. See starpilot/docs/design/essentials/tokens.md.
 
 The mocks are drawn on a 1125x563 frame; the comma 3/3X panel is 2160x1080, so one mock
 px is SCALE device px. Layout values below are already in device px. Font sizes are the
@@ -97,11 +97,11 @@ STEER_ARC_LIMIT = _hex("FF6A3D")                 # over 85% for STEER_LIMIT_HOLD
 STEER_ARC_LANE_TINT = _hex("FF8A4D")
 
 # ── Type ──
-FONT = FontWeight.FIGTREE_REGULAR
-FONT_MEDIUM = FontWeight.FIGTREE_MEDIUM
-FONT_SEMIBOLD = FontWeight.FIGTREE_SEMIBOLD     # row titles, buttons, nav
-FONT_BOLD = FontWeight.FIGTREE_BOLD             # panel titles, selected segments
-FONT_EXTRABOLD = FontWeight.FIGTREE_EXTRABOLD   # screen titles, speed, big values
+FONT = FontWeight.ROMAN                         # Figtree Regular on every UI size
+FONT_MEDIUM = FontWeight.MEDIUM
+FONT_SEMIBOLD = FontWeight.SEMI_BOLD            # row titles, buttons, nav
+FONT_BOLD = FontWeight.BOLD                     # panel titles, selected segments
+FONT_EXTRABOLD = FontWeight.EXTRA_BOLD          # screen titles, speed, big values
 FONT_MONO = FontWeight.MONO                     # numbers in Developer View and Tuner Mode
 
 SIZE_VALUE = font_px(72)                # value editors

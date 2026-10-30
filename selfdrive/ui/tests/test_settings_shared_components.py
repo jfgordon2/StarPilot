@@ -65,7 +65,7 @@ def test_a_new_press_outside_the_list_is_valid_after_scrolling(monkeypatch):
 
 
 def _font_codepoints() -> set[int]:
-  text = (ROOT / "selfdrive/assets/fonts/Inter-Medium.fnt").read_text()
+  text = (ROOT / "selfdrive/assets/fonts/Figtree-Medium.fnt").read_text()
   return {int(code) for code in re.findall(r"^char id=(\d+)", text, re.MULTILINE)}
 
 

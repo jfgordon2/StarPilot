@@ -75,9 +75,9 @@ def main():
   # Always on top by default
   rl.set_window_state(rl.ConfigFlags.FLAG_WINDOW_TOPMOST)
 
-  # Load font (Inter-Medium.fnt — same as rest of desktop UI)
+  # Load font (Figtree-Medium.fnt — same as rest of desktop UI)
   basedir = os.environ.get("BASEDIR", "") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-  font_path = os.path.join(basedir, "selfdrive", "assets", "fonts", "Inter-Medium.fnt")
+  font_path = os.path.join(basedir, "selfdrive", "assets", "fonts", "Figtree-Medium.fnt")
   if os.path.exists(font_path):
     font = rl.load_font(font_path)
     rl.gen_texture_mipmaps(font.texture)
