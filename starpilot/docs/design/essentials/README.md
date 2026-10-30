@@ -31,6 +31,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Driving Model | [model.html](model.html) |
 | System | [system.html](system.html) |
 | Vehicle | [vehicle.html](vehicle.html) |
+| Steering headroom | [steeringheadroom.html](steeringheadroom.html) |
 
 ## Principles
 
@@ -84,6 +85,20 @@ Holiday themes **on**, rotating wheel **on**, stopped timer **on**, compass off,
 - The bottom bar drops the **Toggles** and **Developer** tabs. Metric units and language move to System. SSH, ADB and joystick move under Tuner Mode.
 - The hub has six tiles: Driving, Display, Alerts, Driving Model, Vehicle, System. A "Power user" strip below them holds the three bundle switches.
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
+
+## Steering headroom
+
+This builds on the existing torque bar in `selfdrive/ui/onroad/starpilot/torque_bar.py`. That bar is the clearest early signal that the car is running out of steering on a curve, so it is always on. The `EnableTorqueBarWidget` and `ShowSteering` toggles go away.
+
+- It keeps the current arc at the bottom of the road view and the current estimate (lateral acceleration plus path error plus road tilt, divided by the car's maximum).
+- **Three stages instead of a gradual fade:**
+  - **Comfortable (under 60%):** a thin white arc and no sound.
+  - **Working (60–85%):** the arc turns amber and gets thicker.
+  - **At limit (over 85%, held for about half a second):** the arc turns orange-red, the lane lines tint, and the Warning alert "Help steer" plays one chime.
+- **Preview of the curve ahead.** A faint extension of the arc shows the steering the planned path will need 2–3 seconds out, based on the model's desired curvature at the current speed. The driver sees trouble before the car reaches it.
+- The flat "STEERING" bar in the onroad bar mocks was a stand-in for this arc. The arc stays on the road view, where the driver is already looking, which frees the bar slot.
+
+Open: the 60% and 85% thresholds, and whether the preview should use the model's plan or map curvature when a route is active.
 
 ## Navigation
 
