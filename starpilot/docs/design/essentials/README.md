@@ -38,6 +38,19 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |
 | Software tab | [softwaretab.html](softwaretab.html) |
 | Assign a wheel button | [wheelbuttonlearn.html](wheelbuttonlearn.html) |
+| Driving › Vehicle Profile | [drivingvehicle.html](drivingvehicle.html) |
+| Driving › Weather | [drivingweather.html](drivingweather.html) |
+| Driving › Navigation | [drivingnav.html](drivingnav.html) |
+| Display › Theme & Startup | [displaytheme.html](displaytheme.html) |
+| Display › Map | [displaymap.html](displaymap.html) |
+| Path Style picker | [pathstylepicker.html](pathstylepicker.html) |
+| System › Backups | [systembackups.html](systembackups.html) |
+| System › Storage & Data | [systemstorage.html](systemstorage.html) |
+| System › Report a Problem | [systemreport.html](systemreport.html) |
+| Tuner › Gas & Brake | [tunergas.html](tunergas.html) |
+| Tuner › Following & Stops | [tunerfollowing.html](tunerfollowing.html) |
+| Tuner › Bundle Overrides | [tunerbundles.html](tunerbundles.html) |
+| Vehicle › Choose your car | [vehiclepicker.html](vehiclepicker.html) |
 
 ## Principles
 
@@ -165,6 +178,36 @@ The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software
   - Release Channel shows Stable. Other branches, Fast Update and the error log are in Tuner Mode.
   - Reset StarPilot Settings restores the Essentials defaults and keeps backups.
   - Uninstall sits at the bottom. Factory reset moves to Tuner Mode.
+
+## Settings sub-screens
+
+Every sidebar item in the StarPilot settings has its own screen. Sidebar items link to each other, so the mocks can be clicked through.
+
+- **Driving › Vehicle Profile:** four cards: Car, EV, Truck and Towing (`EVTuning`, `TruckTuning`). Trailer Load (Light / Medium / Heavy) is only available with Towing. Those three trailer presets are a proposal; `TrailerLoad` takes a number today.
+- **Driving › Weather:** Auto or Off (`WeatherPresets`), plus plain-language cards for fog, rain, storms and snow (`LowVisibility`, `Rain`, `RainStorm`, `Snow`). The exact amounts and the weather API key are in Tuner Mode.
+- **Driving › Navigation:** Home, Work and other favorites. End Route When Parked (`ClearNavOnOffroad`, on). A link to Offline Maps. Route speed and turn behavior have no toggles.
+- **Display › Theme & Startup:**
+  - Camera View: Auto / Standard / Wide (`CameraView`; default Standard). The Driver view option moves to Developer View.
+  - Driver Camera in Reverse (`DriverCamera`), Boot Logo (`BootLogo`) and Startup Message (`StartupAlert`).
+  - Holiday themes are automatic.
+- **Display › Map:**
+  - Turn-by-Turn on Screen (`NavigationUI`).
+  - Speed limit sign style: Auto / US / Vienna (`UseVienna`; Auto follows your region).
+  - A link to Offline Maps.
+- **Path Style picker:** a sheet with live previews of Standard, Thin, Rainbow and Acceleration.
+- **System › Backups:** Back up now; Automatic Off / Weekly / Monthly, which also saves before every update; the saved list with Restore and Delete.
+- **System › Storage & Data:** a storage bar (drives, maps, models); Delete all drives; Record Driver Camera and Record Microphone, both off by default.
+- **System › Report a Problem:** six plain-language categories, optional details, "Attach last drive" (logs only), an optional Discord name, and Send.
+- **Tuner › Gas & Brake:**
+  - Each value shows where it comes from: FROM STYLE, DEFAULT or OVERRIDE.
+  - Acceleration and Braking profile, Maximum Acceleration, Start and Stop Acceleration, Stopping Rate, Actuator Delay.
+- **Tuner › Following & Stops:**
+  - Following gap per style: Relaxed, Standard, Sport and Traffic.
+  - Lead Detection Sensitivity, Stopped Distance, Use Radar for Take-Offs, Force Stops at Lights, Cruise Button Step.
+- **Tuner › Bundle Overrides:** a tab per bundle, with one toggle for each param it sets. Items that differ from the bundle are marked OVERRIDE, and the sidebar shows a count of changes.
+- **Vehicle › Choose your car:** Make and Model lists, with the detected model marked. Saving turns off automatic detection (`ForceFingerprint`).
+
+Values in square brackets are placeholders, not proposed defaults.
 
 ## Navigation
 
