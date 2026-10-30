@@ -23,7 +23,7 @@ class TurnSignalRenderer:
     self._blindspot: rl.Texture | None = None
     self._stamp = None
     self._pack = None
-    self._next_refresh = 0.0
+    self._signal_seen = False
     self._frame_seconds = 0.125
     self._style = "traditional"
     self._animation_key = None
@@ -37,8 +37,8 @@ class TurnSignalRenderer:
     self._frames = []
     self._blindspot = None
     self._stamp = None
+    self._pack = None
     self._animation_key = None
-    self._next_refresh = 0.0
 
   @staticmethod
   def _load_texture(path: Path) -> rl.Texture | None:
@@ -61,11 +61,9 @@ class TurnSignalRenderer:
     except OSError:
       return [], (str(directory), None)
 
-  def _refresh(self, pack: str, now: float) -> None:
-    if pack == self._pack and now < self._next_refresh:
+  def _refresh(self, pack: str, rescan: bool) -> None:
+    if pack == self._pack and not rescan:
       return
-    self._pack = pack
-    self._next_refresh = now + 1.0
 
     files, file_stamp = self._scan(ACTIVE_SIGNALS_PATH)
     active_directory = Path(file_stamp[0])
@@ -76,12 +74,13 @@ class TurnSignalRenderer:
     if pack == "frog" and (not active_is_frog or not any(FRAME_PATTERN.fullmatch(path.name) for path in files)):
       files, file_stamp = self._scan(FROG_SIGNALS_PATH)
     stamp = (pack, file_stamp)
+    self._pack = pack
     if stamp == self._stamp:
       return
 
     self.close()
+    self._pack = pack
     self._stamp = stamp
-    self._next_refresh = now + 1.0
     frame_paths = sorted((p for p in files if FRAME_PATTERN.fullmatch(p.name)),
                          key=lambda p: int(FRAME_PATTERN.fullmatch(p.name)[1] or 0))
     self._style = "traditional" if len(frame_paths) > 1 else "static"
@@ -108,12 +107,17 @@ class TurnSignalRenderer:
     if (not enabled or not state.started or not sm.valid["carState"] or not sm.alive["carState"] or
         sm.recv_frame["carState"] < state.started_frame or rect.width <= 0 or rect.height <= top_margin + bottom_margin):
       self._animation_key = None
+      self._signal_seen = False
       return
 
     car_state = sm["carState"]
     left, right = bool(car_state.leftBlinker), bool(car_state.rightBlinker)
+    # No polling: look at the signal folder only when the pack changes or a new
+    # signal starts. Textures are reloaded only if the files actually changed.
+    signalling = left or right
+    self._refresh(pack, rescan=signalling and not self._signal_seen)
+    self._signal_seen = signalling
     now = time.monotonic()
-    self._refresh(pack, now)
     if not (left or right) or not self._frames:
       self._animation_key = None
       return

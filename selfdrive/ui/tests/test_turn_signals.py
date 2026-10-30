@@ -137,6 +137,47 @@ def test_animation_fits_viewport_and_leaves_alert_space(scene, width, height, ma
     assert draw.dest.y + draw.dest.height <= rect.y + rect.height - (0 if alert_at_top else margin) + 0.001
 
 
+def _start_new_signal(scene):
+  """Turn the blinker(s) off for a frame and back on, like a new signal."""
+  left, right = scene.car.leftBlinker, scene.car.rightBlinker
+  scene.car.leftBlinker = scene.car.rightBlinker = False
+  scene.renderer.render(scene.rect, scene.state)
+  scene.car.leftBlinker, scene.car.rightBlinker = left, right
+
+
+def test_signal_folder_is_scanned_on_pack_change_and_new_signals_only(scene, monkeypatch):
+  scans = []
+  original = turn_signals.TurnSignalRenderer._scan
+  monkeypatch.setattr(turn_signals.TurnSignalRenderer, "_scan", staticmethod(lambda d: (d == turn_signals.ACTIVE_SIGNALS_PATH and scans.append(d)) or original(d)))
+  # (one check = one look at the active folder, plus the bundled fallback if needed)
+  scene.car.leftBlinker = False
+  scene.renderer.render(scene.rect, scene.state)  # drive start: initial load
+  initial_scans, initial_uploads = len(scans), len(scene.uploaded)
+  assert initial_uploads == 7
+
+  for _ in range(100):  # idle for a long time: no file system access
+    scene.clock[0] += 0.5
+    scene.renderer.render(scene.rect, scene.state)
+  assert len(scans) == initial_scans
+
+  scene.car.leftBlinker = True  # new signal: one rescan, nothing reloaded
+  scene.renderer.render(scene.rect, scene.state)
+  assert len(scans) == initial_scans + 1
+  for _ in range(100):  # mid-signal: no further scans
+    scene.clock[0] += 0.5
+    scene.renderer.render(scene.rect, scene.state)
+  assert len(scans) == initial_scans + 1
+  assert len(scene.uploaded) == initial_uploads and not scene.unloaded
+
+  scene.renderer.render(scene.rect, scene.state, enabled=False)  # e.g. full alert mid-signal
+  scene.renderer.render(scene.rect, scene.state)
+  assert len(scans) == initial_scans + 2
+
+  scene.state.starpilot_toggles["signal_icons"] = "halloween_week"  # pack change: immediate rescan
+  scene.renderer.render(scene.rect, scene.state)
+  assert len(scans) > initial_scans + 2
+
+
 def test_missing_corrupt_and_empty_themes_are_harmless(scene, monkeypatch, tmp_path):
   monkeypatch.setattr(turn_signals, "ACTIVE_SIGNALS_PATH", tmp_path / "missing")
   scene.state.starpilot_toggles["signal_icons"] = "custom"
@@ -146,7 +187,7 @@ def test_missing_corrupt_and_empty_themes_are_harmless(scene, monkeypatch, tmp_p
   (directory / "traditional_0").touch()
   (directory / "turn_signal_1.png").write_bytes(b"invalid PNG")
   monkeypatch.setattr(turn_signals.rl, "load_texture", lambda _path: SimpleNamespace(id=0))
-  scene.clock[0] += 1.1
+  _start_new_signal(scene)
   scene.renderer.render(scene.rect, scene.state)
   assert not scene.draws
 
@@ -174,7 +215,7 @@ def test_theme_refresh_sorts_frames_numerically_and_releases_old_textures(scene,
   (replacement / "static_0").touch()
   active.unlink()
   active.symlink_to(replacement, target_is_directory=True)
-  scene.clock[0] += 1.1
+  _start_new_signal(scene)
   scene.renderer.render(scene.rect, scene.state)
   assert scene.draws[-1].texture.name == "turn_signal.png"
   assert len(scene.unloaded) == len(old_textures) + 2
@@ -240,7 +281,7 @@ def test_active_frog_edits_take_precedence_and_reload_without_restart(scene, mon
   assert scene.draws[-1].texture.path.resolve() == frame
   old_texture = scene.draws[-1].texture
   frame.write_bytes(b"edited frog frame")
-  scene.clock[0] += 1.1
+  _start_new_signal(scene)
   scene.renderer.render(scene.rect, scene.state)
   assert scene.unloaded == [old_texture]
   assert len(scene.uploaded) == 2
@@ -268,7 +309,7 @@ def test_switching_to_frog_does_not_show_previous_pack_while_link_is_stale(scene
   (installed / "turn_signal_1.png").touch()
   active.unlink()
   active.symlink_to(installed, target_is_directory=True)
-  scene.clock[0] += 1.1
+  _start_new_signal(scene)
   scene.renderer.render(scene.rect, scene.state)
   assert scene.draws[-1].texture.path.resolve().parent == installed
 
