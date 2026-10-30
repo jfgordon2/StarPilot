@@ -819,3 +819,24 @@ def test_bouncing_ball_is_a_rigid_ping_pong_ball():
   for frame in range(ball.FRAMES):
     svg = ball.frame_svg(frame)
     assert f'r="{ball.RADIUS}"' in svg and svg.count("<circle") == 1  # always round: no squash or stretch
+
+
+def test_preview_tool_reads_each_bundled_pack_like_the_renderer():
+  preview = _load_tool("render_onroad_preview")
+  for pack, path in turn_signals.BUNDLED_SIGNAL_PATHS.items():
+    assert preview.signals_dir(pack) == path
+  assert preview.pack_timing(turn_signals.FROG_SIGNALS_PATH) == (6, 125, "traditional")
+  for pack, (marker, frames, _) in BUNDLED_LAYOUTS.items():
+    style, ms = marker.split("_")
+    assert preview.pack_timing(preview.signals_dir(pack)) == (frames, int(ms), style)
+
+
+def test_preview_tool_options():
+  preview = _load_tool("render_onroad_preview")
+  args = preview.parse_args([])
+  assert (args.pack, args.right, args.hazards, args.blindspot, args.speed, args.set_speed) == ("sequential", False, False, False, 62, 65)
+  assert args.frames is None and args.gif is None  # one full cycle, PNG frames only
+  args = preview.parse_args(["--pack", "bouncing_ball", "--right", "--blindspot", "--frames", "1", "--gif", "x.gif"])
+  assert (args.pack, args.right, args.blindspot, args.frames, str(args.gif)) == ("bouncing_ball", True, True, 1, "x.gif")
+  with pytest.raises(SystemExit):
+    preview.parse_args(["--right", "--hazards"])

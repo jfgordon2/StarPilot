@@ -95,6 +95,28 @@ its 40 frames at 75 ms use about 11 MB of texture memory while it is selected.
 Like the other full-width animations, it briefly passes over the top-corner
 controls as it drops in, and a bottom alert scales the pass down to fit above it.
 
+## Previewing on the real driving screen
+
+`starpilot/tools/render_onroad_preview.py` renders StarPilot's actual comma 3X
+on-road view (`StarPilotOnroadView`, including the real `TurnSignalRenderer`) to
+PNG frames or a GIF, so you can check a pack against the real layout: speed,
+unified speed card, steering-wheel widget, torque bar and bottom row. Only the
+inputs are faked: there is no camera (the road area is the camera-off
+background), car data comes from stubbed messaging (speed, cruise, blinkers,
+blind spot), settings use an isolated params store, and the turn-signal renderer
+gets a controlled clock so frame N is exactly animation frame N.
+
+```sh
+python starpilot/tools/render_onroad_preview.py --pack sequential --out /tmp/preview
+python starpilot/tools/render_onroad_preview.py --pack bouncing_ball --right --gif /tmp/ball.gif
+python starpilot/tools/render_onroad_preview.py --pack flow --hazards --blindspot --frames 1
+```
+
+By default it captures one full animation cycle at the pack's own timing. On
+Linux without a display, run it under `xvfb-run -a`; on macOS a window may
+flash briefly. `--gif` needs Pillow. Alerts, the speed-limit card and the
+sources drawer aren't simulated.
+
 Host regression tests (no vehicle or graphics window required):
 
 ```sh
