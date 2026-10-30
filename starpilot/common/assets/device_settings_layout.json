@@ -2677,6 +2677,15 @@
         "settings_tier": "simple"
       },
       {
+        "key": "SpeedAtBottom",
+        "label": "Speed at Bottom",
+        "description": "Show the current speed, along with the turn-signal indicators beside it, at the bottom of the screen just above the torque bar instead of at the top. They rise above alerts while one is showing. comma 3/3X only.",
+        "picker_description": "Moves the current speed to the bottom of the screen.",
+        "data_type": "bool",
+        "ui_type": "toggle",
+        "settings_tier": "simple"
+      },
+      {
         "key": "CustomUI",
         "label": "Driving Screen Widgets",
         "description": "Custom StarPilot widgets for the driving screen.",

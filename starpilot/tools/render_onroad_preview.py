@@ -242,7 +242,12 @@ def set_driving_scene(message, args):
   selfdrive = message("selfdriveState")
   selfdrive.enabled = selfdrive.active = True
   selfdrive.state = "enabled"
-  selfdrive.alertSize = "none"
+  selfdrive.alertSize = args.alert
+  if args.alert != "none":
+    selfdrive.alertStatus = "normal"
+    selfdrive.alertText1 = "Steer Left to Start Lane Change Once Safe" if args.alert == "small" else "Take Control"
+    selfdrive.alertText2 = "" if args.alert == "small" else "Lane Change Blocked"
+    selfdrive.alertType = "preLaneChangeLeft/warning" if args.alert == "small" else "laneChangeBlocked/warning"
   device = message("deviceState")
   device.started = True
   device.deviceType = "tizi"  # comma 3X
@@ -264,6 +269,8 @@ def parse_args(argv=None):
   parser.add_argument("--blindspot", action="store_true", help="vehicle in the blind spot (warning image)")
   parser.add_argument("--speed", type=float, default=62, help="current speed in mph (default: 62)")
   parser.add_argument("--set-speed", type=float, default=65, help="cruise set speed in mph (default: 65)")
+  parser.add_argument("--speed-at-bottom", action="store_true", help="Speed at Bottom layout")
+  parser.add_argument("--alert", choices=("none", "small", "mid"), default="none", help="show a bottom alert")
   parser.add_argument("--frames", type=int, help="frames to capture (default: one full animation cycle)")
   parser.add_argument("--out", type=Path, default=Path("onroad_preview"), help="folder for PNG frames")
   parser.add_argument("--gif", type=Path, help="also write an animated GIF here (needs Pillow)")
@@ -304,13 +311,14 @@ def render(args) -> list[Path]:
   def draw():
     ui_state.update()
     ui_state.started = True
-    ui_state.starpilot_toggles.update({"signal_icons": args.pack, "random_themes": False, "simple_mode": False})
+    ui_state.starpilot_toggles.update({"signal_icons": args.pack, "random_themes": False, "simple_mode": False,
+                                       "speed_at_bottom": args.speed_at_bottom})
     rl.begin_texture_mode(target)
     rl.clear_background(rl.BLACK)
     view.render(rl.Rectangle(0, 0, WIDTH, HEIGHT))
     rl.end_texture_mode()
 
-  for _ in range(30):  # settle filters and layout with the blinker already on
+  for _ in range(60):  # settle filters, layout and alert easing with the blinker already on
     draw()
 
   args.out.mkdir(parents=True, exist_ok=True)

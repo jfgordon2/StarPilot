@@ -115,7 +115,9 @@ class TurnSignalRenderer:
       if (texture := self._load_texture(path)) is not None:
         self._frames.append(texture)
 
-  def render(self, rect: rl.Rectangle, state, *, enabled: bool = True, top_margin: float = 0.0, bottom_margin: float = 0.0) -> None:
+  def render(self, rect: rl.Rectangle, state, *, enabled: bool = True, top_margin: float = 0.0, bottom_margin: float = 0.0,
+             static_offset: float = 0.0) -> None:
+    """static_offset moves static indicators down with the speed (Speed at Bottom)."""
     pack = state.starpilot_toggles.get("signal_icons", "stock")
     if state.starpilot_toggles.get("random_themes", False):
       pack = "random"
@@ -161,7 +163,8 @@ class TurnSignalRenderer:
       texture = self._blindspot if blindspot and self._blindspot is not None else frame
       if self._style == "static":
         x = rect.x + rect.width * (0.625 if is_right else 0.375) - (0 if is_right else width)
-        y = rect.y + top_margin + min(height / 2, max(0, available_height - height))
+        y = rect.y + top_margin + min(height / 2, max(0, available_height - height)) + static_offset
+        y = min(y, rect.y + rect.height - height)
       else:
         x = rect.x + (progress if is_right else 1 - progress) * (rect.width - width)
         y = rect.y + rect.height - bottom_margin - height

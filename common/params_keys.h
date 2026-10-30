@@ -681,6 +681,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SoundToDownload", {CLEAR_ON_MANAGER_START, STRING, "", ""}},
     {"SLCAdoptSpeedLimit", {CLEAR_ON_MANAGER_START, BOOL, "0", "0"}},
     {"SLCForceCruiseSpeed", {CLEAR_ON_MANAGER_START, FLOAT, "0.0", "0.0"}},
+    {"SpeedAtBottom", {PERSISTENT, BOOL, "0", "0", 0, SETTINGS_SIMPLE}},
     {"SpeedLimitAccepted", {CLEAR_ON_MANAGER_START, BOOL, "0", "0"}},
     {"SpeedLimitChangedAlert", {PERSISTENT, BOOL, "0", "0", 0, SETTINGS_SIMPLE}},
     {"SpeedLimitController", {PERSISTENT, BOOL, "0", "0", 0}},

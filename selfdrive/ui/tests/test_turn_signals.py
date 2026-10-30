@@ -325,6 +325,21 @@ def _source_class(path, class_name, methods, namespace):
   return namespace[class_name]
 
 
+VIEW_PATH = "selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py"
+VIEW_METHODS = {"_render_turn_signals", "_update_alert_margin", "_speed_offset"}
+
+
+def _view_namespace(state):
+  """Module-level names the view methods use (constants are read from the real source)."""
+  tree = ast.parse((ROOT / VIEW_PATH).read_text())
+  namespace = dict(rl=rl, ui_state=state, AlertSize=SimpleNamespace(full=3), gui_app=SimpleNamespace(width=2160))
+  for node in tree.body:
+    if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) \
+       and node.targets[0].id.startswith(("HUD_SPEED_", "SPEED_", "TORQUE_BAR_")):
+      namespace[node.targets[0].id] = ast.literal_eval(node.value)
+  return namespace
+
+
 class Params:
   def __init__(self, **values):
     self.values = values
@@ -419,7 +434,7 @@ def test_comma3_integration_reserves_alert_space_and_clips(scene, monkeypatch, a
   monkeypatch.setattr(rl, "begin_scissor_mode", lambda *_args: clipping.append("begin"))
   monkeypatch.setattr(rl, "end_scissor_mode", lambda: clipping.append("end"))
   cls = _source_class("selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py", "StarPilotOnroadView",
-                      {"_render_turn_signals"}, dict(rl=rl, ui_state=scene.state, AlertSize=SimpleNamespace(full=3)))
+                      VIEW_METHODS, _view_namespace(scene.state))
   view = cls()
   view._content_rect = scene.rect
   alert = None if alert_size is None else SimpleNamespace(size=alert_size)
@@ -427,8 +442,10 @@ def test_comma3_integration_reserves_alert_space_and_clips(scene, monkeypatch, a
                                         rect=rl.Rectangle(30, 30 + 1020 - expected_margin, 2100, expected_margin))
   view._turn_signals = SimpleNamespace(render=lambda *args, **kwargs: calls.append(kwargs))
   view._turn_signal_margin = SimpleNamespace(update=lambda target: target)
+  view._speed_offset_y = 0.0
+  view._update_alert_margin()
   view._render_turn_signals()
-  assert calls == [dict(enabled=expected_enabled, bottom_margin=expected_margin)]
+  assert calls == [dict(enabled=expected_enabled, bottom_margin=expected_margin, static_offset=0.0)]
   assert clipping == ["begin", "end"]
 
 
@@ -437,12 +454,13 @@ def test_comma3_frogs_ease_with_alerts_instead_of_snapping(scene, monkeypatch):
   monkeypatch.setattr(rl, "begin_scissor_mode", lambda *_args: None)
   monkeypatch.setattr(rl, "end_scissor_mode", lambda: None)
   cls = _source_class("selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py", "StarPilotOnroadView",
-                      {"_render_turn_signals"}, dict(rl=rl, ui_state=scene.state, AlertSize=SimpleNamespace(full=3)))
+                      VIEW_METHODS, _view_namespace(scene.state))
   view = cls()
   view._content_rect = scene.rect
   margins = []
   view._turn_signals = SimpleNamespace(render=lambda *args, **kwargs: margins.append(kwargs["bottom_margin"]))
   view._turn_signal_margin = FirstOrderFilter(0.0, 0.1, 1 / 20)
+  view._speed_offset_y = 0.0
   small = SimpleNamespace(size=1)
   state = {"alert": None, "out": True}
   view.alert_renderer = SimpleNamespace(will_render=lambda: (state["alert"], state["out"]),
@@ -450,6 +468,7 @@ def test_comma3_frogs_ease_with_alerts_instead_of_snapping(scene, monkeypatch):
 
   def frames(count):
     for _ in range(count):
+      view._update_alert_margin()
       view._render_turn_signals()
 
   frames(3)
@@ -840,3 +859,109 @@ def test_preview_tool_options():
   assert (args.pack, args.right, args.blindspot, args.frames, str(args.gif)) == ("bouncing_ball", True, True, 1, "x.gif")
   with pytest.raises(SystemExit):
     preview.parse_args(["--right", "--hazards"])
+
+
+# ── Speed at Bottom (comma 3/3X) ─────────────────────────────────────────────
+
+def _bottom_view(scene, toggle, alert_height=0):
+  scene.state.starpilot_toggles["speed_at_bottom"] = toggle
+  cls = _source_class(VIEW_PATH, "StarPilotOnroadView", VIEW_METHODS, _view_namespace(scene.state))
+  view = cls()
+  view._content_rect = scene.rect
+  alert = SimpleNamespace(size=1) if alert_height else None
+  view.alert_renderer = SimpleNamespace(will_render=lambda: (alert, False),
+                                        rect=rl.Rectangle(30, 30 + 1020 - alert_height, 2100, alert_height))
+  view._turn_signal_margin = SimpleNamespace(update=lambda target: target)
+  view._update_alert_margin()
+  return view
+
+
+def test_speed_at_bottom_offset_clears_the_torque_bar_and_rises_above_alerts(scene):
+  ns = _view_namespace(scene.state)
+  bottom = 30 + 1020
+  assert _bottom_view(scene, False)._speed_offset(scene.rect) == 0.0          # toggle off: unchanged
+  assert _bottom_view(scene, False, 271)._speed_offset(scene.rect) == 0.0
+  plain = _bottom_view(scene, True)._speed_offset(scene.rect)
+  # Same geometry as torque_bar.py at idle: the unit label sits as far above the bar as the bar sits above the bottom.
+  scale = 1020 / 240 * (2100 / 2160)
+  bar_bottom = bottom - 22 * scale
+  bar_top = bar_bottom - 14 * scale
+  unit_bottom = ns["HUD_SPEED_UNIT_CENTER_Y"] + plain + 66 / 2
+  assert bar_top - unit_bottom == pytest.approx(bottom - bar_bottom)
+  small = _bottom_view(scene, True, 271)._speed_offset(scene.rect)            # lane-change alert
+  assert small == bottom - (271 + ns["SPEED_ALERT_GAP"]) - ns["HUD_SPEED_UNIT_CENTER_Y"]
+  assert ns["HUD_SPEED_UNIT_CENTER_Y"] + small < bottom - 271
+  assert _bottom_view(scene, True, 60)._speed_offset(scene.rect) == plain     # alert lower than the speed: stays put
+  assert _bottom_view(scene, True)._speed_offset(rl.Rectangle(0, 0, 0, 0)) == 0.0
+
+
+def test_speed_at_bottom_moves_indicators_with_the_speed(scene, monkeypatch):
+  monkeypatch.setattr(rl, "begin_scissor_mode", lambda *_args: None)
+  monkeypatch.setattr(rl, "end_scissor_mode", lambda: None)
+  ns = _view_namespace(scene.state)
+  view = _bottom_view(scene, True)
+  view._speed_offset_y = view._speed_offset(scene.rect)
+  calls = []
+  view._turn_signals = SimpleNamespace(render=lambda *args, **kwargs: calls.append(kwargs))
+  view._render_turn_signals()
+  speed_top = ns["HUD_SPEED_DIGITS_TOP_Y"] + view._speed_offset_y - ns["SPEED_BLOCK_GAP"]
+  assert calls == [dict(enabled=True, bottom_margin=30 + 1020 - speed_top, static_offset=view._speed_offset_y)]
+
+
+@pytest.mark.parametrize("offset", [0.0, 500.0, 5000.0])
+def test_static_offset_moves_static_cards_and_keeps_them_on_screen(scene, offset):
+  scene.state.starpilot_toggles["signal_icons"] = "sequential"
+  scene.renderer.render(scene.rect, scene.state)
+  base = scene.draws[-1].dest
+  scene.renderer.render(scene.rect, scene.state, static_offset=offset)
+  moved = scene.draws[-1].dest
+  assert moved.x == base.x
+  assert moved.y == pytest.approx(min(base.y + offset, scene.rect.y + scene.rect.height - moved.height))
+
+
+def test_hud_speed_unit_and_compass_follow_the_speed_offset():
+  texts = []
+  fake_rl = SimpleNamespace(Vector2=lambda x, y: (x, y), WHITE="white", Rectangle=rl.Rectangle,
+                            draw_text_ex=lambda _font, text, pos, *_a: texts.append((text, pos[1])))
+  namespace = dict(rl=fake_rl, measure_text_cached=lambda *_a: SimpleNamespace(x=100, y=40),
+                   FONT_SIZES=SimpleNamespace(current_speed=176, speed_unit=66), COLORS=SimpleNamespace(WHITE=1, WHITE_TRANSLUCENT=2),
+                   tr=str, ui_state=SimpleNamespace(is_metric=False), get_compass_text=lambda: "NE",
+                   draw_text_with_shadow=lambda _font, text, pos, *_a: texts.append((text, pos[1])))
+  cls = _source_class("selfdrive/ui/onroad/hud_renderer.py", "HudRenderer", {"_draw_current_speed"}, namespace)
+  hud = cls()
+  hud._font_bold = hud._font_medium = None
+  hud.speed = 62.4
+  for offset in (0.0, 550.0):
+    texts.clear()
+    hud.speed_offset_y = offset
+    hud._draw_current_speed(rl.Rectangle(0, 0, 2160, 1080))
+    assert texts == [("62", 160 + offset), ("mph", 270 + offset), ("NE", 45 + offset)]
+
+
+def test_speed_at_bottom_setting_is_offered_on_the_device_and_in_galaxy():
+  assert re.search(r'\{"SpeedAtBottom", \{PERSISTENT, BOOL, "0"', (ROOT / "common/params_keys.h").read_text())
+  assert 'toggle.speed_at_bottom = self.get_value("SpeedAtBottom")' in (ROOT / "starpilot/common/starpilot_variables.py").read_text()
+
+  tree = ast.parse((ROOT / "selfdrive/ui/layouts/settings/starpilot/appearance.py").read_text())
+  call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "SettingRow"
+              and node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == "SpeedAtBottom")
+  view = SimpleNamespace(_params=Params(SpeedAtBottom=False))
+  args, kwargs = eval(compile(ast.Expression(call), "appearance.py", "eval"),
+                      dict(SettingRow=lambda *a, **k: (a, k), tr_noop=str, self=view))
+  assert args[:3] == ("SpeedAtBottom", "toggle", "Speed at Bottom")
+  assert kwargs["get_state"]() is False
+  kwargs["set_state"](True)
+  assert view._params.values["SpeedAtBottom"] is True
+
+  import json
+  layout = json.loads((ROOT / "starpilot/common/assets/device_settings_layout.json").read_text())
+  entry = next(param for section in layout for param in section["params"] if param["key"] == "SpeedAtBottom")
+  assert entry["ui_type"] == "toggle" and entry["data_type"] == "bool"
+
+
+def test_preview_tool_speed_at_bottom_options():
+  preview = _load_tool("render_onroad_preview")
+  args = preview.parse_args([])
+  assert (args.speed_at_bottom, args.alert) == (False, "none")
+  args = preview.parse_args(["--speed-at-bottom", "--alert", "mid"])
+  assert (args.speed_at_bottom, args.alert) == (True, "mid")

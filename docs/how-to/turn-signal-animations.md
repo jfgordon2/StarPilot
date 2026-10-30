@@ -95,6 +95,26 @@ its 40 frames at 75 ms use about 11 MB of texture memory while it is selected.
 Like the other full-width animations, it briefly passes over the top-corner
 controls as it drops in, and a bottom alert scales the pass down to fit above it.
 
+## Speed at Bottom (comma 3/3X)
+
+The `SpeedAtBottom` toggle (Appearance on the device, Visual (Display & UI) in
+Galaxy) moves the current speed, its unit and the compass to the bottom of the
+screen, leaving the same gap between the unit label and the idle torque bar as
+between the bar and the bottom of the view (derived from the torque bar's geometry,
+so it scales with the view). `StarPilotOnroadView` computes one
+vertical offset and hands it to `HudRenderer.speed_offset_y`, the stopped timer and
+`TurnSignalRenderer.render(static_offset=...)`, so static indicators (Sequential,
+Flow, Open Flow, Glide) stay level with the speed. Travelling animations (Frog,
+Cat, Shooting Star, Bouncing Ball) get a larger `bottom_margin` instead, so they
+pass above the speed rather than over it. While a small or mid alert shows, the
+block rises to sit `SPEED_ALERT_GAP` above it, eased with the same filter as the
+alert margin; full-screen alerts hide the indicators as before. A gradient
+behind the bottom speed keeps it readable over the camera image. The comma 4 UI is
+unchanged.
+
+The torque bar thickens past 50% torque, so in a hard turn its top edge can
+approach the unit text.
+
 ## Previewing on the real driving screen
 
 `starpilot/tools/render_onroad_preview.py` renders StarPilot's actual comma 3X
@@ -110,12 +130,14 @@ gets a controlled clock so frame N is exactly animation frame N.
 python starpilot/tools/render_onroad_preview.py --pack sequential --out /tmp/preview
 python starpilot/tools/render_onroad_preview.py --pack bouncing_ball --right --gif /tmp/ball.gif
 python starpilot/tools/render_onroad_preview.py --pack flow --hazards --blindspot --frames 1
+python starpilot/tools/render_onroad_preview.py --pack sequential --speed-at-bottom --alert small
 ```
 
 By default it captures one full animation cycle at the pack's own timing. On
 Linux without a display, run it under `xvfb-run -a`; on macOS a window may
-flash briefly. `--gif` needs Pillow. Alerts, the speed-limit card and the
-sources drawer aren't simulated.
+flash briefly. `--gif` needs Pillow. `--speed-at-bottom` turns on Speed at
+Bottom, and `--alert small|mid` shows a sample lane-change or "Take Control"
+alert; other alerts, the speed-limit card and the sources drawer aren't simulated.
 
 Host regression tests (no vehicle or graphics window required):
 
