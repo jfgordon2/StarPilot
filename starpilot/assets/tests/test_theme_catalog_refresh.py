@@ -174,3 +174,14 @@ def test_cancelled_download_does_not_publish_success_or_refresh_catalog(theme):
   assert not theme.catalogs
   assert not list(theme.path.rglob("*.tmp"))
   assert not theme.manager.downloading_theme
+
+
+def test_cancel_request_is_consumed_so_the_next_download_succeeds(theme):
+  theme.manager.params_memory.put("CancelThemeDownload", True)
+  theme.manager.download_theme("steering_wheels", "frog", "WheelToDownload", object())
+  assert "CancelThemeDownload" not in theme.manager.params_memory.values
+  assert not theme.manager.theme_sizes
+
+  theme.manager.download_theme("steering_wheels", "frog", "WheelToDownload", object())
+  assert (theme.path / "steering_wheels/frog.png").read_bytes() == b"new wheel"
+  assert theme.manager.params_memory.values["ThemeDownloadProgress"] == "Downloaded!"

@@ -371,7 +371,7 @@ def test_comma4_selection_disables_random_themes_and_preserves_other_preferences
   assert labels[-1] == "none"
 
 
-@pytest.mark.parametrize("alert_size,expected_enabled,expected_margin", [(None, True, 0), (1, True, 200), (3, False, 1020)])
+@pytest.mark.parametrize("alert_size,expected_enabled,expected_margin", [(None, True, 0), (1, True, 200), (3, False, 0)])
 def test_comma3_integration_reserves_alert_space_and_clips(scene, monkeypatch, alert_size, expected_enabled, expected_margin):
   calls, clipping = [], []
   monkeypatch.setattr(rl, "begin_scissor_mode", lambda *_args: clipping.append("begin"))
@@ -384,9 +384,49 @@ def test_comma3_integration_reserves_alert_space_and_clips(scene, monkeypatch, a
   view.alert_renderer = SimpleNamespace(will_render=lambda: (alert, False),
                                         rect=rl.Rectangle(30, 30 + 1020 - expected_margin, 2100, expected_margin))
   view._turn_signals = SimpleNamespace(render=lambda *args, **kwargs: calls.append(kwargs))
+  view._turn_signal_margin = SimpleNamespace(update=lambda target: target)
   view._render_turn_signals()
   assert calls == [dict(enabled=expected_enabled, bottom_margin=expected_margin)]
   assert clipping == ["begin", "end"]
+
+
+def test_comma3_frogs_ease_with_alerts_instead_of_snapping(scene, monkeypatch):
+  from openpilot.common.filter_simple import FirstOrderFilter
+  monkeypatch.setattr(rl, "begin_scissor_mode", lambda *_args: None)
+  monkeypatch.setattr(rl, "end_scissor_mode", lambda: None)
+  cls = _source_class("selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py", "StarPilotOnroadView",
+                      {"_render_turn_signals"}, dict(rl=rl, ui_state=scene.state, AlertSize=SimpleNamespace(full=3)))
+  view = cls()
+  view._content_rect = scene.rect
+  margins = []
+  view._turn_signals = SimpleNamespace(render=lambda *args, **kwargs: margins.append(kwargs["bottom_margin"]))
+  view._turn_signal_margin = FirstOrderFilter(0.0, 0.1, 1 / 20)
+  small = SimpleNamespace(size=1)
+  state = {"alert": None, "out": True}
+  view.alert_renderer = SimpleNamespace(will_render=lambda: (state["alert"], state["out"]),
+                                        rect=rl.Rectangle(30, 30 + 1020 - 271, 2100, 271))
+
+  def frames(count):
+    for _ in range(count):
+      view._render_turn_signals()
+
+  frames(3)
+  assert margins == [0, 0, 0]
+  state.update(alert=small, out=False)  # lane-change alert appears mid-hop
+  frames(20)
+  rising = margins[3:]
+  assert 0 < rising[0] < 271 * 0.5
+  assert all(b >= a for a, b in zip(rising, rising[1:], strict=False))
+  assert rising[-1] == pytest.approx(271, abs=1)
+  state["out"] = True  # alert fading out: frogs settle back down smoothly
+  frames(20)
+  falling = margins[23:]
+  assert 271 * 0.5 < falling[0] < 271
+  assert all(b <= a for a, b in zip(falling, falling[1:], strict=False))
+  assert falling[-1] == pytest.approx(0, abs=1)
+  state.update(alert=SimpleNamespace(size=3), out=False)  # full alert: hidden, no baseline climb
+  frames(5)
+  assert margins[-1] == pytest.approx(0, abs=1)
 
 
 def _load_mici_alert_background_height():

@@ -19,6 +19,7 @@ from openpilot.selfdrive.ui.onroad.starpilot.pip_sidecam import PipSideCamera
 from openpilot.selfdrive.ui.onroad.starpilot.favorite_radial_menu import FavoriteRadialMenu
 from openpilot.selfdrive.ui.onroad.starpilot.weather_icon import render_weather_icon
 from openpilot.selfdrive.ui.onroad.starpilot.turn_signals import TurnSignalRenderer
+from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.ui.lib.starpilot_status import (
   get_screen_edge_color,
 )
@@ -44,6 +45,9 @@ class StarPilotOnroadView(AugmentedRoadView):
     self._font_medium = gui_app.font(FontWeight.MEDIUM)
     self._torque_bar = TorqueBar()
     self._turn_signals = TurnSignalRenderer()
+    # Ease the frogs' baseline with the alert slide (same time constant) instead
+    # of snapping it up or down by a whole alert height mid-hop.
+    self._turn_signal_margin = FirstOrderFilter(0.0, 0.1, 1 / gui_app.target_fps)
     self._min_fps = 99.9
     self._max_fps = 0.0
     self._avg_fps = 0.0
@@ -164,13 +168,17 @@ class StarPilotOnroadView(AugmentedRoadView):
     super().close()
 
   def _render_turn_signals(self) -> None:
-    alert, _ = self.alert_renderer.will_render()
-    bottom_margin = self._content_rect.y + self._content_rect.height - self.alert_renderer.rect.y if alert is not None else 0
+    alert, animating_out = self.alert_renderer.will_render()
+    full_alert = alert is not None and alert.size == AlertSize.full
+    target_margin = 0.0
+    if alert is not None and not animating_out and not full_alert:
+      target_margin = max(0.0, self._content_rect.y + self._content_rect.height - self.alert_renderer.rect.y)
+    bottom_margin = self._turn_signal_margin.update(target_margin)
     rl.begin_scissor_mode(int(self._content_rect.x), int(self._content_rect.y),
                           int(self._content_rect.width), int(self._content_rect.height))
     try:
       self._turn_signals.render(self._content_rect, ui_state,
-                                enabled=alert is None or alert.size != AlertSize.full, bottom_margin=bottom_margin)
+                                enabled=not full_alert, bottom_margin=bottom_margin)
     finally:
       rl.end_scissor_mode()
 

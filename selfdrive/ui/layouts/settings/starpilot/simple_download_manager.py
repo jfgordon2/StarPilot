@@ -243,6 +243,9 @@ class SimpleDownloadManager(Widget):
       return
     self._downloading = True
     self._download_progress = "Downloading..."
+    # A cancel left over from an earlier download (e.g. tapped after it had
+    # already finished) must not abort this one.
+    self.params_memory.remove("CancelThemeDownload")
     self.params_memory.put("ThemeDownloadProgress", "Downloading...")
     self.params_memory.put(self.download_param, slug)
 

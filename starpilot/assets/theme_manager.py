@@ -267,6 +267,9 @@ class ThemeManager:
         if self.params_memory.get_bool(CANCEL_DOWNLOAD_PARAM):
           delete_file(theme_path)
           handle_error(None, asset_param, "Download cancelled...", "Download cancelled...", self.params_memory, DOWNLOAD_PROGRESS_PARAM)
+          # Consume the cancel request; otherwise it persists until the next
+          # manager start and immediately cancels every later theme download.
+          self.params_memory.remove(CANCEL_DOWNLOAD_PARAM)
 
           self.downloading_theme = False
           return
