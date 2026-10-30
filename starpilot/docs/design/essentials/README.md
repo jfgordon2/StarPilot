@@ -32,6 +32,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | System | [system.html](system.html) |
 | Vehicle | [vehicle.html](vehicle.html) |
 | Steering headroom | [steeringheadroom.html](steeringheadroom.html) |
+| Status chips | [statuschips.html](statuschips.html) |
 
 ## Principles
 
@@ -103,6 +104,34 @@ This builds on the existing torque bar in `selfdrive/ui/onroad/starpilot/torque_
 - The arc sits on the road view just above the onroad bar, where the driver is already looking. It replaces the flat "STEERING" bar from the earlier mocks.
 
 Open: the 60% and 85% thresholds, and whether the preview should use the model's plan or map curvature when a route is active.
+
+## Status chips
+
+The top-right corner of the onroad view answers "why is the car doing that?". A chip shows only while StarPilot changes speed or steering on its own. When the corner is empty, nothing unusual is happening.
+
+| Chip | Icon | Color | Triggered by |
+| --- | --- | --- | --- |
+| Slowing for curve | Curve | Blue | `CurveSpeedController` |
+| Stopping for light | Traffic light | Blue | `CEStopLights` |
+| Stopping for stop sign | Octagon | Blue | `CEStopLights` (model stop detection) |
+| Slowing for traffic | Car rear | Blue | `CESlowerLead`, `CEStoppedLead` |
+| Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
+| Matching limit 45 | Gauge | Blue | `SetSpeedLimit`, after a limit change |
+| Rain · longer gap | Cloud with rain | Blue | `WeatherPresets` |
+| Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed` |
+| Steering paused for signal | Signal chevrons | Amber | `PauseLateralOnSignal` |
+| Lane change blocked | Lane, car and cross | Amber | Blind spot during `NudgelessLaneChange` |
+| Changing lanes right | Lane-shift arrow | Blue | `NudgelessLaneChange` |
+| Steering only | Steering wheel | Blue | `AlwaysOnLateral` with cruise off |
+| Ready · tap resume | Play | Green | Stopped and waiting for the driver |
+| Car ahead moved | Car with up arrow | Green | `LeadDepartingAlert` |
+| Light is green | Traffic light, bottom lit | Green | `GreenLightAlert` |
+
+Rules:
+- Show one chip at a time. Priority runs from steering paused or blocked, to stopping, to slowing, to waiting.
+- A chip stays up while its reason holds, plus 2 seconds, so it doesn't flicker.
+- Chips hide while an alert is showing. Driver attention warnings and takeover requests always use the alert levels instead.
+- Each chip is an icon plus four words or fewer.
 
 ## Navigation
 
