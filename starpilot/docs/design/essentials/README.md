@@ -51,6 +51,11 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Tuner › Following & Stops | [tunerfollowing.html](tunerfollowing.html) |
 | Tuner › Bundle Overrides | [tunerbundles.html](tunerbundles.html) |
 | Vehicle › Choose your car | [vehiclepicker.html](vehiclepicker.html) |
+| Numeric value editor | [valueeditor.html](valueeditor.html) |
+| Volume editor | [volumeeditor.html](volumeeditor.html) |
+| Offline maps › Choose regions | [mapregions.html](mapregions.html) |
+| Offline maps › Downloading | [mapdownloading.html](mapdownloading.html) |
+| Driving Model › Browse and download | [modelcatalog.html](modelcatalog.html) |
 
 ## Principles
 
@@ -97,7 +102,7 @@ The four chime switches stay as they are: Green Light (**on**), Lead Departure (
 
 ## Fixed values, no longer shown
 
-Holiday themes **on**, rotating wheel **on**, stopped timer **on**, compass off, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
+Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel **on**, stopped timer **on**, compass off, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
 
 ## Navigation changes
 
@@ -189,7 +194,6 @@ Every sidebar item in the StarPilot settings has its own screen. Sidebar items l
 - **Display › Theme & Startup:**
   - Camera View: Auto / Standard / Wide (`CameraView`; default Standard). The Driver view option moves to Developer View.
   - Driver Camera in Reverse (`DriverCamera`), Boot Logo (`BootLogo`) and Startup Message (`StartupAlert`).
-  - Holiday themes are automatic.
 - **Display › Map:**
   - Turn-by-Turn on Screen (`NavigationUI`).
   - Speed limit sign style: Auto / US / Vienna (`UseVienna`; Auto follows your region).
@@ -208,6 +212,30 @@ Every sidebar item in the StarPilot settings has its own screen. Sidebar items l
 - **Vehicle › Choose your car:** Make and Model lists, with the detected model marked. Saving turns off automatic detection (`ForceFingerprint`).
 
 Values in square brackets are placeholders, not proposed defaults.
+
+## Value editors and download flows
+
+- **Numeric value editor.** One bottom sheet for every number setting. The example is Speed Limit Offset.
+  - A large value with big − and + buttons. Holding a button speeds it up.
+  - A slider with the default marked and the range shown at each end.
+  - Quick-pick chips and Reset to default.
+  - This builds on the existing `AetherSliderDialog`, which already has min, max, step, unit and labels.
+- **Volume editor.** The same sheet plus Play sample, which uses the car speakers when they're connected.
+  - The slider marks the Quiet, Normal and Loud presets.
+  - For safety alerts, the area under 25% is hatched and can't be selected.
+  - Changing a single level switches the Alert Volume preset to Custom.
+- **Choosing map regions.** Tabs for U.S. regions, U.S. states and other countries.
+  - Region cards show state count and size, and your region is tagged.
+  - A summary column shows download size and storage left afterwards, a readiness checklist (parked, on Wi-Fi, enough storage) and Download. Download stays disabled, with the reason shown, until every check passes.
+- **Map download progress.**
+  - Overall percent, size and time left.
+  - Four steps: Prepare, Download, Install, Ready.
+  - A grid of states showing which are done, which is in progress and which are queued.
+  - It pauses when driving or off Wi-Fi and resumes on its own. You can leave the screen. Cancel sits at the top right.
+- **Model catalog.** Tabs for For your car, Community picks and On device.
+  - Each row shows one state: Active, Downloading (with progress and Cancel), On device (Use), Download (with size), or Not available (e.g. needs an eGPU).
+  - A side column shows storage, with Remove unused models.
+  - Only one download runs at a time. A new model takes effect at the next drive.
 
 ## Navigation
 
