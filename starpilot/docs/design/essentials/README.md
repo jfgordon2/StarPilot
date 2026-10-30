@@ -37,6 +37,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Network tab | [networktab.html](networktab.html) |
 | Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |
 | Software tab | [softwaretab.html](softwaretab.html) |
+| Assign a wheel button | [wheelbuttonlearn.html](wheelbuttonlearn.html) |
 
 ## Principles
 
@@ -150,10 +151,13 @@ The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software
   - The Wi-Fi list, with the connected network on top, plus "Join a hidden network".
   - Cellular status, Hotspot (tethering), and Save Data, which is on by default and covers metered Wi-Fi.
   - Roaming, APN and IP address sit behind one row.
-- **Bluetooth:**
-  - Framed around one job: playing alerts through the car's speakers.
-  - My devices, with Test sound and Stop using for the audio device, and nearby devices to pair.
-  - Pairing waits until the car is parked.
+- **Bluetooth:** leads with **Wheel Buttons**, because a remote mounted on the steering wheel is the main reason to pair something.
+  - The connected remote shows a Test button and the list of assigned buttons, each with its action.
+  - New remotes start with four presets: change driving style, screen off / on, save a clip, and navigate home.
+  - **Add a button** opens a two-step sheet. Step 1: press the button on the remote; listening stops after 20 seconds. Step 2: pick one of nine actions (driving style, screen, set speed, save a clip, navigate to a favorite, always-on steering, coast, engage, disengage).
+  - Pulse and glide and driver selfie are only in Tuner Mode.
+  - This uses the existing wheel controls service (`WheelControlMappings`, `ControllerActionSlots`, `WheelControlLearnSlot`).
+  - Car audio (Test sound) and Nearby devices sit in a smaller column. Pairing waits until the car is parked.
 - **Software:**
   - Version and update status, with Check now and What's new.
   - Automatic Updates, on by default: they download while parked and install when the car turns off.
