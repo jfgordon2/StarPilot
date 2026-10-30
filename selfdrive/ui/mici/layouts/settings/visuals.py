@@ -113,7 +113,8 @@ class TurnSignalAnimationBigButton(BigButton):
 
   def _show_selector(self):
     options = {"None": "stock", "Sequential": "sequential", "Flow": "flow", "Open Flow": "open_flow", "Glide": "glide",
-               "Frog": "frog", "Pouncing Cat": "pouncing_cat", "Shooting Star": "shooting_star"}
+               "Frog": "frog", "Pouncing Cat": "pouncing_cat", "Shooting Star": "shooting_star",
+               "Bouncing Ball": "bouncing_ball"}
     slug = self._params.get("SignalAnimation", encoding="utf-8") or "stock"
     if slug not in ("none", *options.values()):
       options[slug] = slug

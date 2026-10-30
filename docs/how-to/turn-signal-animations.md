@@ -1,6 +1,6 @@
 # Turn-signal animations in the raylib UI
 
-The raylib UI supports animated turn signals on comma 3/3X and comma 4. Seven are
+The raylib UI supports animated turn signals on comma 3/3X and comma 4. Eight are
 bundled, so no download is needed.
 
 **Indicators** follow the on-road widget design language: the Set Speed card's
@@ -17,13 +17,17 @@ warnings the chevrons stop and the card turns traffic red.
 - **Glide**: a compact card the width of the Set Speed card, where one bold
   chevron slides out and fades while the next fades in behind it.
 
-**Animations** hop across the bottom of the screen:
+**Animations** travel across the screen:
 
 - **Frog**: StarPilot's original six-frame jumping frog.
 - **Pouncing Cat**: an orange tabby that crouches, leaps and pounces, then
   settles back into a crouch; its blind-spot image is an arched-back red cat.
 - **Shooting Star**: a smiling star that arcs across the screen with a sparkling
   gold trail streaming behind it; its blind-spot image is a startled red star.
+- **Bouncing Ball**: a white ping-pong ball drops in from the top of the screen,
+  touches down four times as it bounces towards the turn, and bounces off the far
+  edge; one unhurried pass takes 3 seconds. Its blind-spot image is a red ball
+  rolling along the ground.
 
 To choose one:
 
@@ -62,7 +66,7 @@ including numbered frames, `turn_signal_blindspot.png`, and the existing
 themes are not supported by this renderer.
 Bundled assets live in `starpilot/assets/holiday_themes/world_frog_day/signals`
 (Frog) and `starpilot/assets/signal_packs/<slug>/signals` (`pouncing_cat`,
-`shooting_star`, `sequential`, `flow`, `open_flow`, `glide`). At boot the theme manager copies them into
+`shooting_star`, `sequential`, `flow`, `open_flow`, `glide`, `bouncing_ball`). At boot the theme manager copies them into
 `theme_packs/<slug>/signals`, and the installed copy takes precedence, so
 edits there are used once the theme manager activates that pack. When switching
 animations, the bundled frames appear immediately if the active link still points
@@ -72,8 +76,8 @@ To add another bundled animation, put its `signals` folder under
 in `turn_signals.py` and to both pickers (a test checks every bundled pack is
 offered on both devices). The bundled frames are drawn by scripts in
 `starpilot/tools/`: `make_pouncing_cat_signals.py`, `make_shooting_star_signals.py`,
-`make_sequential_signals.py` and `make_motion_signals.py` (Flow, Open Flow and
-Glide); dev-only: `pip install cairosvg`. The indicator cards mirror
+`make_sequential_signals.py`, `make_motion_signals.py` (Flow, Open Flow and
+Glide) and `make_bouncing_ball_signals.py`; dev-only: `pip install cairosvg`. The indicator cards mirror
 `widget_style.py`; a test fails if the two drift apart, so regenerate the frames
 after changing those values.
 Unlike the frog and cat, the star's six frames form one continuous arc, so each
@@ -85,7 +89,11 @@ motion. The static style places a frame half its height below the top of the
 view, so the indicators use a short 350x170 canvas that keeps them level with the
 speed digits (and uses about a third of the texture memory of a 350x500 frame).
 Unlike Qt, static signals are not hidden while the car is stopped, which suits an
-indicator; the hopping animations use the traditional style.
+indicator; the travelling animations use the traditional style. Bouncing Ball's
+frames are the full screen height (64x1080) so the ball can fall from the top;
+its 40 frames at 75 ms use about 11 MB of texture memory while it is selected.
+Like the other full-width animations, it briefly passes over the top-corner
+controls as it drops in, and a bottom alert scales the pass down to fit above it.
 
 Host regression tests (no vehicle or graphics window required):
 

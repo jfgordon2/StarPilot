@@ -576,6 +576,8 @@ BUNDLED_LAYOUTS = {
   "flow": ("static_62", 12, (350, 170)),
   "open_flow": ("static_62", 12, (350, 170)),
   "glide": ("static_62", 12, (350, 170)),
+  # full screen height so the ball can drop in from the top; narrow because the renderer moves it
+  "bouncing_ball": ("traditional_75", 40, (64, 1080)),
 }
 STATIC_PACKS = ["sequential", "flow", "open_flow", "glide"]
 
@@ -651,7 +653,7 @@ def test_comma3_menu_offers_cat_once_whether_or_not_it_is_installed(tmp_path):
                       dict(namespace, THEME_SAVE_PATH=tmp_path, SIGNAL_FRAME_PATTERN=turn_signals.FRAME_PATTERN, tr=str))
   layout = cls()
   layout._params = Params(SignalAnimation="pouncing_cat", CustomThemes=True)
-  expected = ["Flow", "Frog", "Glide", "None", "Open Flow", "Pouncing Cat", "Sequential", "Shooting Star"]
+  expected = ["Bouncing Ball", "Flow", "Frog", "Glide", "None", "Open Flow", "Pouncing Cat", "Sequential", "Shooting Star"]
   assert layout._build_theme_options("SignalAnimation")[0] == expected
   for pack in turn_signals.BUNDLED_SIGNAL_PATHS:  # after boot these are also installed theme packs
     (tmp_path / f"theme_packs/{pack}/signals").mkdir(parents=True)
@@ -679,7 +681,7 @@ def test_comma4_menu_offers_and_saves_the_cat():
   button.set_value = labels.append
   button._show_selector()
   assert dialogs[0]["options"] == ["None", "Sequential", "Flow", "Open Flow", "Glide", "Frog", "Pouncing Cat",
-                                   "Shooting Star"]
+                                   "Shooting Star", "Bouncing Ball"]
   assert dialogs[0]["default"] == "Frog"
   dialogs[0]["right_btn_callback"]()
   assert button._params.values["SignalAnimation"] == "pouncing_cat"
@@ -795,3 +797,25 @@ def test_indicator_cards_use_the_on_road_widget_tokens(tool):
   assert f"CONTROL_RADIUS = {module.RADIUS}" in style and f"CONTROL_BORDER_WIDTH = {module.BORDER_WIDTH}" in style
   assert "CONTROL_BG = rl.Color(0, 0, 0, 166)" in style and "CONTROL_BORDER = rl.Color(196, 205, 208, 180)" in style
   assert (module.W, module.H) == (350, 170)
+
+
+def test_bouncing_ball_drops_in_touches_down_four_times_and_bounces_off_screen():
+  ball = _load_tool("make_bouncing_ball_signals")
+  assert ball.FRAMES * ball.FRAME_MS == 3000  # an unhurried 3 s pass
+  touchdowns = ball.contacts()
+  assert len(touchdowns) == ball.TOUCHDOWNS == 4
+  heights = [ball.ball_height(f) for f in range(ball.FRAMES)]
+  assert ball.REST_Y - heights[0] < ball.RADIUS  # first frame: entering at the very top of the screen
+  assert [f for f, h in enumerate(heights) if h == 0] == [round(t) for t in touchdowns]  # rigid: visible touchdowns only
+  apexes = [max(heights[round(a) + 1:round(b)]) for a, b in zip(touchdowns, touchdowns[1:], strict=False)]
+  assert apexes == sorted(apexes, reverse=True) and apexes[0] < heights[0]
+  # After the fourth touchdown it is airborne and still rising as it leaves the far edge.
+  assert touchdowns[-1] < ball.FRAMES - 2
+  assert 0 < heights[-2] < heights[-1]
+
+
+def test_bouncing_ball_is_a_rigid_ping_pong_ball():
+  ball = _load_tool("make_bouncing_ball_signals")
+  for frame in range(ball.FRAMES):
+    svg = ball.frame_svg(frame)
+    assert f'r="{ball.RADIUS}"' in svg and svg.count("<circle") == 1  # always round: no squash or stretch

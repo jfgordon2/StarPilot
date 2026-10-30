@@ -35,7 +35,7 @@ THEME_KEY_CONFIG = {
         "default": "stock",
         "extra": [("stock", "None"), ("frog", "Frog"), ("pouncing_cat", "Pouncing Cat"),
                   ("shooting_star", "Shooting Star"), ("sequential", "Sequential"), ("flow", "Flow"),
-                  ("open_flow", "Open Flow"), ("glide", "Glide")],
+                  ("open_flow", "Open Flow"), ("glide", "Glide"), ("bouncing_ball", "Bouncing Ball")],
     },
 }
 
