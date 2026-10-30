@@ -22,6 +22,7 @@ CANCEL_DOWNLOAD_PARAM = "CancelThemeDownload"
 DOWNLOAD_PROGRESS_PARAM = "ThemeDownloadProgress"
 
 HOLIDAY_THEME_PATH = Path(__file__).parent / "holiday_themes"
+SIGNAL_PACKS_PATH = Path(__file__).parent / "signal_packs"
 STOCKOP_THEME_PATH = Path(__file__).parent / "stock_theme"
 LOCAL_RESOURCES_PATH = Path(os.getenv("STARPILOT_LOCAL_RESOURCES_PATH", "~/StarPilot-Resources")).expanduser()
 
@@ -82,6 +83,7 @@ class ThemeManager:
 
     if boot_run:
       self.copy_default_theme()
+      self.copy_bundled_signal_packs()
 
   @staticmethod
   def _local_resources_available():
@@ -179,6 +181,16 @@ class ThemeManager:
     days_to_thursday = (3 - november_first.weekday()) % 7
     first_thursday = november_first + timedelta(days=days_to_thursday)
     return first_thursday + timedelta(days=21)
+
+  @staticmethod
+  def copy_bundled_signal_packs():
+    """Install the turn-signal animations that ship with StarPilot (e.g. Pouncing Cat)
+    as regular theme packs, so they are linked and listed like downloaded ones."""
+    if not SIGNAL_PACKS_PATH.is_dir():
+      return
+    for pack in sorted(SIGNAL_PACKS_PATH.iterdir()):
+      if (pack / "signals").is_dir():
+        shutil.copytree(pack / "signals", THEME_SAVE_PATH / "theme_packs" / pack.name / "signals", dirs_exist_ok=True)
 
   @staticmethod
   def copy_default_theme():

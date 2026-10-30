@@ -1,30 +1,37 @@
-# Turn-signal frogs in the raylib UI
+# Turn-signal animations in the raylib UI
 
-The raylib UI supports StarPilot's original six-frame jumping-frog turn signals
-on comma 3/3X and comma 4. The frog assets are bundled; no download is needed.
+The raylib UI supports animated turn signals on comma 3/3X and comma 4. Two are
+bundled, so no download is needed:
+
+- **Frog**: StarPilot's original six-frame jumping frog.
+- **Pouncing Cat**: an orange tabby that crouches, leaps and pounces, then
+  settles back into a crouch; its blind-spot image is an arched-back red cat.
+
+To choose one:
 
 - **Comma 3/3X:** StarPilot settings → Appearance → Driving Widgets & HUD →
-  Turn Signal Animation → Frog.
-- **Comma 4:** Settings → Visuals → Turn Signal Animation → Frog.
+  Turn Signal Animation → Frog or Pouncing Cat.
+- **Comma 4:** Settings → Visuals → Turn Signal Animation → Frog or Pouncing Cat.
 - Select **None** to disable the selected animation.
 
 The comma 3/3X picker also lists downloaded packs containing supported PNG signal
 frames; GIF-only and blind-spot-only packs are excluded. The smaller comma 4
-picker deliberately offers None and Frog, plus the currently saved custom pack.
+picker deliberately offers None, Frog and Pouncing Cat, plus the currently saved
+custom pack.
 
-Selecting Frog (or another non-stock signal pack) enables the existing Custom
+Selecting an animation (or another non-stock signal pack) enables the existing Custom
 Themes setting and turns Random Themes off so the selected animation takes
 effect. Enabling Custom Themes also reactivates any saved color, icon, distance
 icon, and steering-wheel selections; those preferences are not reset.
 Automatic holiday themes still override the saved signal selection, including
-when Custom Themes is off. Turn off Holiday Themes (next to Turn Signal Animation on either device, or in
-The Galaxy) if you want the selected frogs
+when Custom Themes is off. Turn off Holiday Themes (next to Turn Signal Animation
+on either device, or in The Galaxy) if you want your selected animation
 throughout the year. Turning Random Themes back on lets it choose the active
 signal pack again. Simple Mode disables custom signal animations.
 
 The animation uses `carState.leftBlinker` and `rightBlinker`; it does not require
 openpilot engagement or openpilot longitudinal control, so factory ACC works.
-Right turns mirror the frog, hazards draw both directions, and a factory
+Right turns mirror the animation, hazards draw both directions, and a factory
 blind-spot detection uses the theme's warning image on the corresponding side.
 Full-screen alerts suppress the animation. Comma 3 alerts reserve space at the
 bottom; comma 4 lane-change alerts reserve space at the top, and all other comma
@@ -34,17 +41,25 @@ The renderer also reads installed PNG signal themes from `active_theme/signals`,
 including numbered frames, `turn_signal_blindspot.png`, and the existing
 `traditional_<milliseconds>` / `static_<milliseconds>` timing markers. GIF signal
 themes are not supported by this renderer.
-The active frog pack takes precedence over the bundled fallback, so edits to
-`theme_packs/frog/signals` are used when the theme manager activates that pack.
-When switching to Frog, bundled frogs appear immediately if the active link
-still points at another pack, then the installed frog assets load after relinking.
-Static signal themes do not yet reproduce Qt's stopped-timer suppression;
-jumping frogs use the traditional style and are unaffected by that difference.
+Bundled assets live in `starpilot/assets/holiday_themes/world_frog_day/signals`
+(Frog) and `starpilot/assets/signal_packs/<name>/signals` (Pouncing Cat). At boot
+the theme manager copies them into `theme_packs/frog/signals` and
+`theme_packs/pouncing_cat/signals`, and the installed copy takes precedence, so
+edits there are used once the theme manager activates that pack. When switching
+animations, the bundled frames appear immediately if the active link still points
+at another pack, then the installed copy loads at the next signal after relinking.
+To add another bundled animation, put its `signals` folder under
+`starpilot/assets/signal_packs/<slug>/` and add the slug to `BUNDLED_SIGNAL_PATHS`
+in `turn_signals.py` and to both pickers. The cat frames are drawn by
+`starpilot/tools/make_pouncing_cat_signals.py` (dev-only: `pip install cairosvg`).
+Static signal themes do not yet reproduce Qt's stopped-timer suppression; both
+bundled animations use the traditional style and are unaffected by that difference.
 
 Host regression tests (no vehicle or graphics window required):
 
 ```sh
 PYTHONPATH=. pytest -q -c /dev/null --confcutdir=selfdrive/ui/tests selfdrive/ui/tests/test_turn_signals.py
+PYTHONPATH=. pytest -q -c /dev/null --confcutdir=starpilot/assets/tests starpilot/assets/tests/test_theme_catalog_refresh.py
 ```
 
 After installing the change, check left, right, and hazard signals while parked,

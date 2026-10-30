@@ -13,6 +13,13 @@ from openpilot.common.basedir import BASEDIR
 ASSETS_PATH = Path(BASEDIR) / "starpilot/assets"
 ACTIVE_SIGNALS_PATH = ASSETS_PATH / "active_theme/signals"
 FROG_SIGNALS_PATH = ASSETS_PATH / "holiday_themes/world_frog_day/signals"
+POUNCING_CAT_SIGNALS_PATH = ASSETS_PATH / "signal_packs/pouncing_cat/signals"
+# Animations that ship with StarPilot. The theme manager copies each one into
+# theme_packs/<slug>/signals at boot; until it links that copy, render these.
+BUNDLED_SIGNAL_PATHS = {
+  "frog": FROG_SIGNALS_PATH,
+  "pouncing_cat": POUNCING_CAT_SIGNALS_PATH,
+}
 FRAME_PATTERN = re.compile(r"turn_signal(?:_(\d+))?\.png", re.IGNORECASE)
 STYLE_PATTERN = re.compile(r"(traditional|static)_(\d+)", re.IGNORECASE)
 
@@ -67,12 +74,13 @@ class TurnSignalRenderer:
 
     files, file_stamp = self._scan(ACTIVE_SIGNALS_PATH)
     active_directory = Path(file_stamp[0])
-    active_is_frog = (active_directory == FROG_SIGNALS_PATH.resolve() or
-                      (active_directory.name == "signals" and active_directory.parent.name == "frog"))
+    bundled = BUNDLED_SIGNAL_PATHS.get(pack)
+    active_is_pack = bundled is not None and (active_directory == bundled.resolve() or
+                                              (active_directory.name == "signals" and active_directory.parent.name == pack))
     # Preserve edits to the theme manager's active frog pack. Bundled frogs are
     # a fallback while its link is missing or still points at the previous pack.
-    if pack == "frog" and (not active_is_frog or not any(FRAME_PATTERN.fullmatch(path.name) for path in files)):
-      files, file_stamp = self._scan(FROG_SIGNALS_PATH)
+    if bundled is not None and (not active_is_pack or not any(FRAME_PATTERN.fullmatch(path.name) for path in files)):
+      files, file_stamp = self._scan(bundled)
     stamp = (pack, file_stamp)
     self._pack = pack
     if stamp == self._stamp:

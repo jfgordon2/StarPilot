@@ -112,9 +112,9 @@ class TurnSignalAnimationBigButton(BigButton):
     self.set_value(slug.replace("_", " ") if enabled else "none")
 
   def _show_selector(self):
-    options = {"None": "stock", "Frog": "frog"}
+    options = {"None": "stock", "Frog": "frog", "Pouncing Cat": "pouncing_cat"}
     slug = self._params.get("SignalAnimation", encoding="utf-8") or "stock"
-    if slug not in ("stock", "none", "frog"):
+    if slug not in ("none", *options.values()):
       options[slug] = slug
     current = next((label for label, value in options.items() if value == slug), "None")
     dialog_holder: dict[str, BigMultiOptionDialog] = {}

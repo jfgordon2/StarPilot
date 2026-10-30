@@ -564,3 +564,90 @@ def test_comma4_holiday_themes_toggle_saves_and_refreshes_starpilot_toggles():
   control = namespace["StarPilotBigParamControl"]("holiday themes", "HolidayThemes")
   control._handle_mouse_release(None)
   assert notifications == [{"HolidayThemes": False}]  # saved before StarPilot is told to refresh
+
+
+def test_bundled_pouncing_cat_matches_the_frog_layout():
+  import struct
+  directory = turn_signals.POUNCING_CAT_SIGNALS_PATH
+  assert turn_signals.BUNDLED_SIGNAL_PATHS["pouncing_cat"] == directory
+  names = sorted(path.name for path in directory.iterdir())
+  assert names == ["traditional_125", *(f"turn_signal_{i}.png" for i in range(1, 7)), "turn_signal_blindspot.png"]
+  for name in names[1:]:
+    header = (directory / name).read_bytes()[:26]
+    assert header[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">II", header[16:24]) == (350, 500)
+    assert header[25] == 6  # RGBA: transparent background like the frog frames
+
+
+@pytest.mark.parametrize("pack", ["frog", "pouncing_cat"])
+def test_bundled_packs_render_before_the_theme_manager_links_them(scene, monkeypatch, tmp_path, pack):
+  stock = tmp_path / "stock_theme/signals"
+  stock.mkdir(parents=True)
+  active = tmp_path / "active"
+  active.symlink_to(stock, target_is_directory=True)
+  monkeypatch.setattr(turn_signals, "ACTIVE_SIGNALS_PATH", active)
+  scene.state.starpilot_toggles["signal_icons"] = pack
+  scene.renderer.render(scene.rect, scene.state)
+  assert scene.draws[-1].texture.path == turn_signals.BUNDLED_SIGNAL_PATHS[pack] / "turn_signal_1.png"
+
+  installed = tmp_path / f"theme_packs/{pack}/signals"
+  installed.mkdir(parents=True)
+  (installed / "turn_signal_1.png").write_bytes(b"installed copy")
+  active.unlink()
+  active.symlink_to(installed, target_is_directory=True)
+  _start_new_signal(scene)
+  scene.renderer.render(scene.rect, scene.state)
+  assert scene.draws[-1].texture.path.resolve() == installed / "turn_signal_1.png"
+
+
+def test_switching_between_frog_and_cat_swaps_textures(scene):
+  scene.renderer.render(scene.rect, scene.state)
+  assert scene.draws[-1].texture.path.parent == turn_signals.FROG_SIGNALS_PATH
+  frog_textures = scene.uploaded.copy()
+  scene.state.starpilot_toggles["signal_icons"] = "pouncing_cat"
+  scene.renderer.render(scene.rect, scene.state)
+  assert scene.draws[-1].texture.path.parent == turn_signals.POUNCING_CAT_SIGNALS_PATH
+  assert sorted(t.id for t in scene.unloaded) == sorted(t.id for t in frog_textures)
+
+
+def test_comma3_menu_offers_cat_once_whether_or_not_it_is_installed(tmp_path):
+  import re
+  tree = ast.parse((ROOT / "selfdrive/ui/layouts/settings/starpilot/appearance.py").read_text())
+  config = next(node for node in tree.body if isinstance(node, ast.Assign) and node.targets[0].id == "THEME_KEY_CONFIG")
+  display = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_theme_display_name")
+  namespace = {"re": re}
+  exec(compile(ast.Module(body=[config, display], type_ignores=[]), "appearance.py", "exec"), namespace)
+  cls = _source_class("selfdrive/ui/layouts/settings/starpilot/appearance.py", "StarPilotAppearanceLayout",
+                      {"_build_theme_options", "_get_theme_value"},
+                      dict(namespace, THEME_SAVE_PATH=tmp_path, SIGNAL_FRAME_PATTERN=turn_signals.FRAME_PATTERN, tr=str))
+  layout = cls()
+  layout._params = Params(SignalAnimation="pouncing_cat", CustomThemes=True)
+  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat"]
+  for pack in ("frog", "pouncing_cat"):  # after boot both are also installed theme packs
+    (tmp_path / f"theme_packs/{pack}/signals").mkdir(parents=True)
+    (tmp_path / f"theme_packs/{pack}/signals/turn_signal_1.png").touch()
+  options, mapping, current = layout._build_theme_options("SignalAnimation")
+  assert options == ["Frog", "None", "Pouncing Cat"]
+  assert mapping["Pouncing Cat"] == "pouncing_cat" and current == "Pouncing Cat"
+  assert layout._get_theme_value("SignalAnimation") == "Pouncing Cat"
+
+
+def test_comma4_menu_offers_and_saves_the_cat():
+  dialogs = []
+  def dialog(**kwargs):
+    dialogs.append(kwargs)
+    return SimpleNamespace(get_selected_option=lambda: "Pouncing Cat", confirm=kwargs["right_btn_callback"])
+  cls = _source_class("selfdrive/ui/mici/layouts/settings/visuals.py", "TurnSignalAnimationBigButton",
+                      {"refresh", "_show_selector"},
+                      dict(BigMultiOptionDialog=dialog, gui_app=SimpleNamespace(push_widget=lambda d: None),
+                           update_starpilot_toggles=lambda: None))
+  button = cls()
+  button._params = Params(SignalAnimation="frog", CustomThemes=True)
+  labels = []
+  button.set_value = labels.append
+  button._show_selector()
+  assert dialogs[0]["options"] == ["None", "Frog", "Pouncing Cat"]
+  assert dialogs[0]["default"] == "Frog"
+  dialogs[0]["right_btn_callback"]()
+  assert button._params.values["SignalAnimation"] == "pouncing_cat"
+  assert labels == ["pouncing cat"]
