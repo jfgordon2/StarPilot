@@ -163,6 +163,14 @@ class FontWeight(StrEnum):
   ROMAN = "Inter-Regular.fnt"
   DISPLAY = "Inter-Bold.fnt"
 
+  # StarPilot Essentials design (selfdrive/ui/lib/essentials_style.py)
+  FIGTREE_REGULAR = "Figtree-Regular.fnt"
+  FIGTREE_MEDIUM = "Figtree-Medium.fnt"
+  FIGTREE_SEMIBOLD = "Figtree-SemiBold.fnt"
+  FIGTREE_BOLD = "Figtree-Bold.fnt"
+  FIGTREE_EXTRABOLD = "Figtree-ExtraBold.fnt"
+  MONO = "JetBrainsMono-Medium.fnt"
+
 
 def font_fallback(font: rl.Font) -> rl.Font:
   """Fall back to unifont for languages that require it."""
