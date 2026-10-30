@@ -152,8 +152,9 @@ The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software
   - Cellular status, Hotspot (tethering), and Save Data, which is on by default and covers metered Wi-Fi.
   - Roaming, APN and IP address sit behind one row.
 - **Bluetooth:** leads with **Wheel Buttons**, because a remote mounted on the steering wheel is the main reason to pair something.
-  - The connected remote shows a Test button and the list of assigned buttons, each with its action.
-  - New remotes start with four presets: change driving style, screen off / on, save a clip, and navigate home.
+  - The connected remote is listed with its assigned buttons, each with its action.
+  - New remotes start with four presets: engage, disengage, change driving style, and screen off / on.
+  - **Press to find.** While this tab is open, the wheel controls test mode (`WheelControlTestActive`) is on. Pressing a button on the remote highlights its row and marks it PRESSED, and its action does not run. An unassigned button highlights Add a button instead. This replaces the separate Test button.
   - **Add a button** opens a two-step sheet. Step 1: press the button on the remote; listening stops after 20 seconds. Step 2: pick one of nine actions (driving style, screen, set speed, save a clip, navigate to a favorite, always-on steering, coast, engage, disengage).
   - Pulse and glide and driver selfie are only in Tuner Mode.
   - This uses the existing wheel controls service (`WheelControlMappings`, `ControllerActionSlots`, `WheelControlLearnSlot`).
