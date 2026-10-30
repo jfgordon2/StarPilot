@@ -33,6 +33,10 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Vehicle | [vehicle.html](vehicle.html) |
 | Steering headroom | [steeringheadroom.html](steeringheadroom.html) |
 | Status chips | [statuschips.html](statuschips.html) |
+| Device tab | [devicetab.html](devicetab.html) |
+| Network tab | [networktab.html](networktab.html) |
+| Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |
+| Software tab | [softwaretab.html](softwaretab.html) |
 
 ## Principles
 
@@ -132,6 +136,30 @@ Rules:
 - A chip stays up while its reason holds, plus 2 seconds, so it doesn't flicker.
 - Chips hide while an alert is showing. Driver attention warnings and takeover requests always use the alert levels instead.
 - Each chip is an icon plus four words or fewer.
+
+## Device, Network, Bluetooth and Software tabs
+
+The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software. The current tab is highlighted.
+
+- **Device:**
+  - Galaxy pairing with a QR code.
+  - Driver camera preview, camera recalibration, and "How StarPilot Works" (the training guide).
+  - Restart and Power Off.
+  - Serial, device ID and driver monitoring reset move to Developer View.
+- **Network:**
+  - The Wi-Fi list, with the connected network on top, plus "Join a hidden network".
+  - Cellular status, Hotspot (tethering), and Save Data, which is on by default and covers metered Wi-Fi.
+  - Roaming, APN and IP address sit behind one row.
+- **Bluetooth:**
+  - Framed around one job: playing alerts through the car's speakers.
+  - My devices, with Test sound and Stop using for the audio device, and nearby devices to pair.
+  - Pairing waits until the car is parked.
+- **Software:**
+  - Version and update status, with Check now and What's new.
+  - Automatic Updates, on by default: they download while parked and install when the car turns off.
+  - Release Channel shows Stable. Other branches, Fast Update and the error log are in Tuner Mode.
+  - Reset StarPilot Settings restores the Essentials defaults and keeps backups.
+  - Uninstall sits at the bottom. Factory reset moves to Tuner Mode.
 
 ## Navigation
 
