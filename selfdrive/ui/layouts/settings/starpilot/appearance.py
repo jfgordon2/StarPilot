@@ -151,6 +151,7 @@ class StarPilotAppearanceLayout(_SettingsPage):
             subtitle=subtitle,
             get_state=lambda k=key: self._params.get_bool(k),
             set_state=lambda s, k=key: self._params.put_bool(k, s),
+            preview_on=lambda k=key: self._params.assume(k, True),
         )
 
     def _show_lead_detection_threshold_selector(self):

@@ -207,3 +207,12 @@ def test_row_action_pills_are_padded_like_buttons():
   assert "action_text_size).x + AS.SETTINGS_CARD_INSET * 2" in row
   button = source[source.index("class AetherButton"):]
   assert "text_width + AS.SETTINGS_CARD_INSET * 2" in button[:button.index("def measure_height")]
+
+
+def test_selected_segment_uses_white_text_on_the_pill_tint():
+  """Accent text on an accent tint was about 3:1; the selected segment matches the value pills instead."""
+  source = _source("aethergrid.py")
+  control = source[source.index("class AetherSegmentedControl"):source.index("class TileGrid")]
+  assert "title_color = AS.TEXT if is_active" in control
+  assert "fill = AS.ACCENT_TINT if is_active" in control and "border = AS.ACCENT_EDGE if is_active" in control
+  assert "title_color = accent if is_active" not in control

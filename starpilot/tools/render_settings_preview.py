@@ -21,9 +21,17 @@ from render_onroad_preview import HEIGHT, WIDTH, export_preview_frame, init_prev
 PAGES = ("hub", "appearance", "hud", "signal-picker", "camera-picker", "metric-picker", "button-picker", "maintenance-picker",
          "sounds", "sounds-states", "sounds-volume", "system", "controls", "vehicle",
          "gas-brake", "conditional", "maps", "driving-model", "driving-model-list", "driving-model-empty", "navigation", "navigation-route",
-         "sounds-reset", "alert-dialog", "rich-dialog", "downloads", "downloads-progress")
+         "sounds-reset", "alert-dialog", "rich-dialog", "downloads", "downloads-progress",
+         "lane-changes-off", "curve-speed-off", "steering-behavior-off")
 DIALOG_PAGES = {"downloads", "downloads-progress", "sounds-reset", "alert-dialog", "rich-dialog", "sounds-volume", "signal-picker", "camera-picker",
                 "metric-picker", "button-picker", "maintenance-picker"}
+
+
+OFF_SECTION_PAGES = {
+  "lane-changes-off": ("LATERAL", "lane_changes", "LaneChanges"),
+  "curve-speed-off": ("LONGITUDINAL", "csc", "CurveSpeedController"),
+  "steering-behavior-off": ("LATERAL", "behavior", "AlwaysOnLateral"),
+}
 
 
 def seed_driving_models(panel) -> None:
@@ -110,6 +118,15 @@ def render(pages: list[str], destination: Path, include_scrolled: bool = False) 
       starpilot.reset_to_root()
       if page == "controls":
         starpilot._open_folder(next(c for c in starpilot.CATEGORIES if "children" in c))
+      elif page in OFF_SECTION_PAGES:
+        # A section whose main switch is off: rows it unlocks show greyed below the switch.
+        panel_key, sub_panel, param = OFF_SECTION_PAGES[page]
+        params.put_bool(param, False)
+        shared_ui_params().invalidate()
+        folder = next(c for c in starpilot.CATEGORIES if "children" in c)
+        starpilot._open_folder(folder)
+        starpilot._open_leaf(next(c for c in folder["children"] if c.get("panel") == panel_key))
+        starpilot._push_sub_panel(sub_panel)
       elif page in ("gas-brake", "conditional", "maps", "navigation", "navigation-route"):
         folder = next(c for c in starpilot.CATEGORIES if "children" in c)
         starpilot._open_folder(folder)

@@ -91,6 +91,7 @@ class StarPilotLateralLayout(_SettingsPage):
       subtitle=subtitle,
       get_state=lambda k=key: self._params.get_bool(k),
       set_state=lambda s, k=key: self._params.put_bool(k, s),
+      preview_on=lambda k=key: self._params.assume(k, True),
     )
 
   def _build_panels(self):
@@ -340,6 +341,7 @@ class StarPilotLateralLayout(_SettingsPage):
       subtitle="Steering stays active when ACC is off.",
       get_state=lambda: p.get_bool("AlwaysOnLateral"),
       set_state=lambda s: _confirm_reboot_toggle(p, "AlwaysOnLateral", s) if s else p.put_bool("AlwaysOnLateral", False),
+      preview_on=lambda: p.assume("AlwaysOnLateral", True),
     )
     pt_lane_changes = self._make_parent("LaneChanges", "Lane Changes",
       "Allow openpilot to change lanes.")

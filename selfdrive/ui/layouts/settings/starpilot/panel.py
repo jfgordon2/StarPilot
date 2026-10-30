@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
+from contextlib import contextmanager
 from enum import IntEnum
 import re
 
@@ -20,11 +21,29 @@ from openpilot.selfdrive.ui.layouts.settings.starpilot.sectioned_panel import Se
 class FrameCachedParams:
   def __init__(self):
     self._cache = shared_ui_params()
+    self._assumed: dict[str, bool] = {}
+
+  @contextmanager
+  def assume(self, key: str, value: bool):
+    """Read `key` as `value` inside the block, without writing it.
+
+    Lets a page ask which rows a switched-off section would show (see ParentToggle.preview_on)."""
+    previous = self._assumed.get(key)
+    self._assumed[key] = value
+    try:
+      yield
+    finally:
+      if previous is None:
+        self._assumed.pop(key, None)
+      else:
+        self._assumed[key] = previous
 
   def get(self, key, **kwargs):
     return self._cache.get(key, **kwargs)
 
   def get_bool(self, key, **kwargs):
+    if key in self._assumed:
+      return self._assumed[key]
     return self._cache.get_bool(key, **kwargs)
 
   def get_int(self, key, **kwargs):

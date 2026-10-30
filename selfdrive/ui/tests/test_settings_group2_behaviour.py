@@ -89,3 +89,59 @@ def test_download_manager_mode_control_switches_lists(tmp_path):
   assert manager._list_items == ["Frog Logo"]
   manager._mode_control._on_change(manager.MODE_DOWNLOAD)
   assert manager._active_mode == manager.MODE_DOWNLOAD and manager._list_items == ["Pixel Logo"]
+
+
+def _switched_off_view():
+  """Lane Changes in miniature: two rows need the switch, one doesn't, one never applies to this car."""
+  from contextlib import contextmanager
+  from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import AetherSettingsView, ParentToggle, SettingRow, SettingSection
+  state = {"LaneChanges": False, "Nudgeless": True}
+  assumed = {}
+
+  def on(key):
+    return assumed.get(key, state[key])
+
+  @contextmanager
+  def assume_on():
+    assumed["LaneChanges"] = True
+    try:
+      yield
+    finally:
+      assumed.clear()
+
+  toggled = []
+  rows = [
+    SettingRow("Nudgeless", "toggle", "Auto Lane Changes", get_state=lambda: on("Nudgeless"),
+               set_state=toggled.append, visible=lambda: on("LaneChanges")),
+    SettingRow("Delay", "value", "Lane Change Delay", get_value=lambda: "1s", on_click=lambda: toggled.append("delay"),
+               visible=lambda: on("LaneChanges") and on("Nudgeless")),
+    SettingRow("Always", "toggle", "Always Shown", get_state=lambda: False, set_state=toggled.append),
+    SettingRow("TeslaOnly", "toggle", "Tesla Only", get_state=lambda: False, set_state=toggled.append, visible=lambda: False),
+  ]
+  parent = ParentToggle("Lane Changes", lambda: state["LaneChanges"], lambda s: state.update(LaneChanges=s), preview_on=assume_on)
+  view = AetherSettingsView(None, [SettingSection("", rows)], parent_toggle=parent)
+  return view, rows, state, toggled
+
+
+def test_switched_off_section_shows_what_it_unlocks_greyed_and_untappable():
+  view, rows, state, toggled = _switched_off_view()
+  shown = view._visible_rows(view._sections[0])
+  assert [row.id for row in shown] == ["Nudgeless", "Delay", "Always"]  # never-applicable rows stay hidden
+  assert [view._row_locked(row) for row in shown] == [True, True, False]
+  view._activate_target("toggle:Nudgeless")
+  view._activate_target("value:Delay")
+  assert toggled == []  # greyed rows ignore taps
+
+  state["LaneChanges"] = True
+  shown = view._visible_rows(view._sections[0])
+  assert [view._row_locked(row) for row in shown] == [False, False, False]
+
+
+def test_frame_cached_params_can_read_a_switch_as_on_without_writing_it(monkeypatch):
+  from openpilot.selfdrive.ui.layouts.settings.starpilot import panel
+  store = {"LaneChanges": False}
+  monkeypatch.setattr(panel, "shared_ui_params", lambda: SimpleNamespace(get_bool=lambda key, **_k: store[key]))
+  params = panel.FrameCachedParams()
+  with params.assume("LaneChanges", True):
+    assert params.get_bool("LaneChanges")
+  assert not params.get_bool("LaneChanges") and store == {"LaneChanges": False}

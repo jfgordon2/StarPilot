@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 import math
 import random
@@ -3464,6 +3465,9 @@ class ParentToggle:
   get_state: Callable[[], bool]
   set_state: Callable[[bool], None]
   subtitle: str = ""
+  # Context manager that makes the page read this switch as on (FrameCachedParams.assume). While the
+  # switch is off, the rows it unlocks are found with it and shown greyed out instead of an empty page.
+  preview_on: Callable[[], AbstractContextManager] | None = None
 
 
 # ── AetherSettingsView — reusable list-panel ManagerView ──
@@ -3497,6 +3501,7 @@ class AetherSettingsView(PanelManagerView):
     self._has_header = parent_toggle is not None
     self._tab_defs = tab_defs
     self._active_tab_key = tab_defs[0]["id"] if tab_defs else ""
+    self._locked_rows: dict[int, bool] = {}
 
   def use_page_header(self) -> ParentToggle | None:
     """Let the enclosing page header own the master switch, without a duplicate row."""
@@ -3537,6 +3542,8 @@ class AetherSettingsView(PanelManagerView):
       self.reset_scroll()
       return
     row = self._find_row(target_id)
+    if row is not None and self._row_locked(row):
+      return  # greyed preview of what the main switch unlocks
     if row is None:
       return
     if row.enabled is not None and not row.enabled():
@@ -3638,10 +3645,28 @@ class AetherSettingsView(PanelManagerView):
       return [s for s in self._sections if s.tab_key == self._active_tab_key]
     return self._sections
 
-  def _visible_rows(self, section: SettingSection) -> list[SettingRow]:
+  def _rows_shown(self, section: SettingSection) -> list[SettingRow]:
     if section.visible is not None and not section.visible():
       return []
     return [row for row in section.rows if row.visible is None or row.visible()]
+
+  def _parent_switched_off(self) -> bool:
+    return self._parent_toggle is not None and not self._parent_toggle.get_state()
+
+  def _visible_rows(self, section: SettingSection) -> list[SettingRow]:
+    """Rows to draw. With the main switch off, this includes the rows it unlocks, marked locked."""
+    rows = self._rows_shown(section)
+    if not self._parent_switched_off() or self._parent_toggle.preview_on is None:
+      return rows
+    with self._parent_toggle.preview_on():
+      unlocked = self._rows_shown(section)
+    shown = {id(row) for row in rows}
+    for row in unlocked:
+      self._locked_rows[id(row)] = id(row) not in shown
+    return unlocked
+
+  def _row_locked(self, row: SettingRow) -> bool:
+    return self._parent_switched_off() and self._locked_rows.get(id(row), False)
 
   def _measure_content_height(self, width: float) -> float:
     total = 0.0
@@ -3740,20 +3765,14 @@ class AetherSettingsView(PanelManagerView):
     active = self._active_sections()
     has_visible = any(self._visible_rows(s) for s in active)
     if not has_visible:
-      if self._parent_toggle and not self._parent_toggle.get_state():
-        draw_empty_state_card(
-          rl.Rectangle(rect.x, y, width, rect.height - (y - rect.y)),
-          tr("Enable {} to configure settings.").format(tr(self._parent_toggle.label)),
-          "",
-          style=self._panel_style,
-        )
-      elif not self._parent_toggle:
-        draw_empty_state_card(
-          rl.Rectangle(rect.x, y, width, rect.height - (y - rect.y)),
-          tr("No settings to display"),
-          tr("All options in this panel are hidden or unavailable."),
-          style=self._panel_style,
-        )
+      # Only when there is nothing to show even as a greyed preview (e.g. none apply to this car).
+      if self._parent_switched_off():
+        title = tr("{} is off").format(tr(self._parent_toggle.label))
+        body = tr("Turn it on to choose its settings.")
+      else:
+        title, body = tr("No settings to display"), tr("All options in this panel are hidden or unavailable.")
+      draw_settings_empty_state(rl.Rectangle(rect.x, y, width, settings_empty_state_height()), title, body,
+                                style=self._panel_style)
       return
     i = 0
     while i < len(active):
@@ -3826,10 +3845,15 @@ class AetherSettingsView(PanelManagerView):
 
   def _draw_row(self, rect: rl.Rectangle, row: SettingRow, is_last: bool):
     target_id = f"{row.type}:{row.id}"
-    hovered, pressed = self._interactive_state(target_id, row_card_rect(rect))
-
-    enabled = row.enabled() if row.enabled is not None else True
-    subtitle = row.disabled_label if not enabled and row.disabled_label else row.subtitle
+    locked = self._row_locked(row)
+    if locked:
+      # Shown so the page explains what its switch unlocks; not tappable until it's on.
+      hovered = pressed = False
+      enabled, subtitle = False, row.subtitle
+    else:
+      hovered, pressed = self._interactive_state(target_id, row_card_rect(rect))
+      enabled = row.enabled() if row.enabled is not None else True
+      subtitle = row.disabled_label if not enabled and row.disabled_label else row.subtitle
 
     if row.type == "toggle":
       toggle_value = row.get_state() if row.get_state else False
@@ -3857,6 +3881,8 @@ class AetherSettingsView(PanelManagerView):
       action_fill = self._panel_style.danger_fill if row.action_danger else self._panel_style.current_fill
       action_border = self._panel_style.danger_border if row.action_danger else self._panel_style.current_border
       action_text_color = self._panel_style.danger_text if row.action_danger else self._panel_style.title_color
+      if not enabled:
+        action_fill, action_border, action_text_color = with_alpha(AS.TRACK_OFF, 120), AS.SETTINGS_TILE_BORDER, AS.TEXT_DISABLED
       draw_selection_list_row(
         rect,
         title=tr(row.title),
@@ -3865,6 +3891,8 @@ class AetherSettingsView(PanelManagerView):
         hovered=hovered,
         pressed=pressed,
         is_last=is_last,
+        title_color=AetherListColors.HEADER if enabled else self._panel_style.muted_color,
+        subtitle_color=AetherListColors.SUBTEXT if enabled else self._panel_style.muted_color,
         action_pill=True,
         title_size=SETTINGS_ROW_TITLE_FONT_SIZE, subtitle_size=SETTINGS_ROW_SUBTITLE_FONT_SIZE,
         action_pill_height=AETHER_LIST_METRICS.toggle_height, action_text_size=26,
@@ -5190,6 +5218,9 @@ class AetherMultiSelectTile(AetherTile):
                           rl.Vector2(rx + content_pad + 26, y),
                           max_w - 26, val_size, align_center=False, color=val_color)
 
+SEGMENT_SELECTED_EDGE = 4  # same edge width as value pills
+
+
 class AetherSegmentedControl(Widget):
   """Full-content-width mode selector with one size and type scale at every depth."""
 
@@ -5324,11 +5355,11 @@ class AetherSegmentedControl(Widget):
       is_active = i == current_index
 
       if self._style is not None:
-        accent = self._style.accent
-        fill = mix_colors(rl.Color(18, 22, 28, 255), accent, 0.16, alpha=255) if is_active else rl.Color(255, 255, 255, 3)
-        border = with_alpha(accent, 72) if is_active else rl.Color(255, 255, 255, 8)
-        title_color = accent if is_active else AetherListColors.SUBTEXT
-        status_color = mix_colors(accent, AetherListColors.HEADER, 0.4) if is_active else AetherListColors.MUTED
+        # Selected: the value-pill tint and accent edge, with white text (15:1) rather than accent on tint.
+        fill = AS.ACCENT_TINT if is_active else rl.Color(255, 255, 255, 3)
+        border = AS.ACCENT_EDGE if is_active else rl.Color(255, 255, 255, 8)
+        title_color = AS.TEXT if is_active else AetherListColors.SUBTEXT
+        status_color = AS.ACCENT_TEXT if is_active else AetherListColors.MUTED
       else:
         fill = rl.Color(255, 255, 255, 12) if is_active else rl.Color(255, 255, 255, 3)
         border = rl.Color(255, 255, 255, 30) if is_active else rl.Color(255, 255, 255, 8)
@@ -5336,7 +5367,7 @@ class AetherSegmentedControl(Widget):
         status_color = AetherListColors.MUTED
 
       aether_fill(face_rect, fill, inner_radius)
-      _draw_card_outline(face_rect, border, inner_radius, width=1)
+      _draw_card_outline(face_rect, border, inner_radius, width=SEGMENT_SELECTED_EDGE if is_active and self._style is not None else 1)
 
       label = str(_resolve_value(option, ""))
       status = str(_resolve_value(self._statuses[i], ""))

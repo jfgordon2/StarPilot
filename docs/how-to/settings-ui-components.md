@@ -25,6 +25,11 @@ Spacing, radii and colors live in `selfdrive/ui/lib/aether_style.py`.
 - A `ParentToggle` is presented in the shared page header by `_SettingsPage`.
   A standalone view retains its own master-toggle row. Both use the original
   getter and setter.
+- Give a `ParentToggle` a `preview_on` (the pages' `_make_parent` helpers pass
+  `self._params.assume(key, True)`). While the switch is off, `AetherSettingsView`
+  shows the rows it would unlock greyed out and untappable, instead of an empty
+  page; rows that don't depend on the switch stay active. The empty state is used
+  only when nothing would show either way.
 - Use `AetherButton` for actions instead of clickable text. Its measured height
   meets the shared touch minimum, and it uses the same pill drawing as row actions.
   Set `confirmation` and `confirm_label` for reset or destructive actions; their
@@ -32,6 +37,8 @@ Spacing, radii and colors live in `selfdrive/ui/lib/aether_style.py`.
   `use_page_header` to keep the action visible while its content scrolls.
 - Use `AetherSegmentedControl` for mutually exclusive modes. Its selection uses
   the shared card radius and stays inset inside the border, including when pressed.
+  The selected segment looks like a value pill: accent tint, 4-pixel accent edge
+  and white label (15:1), never accent text on an accent tint.
   It owns its shell, 128-pixel height, 40-pixel label font, insets and segment gaps.
   Give it the full page content width, reserve `measure_height(width)` and use
   `AetherSegmentedControl.GAP` around the bar. Do not add a separate shell or
@@ -133,6 +140,8 @@ capture while their header remains fixed.
 confirmation, a one-button alert and long formatted text.
 `driving-model`, `driving-model-list` and `driving-model-empty` use a fixed sample
 catalog (the list capture is scrolled to the model groups with one Options menu open).
+`lane-changes-off`, `curve-speed-off` and `steering-behavior-off` show sections
+whose main switch is off (the last mixes greyed and active rows).
 `navigation` is the empty page; `navigation-route` adds a picked destination,
 favorites and a recent trip. `downloads` and `downloads-progress` open the boot logo
 manager over a temporary folder of sample logos, idle and mid-download.
