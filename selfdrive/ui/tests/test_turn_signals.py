@@ -3,6 +3,7 @@
 pytest -c /dev/null --confcutdir=selfdrive/ui/tests selfdrive/ui/tests/test_turn_signals.py
 """
 import ast
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -566,10 +567,11 @@ def test_comma4_holiday_themes_toggle_saves_and_refreshes_starpilot_toggles():
   assert notifications == [{"HolidayThemes": False}]  # saved before StarPilot is told to refresh
 
 
-def test_bundled_pouncing_cat_matches_the_frog_layout():
+@pytest.mark.parametrize("pack", ["pouncing_cat", "shooting_star"])
+def test_bundled_signal_packs_match_the_frog_layout(pack):
   import struct
-  directory = turn_signals.POUNCING_CAT_SIGNALS_PATH
-  assert turn_signals.BUNDLED_SIGNAL_PATHS["pouncing_cat"] == directory
+  directory = turn_signals.ASSETS_PATH / f"signal_packs/{pack}/signals"
+  assert turn_signals.BUNDLED_SIGNAL_PATHS[pack] == directory
   names = sorted(path.name for path in directory.iterdir())
   assert names == ["traditional_125", *(f"turn_signal_{i}.png" for i in range(1, 7)), "turn_signal_blindspot.png"]
   for name in names[1:]:
@@ -579,7 +581,7 @@ def test_bundled_pouncing_cat_matches_the_frog_layout():
     assert header[25] == 6  # RGBA: transparent background like the frog frames
 
 
-@pytest.mark.parametrize("pack", ["frog", "pouncing_cat"])
+@pytest.mark.parametrize("pack", ["frog", "pouncing_cat", "shooting_star"])
 def test_bundled_packs_render_before_the_theme_manager_links_them(scene, monkeypatch, tmp_path, pack):
   stock = tmp_path / "stock_theme/signals"
   stock.mkdir(parents=True)
@@ -622,13 +624,14 @@ def test_comma3_menu_offers_cat_once_whether_or_not_it_is_installed(tmp_path):
                       dict(namespace, THEME_SAVE_PATH=tmp_path, SIGNAL_FRAME_PATTERN=turn_signals.FRAME_PATTERN, tr=str))
   layout = cls()
   layout._params = Params(SignalAnimation="pouncing_cat", CustomThemes=True)
-  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat"]
-  for pack in ("frog", "pouncing_cat"):  # after boot both are also installed theme packs
+  assert layout._build_theme_options("SignalAnimation")[0] == ["Frog", "None", "Pouncing Cat", "Shooting Star"]
+  for pack in ("frog", "pouncing_cat", "shooting_star"):  # after boot these are also installed theme packs
     (tmp_path / f"theme_packs/{pack}/signals").mkdir(parents=True)
     (tmp_path / f"theme_packs/{pack}/signals/turn_signal_1.png").touch()
   options, mapping, current = layout._build_theme_options("SignalAnimation")
-  assert options == ["Frog", "None", "Pouncing Cat"]
+  assert options == ["Frog", "None", "Pouncing Cat", "Shooting Star"]
   assert mapping["Pouncing Cat"] == "pouncing_cat" and current == "Pouncing Cat"
+  assert mapping["Shooting Star"] == "shooting_star"
   assert layout._get_theme_value("SignalAnimation") == "Pouncing Cat"
 
 
@@ -646,8 +649,29 @@ def test_comma4_menu_offers_and_saves_the_cat():
   labels = []
   button.set_value = labels.append
   button._show_selector()
-  assert dialogs[0]["options"] == ["None", "Frog", "Pouncing Cat"]
+  assert dialogs[0]["options"] == ["None", "Frog", "Pouncing Cat", "Shooting Star"]
   assert dialogs[0]["default"] == "Frog"
   dialogs[0]["right_btn_callback"]()
   assert button._params.values["SignalAnimation"] == "pouncing_cat"
   assert labels == ["pouncing cat"]
+
+
+def test_shooting_star_trail_points_back_along_its_arc():
+  """The star rises then falls; its trail must stream behind it (where it came from)."""
+  import importlib.util
+  spec = importlib.util.spec_from_file_location("star", ROOT / "starpilot/tools/make_shooting_star_signals.py")
+  star = importlib.util.module_from_spec(spec)
+  try:
+    spec.loader.exec_module(star)
+  except ModuleNotFoundError:
+    pytest.skip("cairosvg is a dev-only dependency of the drawing script")
+  heights = [star.TOP + star.ARC_K * (t - (star.FRAMES - 1) / 2) ** 2 for t in range(star.FRAMES)]
+  assert heights[0] > heights[2] and heights[-1] > heights[3]  # one full arc: up, then down
+  for t in range(star.FRAMES):
+    svg = star.frame_svg(t)
+    x1, y1, x2, y2 = (float(v) for v in re.search(r'id="t%da".*?x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)"' % t, svg).groups())
+    assert x2 > x1  # the star travels left, so its trail extends to the right
+    if t < 2:
+      assert y2 > y1  # rising: trail trails downwards
+    elif t > 3:
+      assert y2 < y1  # falling: trail trails upwards

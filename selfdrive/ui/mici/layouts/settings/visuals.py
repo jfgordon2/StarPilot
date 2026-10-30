@@ -112,7 +112,7 @@ class TurnSignalAnimationBigButton(BigButton):
     self.set_value(slug.replace("_", " ") if enabled else "none")
 
   def _show_selector(self):
-    options = {"None": "stock", "Frog": "frog", "Pouncing Cat": "pouncing_cat"}
+    options = {"None": "stock", "Frog": "frog", "Pouncing Cat": "pouncing_cat", "Shooting Star": "shooting_star"}
     slug = self._params.get("SignalAnimation", encoding="utf-8") or "stock"
     if slug not in ("none", *options.values()):
       options[slug] = slug
