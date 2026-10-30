@@ -700,7 +700,7 @@ class StarPilotNavigationLayout(_SettingsPage):
     if self._search_loading:
       draw_empty_state_card(
         rl.Rectangle(x, y, width, NAV_EMPTY_HEIGHT),
-        tr("Searching…"),
+        tr("Searching..."),
         tr("Looking up destinations"),
         title_size=30,
         border=with_alpha(PANEL_STYLE.surface_border, 14),

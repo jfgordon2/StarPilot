@@ -57,6 +57,11 @@ Spacing, radii and colors live in `selfdrive/ui/lib/aether_style.py`.
   the originating row's title and description. Live audio/brightness previews
   restore their original value on Cancel or Escape. Button press assignments stay
   local to their parent dialog until its Apply action.
+- `ConfirmDialog` and `alert_dialog` (`system/ui/widgets/confirm_dialog.py`) use the
+  same outlined card, dialog fill and `AetherButton` Cancel / confirm pills as the
+  selection dialogs. A short message gets a centered card sized to its text; `rich=True`
+  uses the full-size shell with scrolling formatted text. `AetherButton(confirmation=...)`
+  shows this dialog, so reset and destructive actions match automatically.
 - Use `draw_centered_text` for prominent numeric values. It centers visible glyph
   bounds rather than the font's line box. `draw_stepper_symbol` draws centered
   plus/minus strokes, so symbols do not depend on font baselines or glyph support.
@@ -109,6 +114,8 @@ captures the actual volume picker. These samples only change isolated preview pa
 the same header with a short list, long list, button assignments and maintenance
 choices. With `--include-scrolled`, overflowing picker lists also get a bottom
 capture while their header remains fixed.
+`sounds-reset`, `alert-dialog` and `rich-dialog` capture `ConfirmDialog` as a
+confirmation, a one-button alert and long formatted text.
 
 The capture uses device-pixel clipping, independent of desktop window scale.
 Inspect page edges, gaps, long labels, disabled controls and scroll clipping.

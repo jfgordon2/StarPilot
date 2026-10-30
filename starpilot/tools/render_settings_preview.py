@@ -20,8 +20,9 @@ from render_onroad_preview import HEIGHT, WIDTH, export_preview_frame, init_prev
 
 PAGES = ("hub", "appearance", "hud", "signal-picker", "camera-picker", "metric-picker", "button-picker", "maintenance-picker",
          "sounds", "sounds-states", "sounds-volume", "system", "controls", "vehicle",
-         "gas-brake", "conditional", "maps", "sounds-reset")
-DIALOG_PAGES = {"sounds-reset", "sounds-volume", "signal-picker", "camera-picker", "metric-picker", "button-picker", "maintenance-picker"}
+         "gas-brake", "conditional", "maps", "sounds-reset", "alert-dialog", "rich-dialog")
+DIALOG_PAGES = {"sounds-reset", "alert-dialog", "rich-dialog", "sounds-volume", "signal-picker", "camera-picker",
+                "metric-picker", "button-picker", "maintenance-picker"}
 
 
 def render(pages: list[str], destination: Path, include_scrolled: bool = False) -> list[Path]:
@@ -72,6 +73,7 @@ def render(pages: list[str], destination: Path, include_scrolled: bool = False) 
       elif page != "hub":
         title = {"appearance": "Appearance", "hud": "Appearance", "signal-picker": "Appearance", "sounds": "Sounds & Alerts",
                  "system": "System", "vehicle": "Vehicle Settings", "sounds-reset": "Sounds & Alerts",
+                 "alert-dialog": "System", "rich-dialog": "System",
                  "camera-picker": "Appearance", "metric-picker": "Appearance", "button-picker": "Vehicle Settings", "maintenance-picker": "System",
                  "sounds-states": "Sounds & Alerts", "sounds-volume": "Sounds & Alerts"}[page]
         starpilot._open_leaf(next(c for c in starpilot.CATEGORIES if c["title"] == title))
@@ -86,6 +88,15 @@ def render(pages: list[str], destination: Path, include_scrolled: bool = False) 
         panel = starpilot._panels[starpilot._current_panel].instance
         if page == "sounds-reset":
           panel._manager_view._reset_button._activate()
+        elif page == "alert-dialog":
+          from openpilot.system.ui.widgets.confirm_dialog import alert_dialog
+          gui_app.push_widget(alert_dialog("Park to remove downloaded maps."))
+        elif page == "rich-dialog":
+          from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
+          text = ("<h1>Enable Experimental Mode?</h1><p>openpilot defaults to driving in chill mode. Experimental mode "
+                  + "enables alpha-level features that aren't ready for chill mode.</p><p>Always keep your hands on the "
+                  + "wheel and eyes on the road.</p>")
+          gui_app.push_widget(ConfirmDialog(text, "Enable", rich=True))
         elif page == "sounds-volume":
           panel._manager_view._show_volume_slider("EngageVolume")
         elif page == "signal-picker":

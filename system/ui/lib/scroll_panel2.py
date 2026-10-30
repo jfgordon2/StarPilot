@@ -165,8 +165,9 @@ class GuiScrollPanel2:
                           content_size: float) -> None:
     if mouse_event.left_pressed:
       self._snap_target = None
-      if rl.check_collision_point_rec(mouse_event.pos, bounds):
-        self._touch_scrolled = False
+      # A new press starts a new gesture, wherever it lands. Clearing only for presses inside the
+      # list left controls outside it (fixed headers, dialog buttons) ignoring taps after a scroll.
+      self._touch_scrolled = False
 
     max_offset, min_offset = self._get_offset_bounds(bounds_size, content_size)
     # simple exponential return if out of bounds

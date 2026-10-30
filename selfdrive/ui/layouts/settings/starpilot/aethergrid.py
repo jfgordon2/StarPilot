@@ -2337,21 +2337,30 @@ def draw_settings_card_row(
   style: PanelStyle = DEFAULT_PANEL_STYLE, action_fill: rl.Color | None = None,
   action_border: rl.Color | None = None, action_text_color: rl.Color | None = None,
   action_text_size: int = 26, action_height: float = AS.SWITCH_HEIGHT, alpha: int = 255,
+  grouped: bool = False, is_last: bool = False,
 ) -> rl.Rectangle:
-  """One card component; menu code supplies content and behavior, never insets."""
+  """One card component; menu code supplies content and behavior, never insets.
+
+  grouped=True draws the same content as a row of a grouped list (inside draw_settings_group's
+  outline, separated by dividers) instead of its own card.
+  """
   max_control = max(0.0, (rect.width - AS.SETTINGS_CARD_INSET * 2) * 0.42)
   if toggle_value is not None:
     control_width = AS.SWITCH_WIDTH
   elif action_text:
     natural = measure_text_cached(gui_app.font(FontWeight.SEMI_BOLD), action_text, action_text_size).x + AS.SETTINGS_CARD_INSET
-    control_width = min(max_control, max(AS.MIN_TOUCH, natural))
+    control_width = min(max_control, max(AS.MIN_TOUCH * 1.4, natural))  # same minimum as value pills
   elif value:
     control_width = value_pill_width(value, max_control, value_size) if show_chevron else max_control
   else:
     control_width = 28 if show_chevron else 0
   layout = build_settings_row_layout(rect, control_width)
-  draw_settings_row_shell(layout.face, hovered=hovered and enabled, pressed=pressed and enabled,
-                          current=current, emphasis=bool(toggle_value) or bool(value and show_chevron), alpha=alpha)
+  if grouped:
+    draw_list_row_shell(layout.face, current=current, hovered=hovered and enabled, pressed=pressed and enabled,
+                        is_last=is_last, alpha=alpha)
+  else:
+    draw_settings_row_shell(layout.face, hovered=hovered and enabled, pressed=pressed and enabled,
+                            current=current, emphasis=bool(toggle_value) or bool(value and show_chevron), alpha=alpha)
   draw_row_title_subtitle(
     layout.face, layout.text.x, layout.text.width, title, subtitle, title_size, subtitle_size,
     with_alpha(title_color or (style.title_color if enabled else style.muted_color), alpha),

@@ -21,22 +21,19 @@ from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.selfdrive.ui.layouts.settings.starpilot.panel import _SettingsPage
 from openpilot.selfdrive.ui.layouts.settings.starpilot.choice_dialog import AetherChoiceDialog, PreviewChoice
-from openpilot.selfdrive.ui.layouts.settings.starpilot.scribble import draw_custom_icon
 from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import (
   AETHER_LIST_METRICS,
   AetherAdjustorRow,
+  AetherButton,
   AetherSegmentedControl,
-  AetherListColors,
+  RowStatus,
   DEFAULT_PANEL_STYLE,
   PanelManagerView,
   SettingsColumn,
   TileGrid,
-  draw_soft_card,
   GROUP_OVERHEAD,
   draw_settings_group,
   AetherSliderDialog,
-  point_hits,
-  with_alpha,
   SECTION_GAP,
   SPACING,
   TOGGLE_MIN_HEIGHT,
@@ -94,11 +91,6 @@ class SystemSettingsManagerView(PanelManagerView):
   ACTION_PILL_WIDTH = 132
   DANGER_PILL_WIDTH = 112
   METRICS = SYSTEM_PANEL_METRICS
-
-  @property
-  def _hit_rect(self) -> rl.Rectangle:
-    base = super()._hit_rect
-    return rl.Rectangle(base.x, base.y - 72, base.width, base.height + 72)
 
   def __init__(self, controller: StarPilotSystemLayout):
     super().__init__()
@@ -203,6 +195,22 @@ class SystemSettingsManagerView(PanelManagerView):
     def make_set_active(k: str):
       return lambda active: self._show_system_slider(k) if active else None
 
+    def brightness_status(key: str) -> RowStatus:
+      value = self._controller._params.get_int(key)
+      if value >= 101:
+        return RowStatus("display", tr("Follows ambient light"), True)
+      return RowStatus("display", tr("Screen off") if value <= 0 else tr("Fixed brightness"), value > 0)
+
+    # Same status rows as Sounds: icon well, one-line status, value and chevron.
+    row_status = {
+      "ScreenBrightness": lambda: brightness_status("ScreenBrightness"),
+      "ScreenBrightnessOnroad": lambda: brightness_status("ScreenBrightnessOnroad"),
+      "ScreenTimeout": lambda: RowStatus("timer", tr("Screen sleeps when idle"), True),
+      "ScreenTimeoutOnroad": lambda: RowStatus("timer", tr("Screen sleeps when idle"), True),
+      "DeviceShutdown": lambda: RowStatus("system", tr("Shuts down after each drive"), True),
+      "LowVoltageShutdown": lambda: RowStatus("vehicle", tr("Protects the car battery"), True),
+    }
+
     for key, spec in self._slider_specs.items():
       adjustor = self._child(
         AetherAdjustorRow(
@@ -221,6 +229,7 @@ class SystemSettingsManagerView(PanelManagerView):
           set_active=make_set_active(key),
           style=PANEL_STYLE,
           color=PANEL_STYLE.accent,
+          status=row_status[key],
         )
       )
       self._adjustor_rows[key] = adjustor
@@ -291,6 +300,10 @@ class SystemSettingsManagerView(PanelManagerView):
       self._connectivity_tile_grid.add_tile(tile)
     self.register_scroll_grid(self._connectivity_tile_grid)
     self.set_toggle_items(self._toggle_defs)
+
+    # Maintenance (backups, snapshots, resets, Flash Panda) lives in the shared page header, like Sounds' Reset All.
+    self._maintenance_button = self._child(AetherButton(
+      tr("Maintenance"), lambda: gui_app.push_widget(AetherBackupsCareDialog(self._controller))))
 
     self._drive_mode_control = self._child(
       AetherSegmentedControl(
@@ -389,29 +402,8 @@ class SystemSettingsManagerView(PanelManagerView):
     super().hide_event()
     self._clear_ephemeral_state()
 
-  def _interactive_state(self, target_id: str, rect: rl.Rectangle, *, pad_y: float = 0) -> tuple[bool, bool]:
-    self._interactive_rects[target_id] = rect
-    self._interactive_viewports[target_id] = self._scroll_rect
-    parent_rect = None if target_id.startswith("static:") else self._scroll_rect
-    hovered = point_hits(gui_app.last_mouse_event.pos, rect, parent_rect, pad_x=6, pad_y=pad_y)
-    return hovered, self._pressed_target == target_id
-
-  def _target_at(self, mouse_pos) -> str | None:
-    for target_id, rect in self._interactive_rects.items():
-      if target_id.startswith("static:"):
-        if point_hits(mouse_pos, rect, None, pad_x=6, pad_y=0):
-          return target_id
-    for target_id, rect in self._interactive_rects.items():
-      if not target_id.startswith("static:"):
-        if point_hits(mouse_pos, rect, self._interactive_viewports.get(target_id, self._scroll_rect), pad_x=6, pad_y=0):
-          return target_id
-    return None
-
-  def _activate_target(self, target_id: str | None):
-    if not target_id:
-      return
-    if target_id == "static:first_aid":
-      gui_app.push_widget(AetherBackupsCareDialog(self._controller))
+  def use_page_header(self) -> AetherButton:
+    return self._maintenance_button
 
   def _on_frame_created(self, frame) -> None:
     pass
@@ -431,43 +423,6 @@ class SystemSettingsManagerView(PanelManagerView):
     total_offset = bar_height + AetherSegmentedControl.GAP
     self._scroll_rect.y += total_offset
     self._scroll_rect.height = max(0.0, self._scroll_rect.height - total_offset)
-
-    self._draw_breadcrumb_first_aid()
-
-  def _draw_breadcrumb_first_aid(self):
-    top_bar_height = 72
-    shell_w = min(self._rect.width - AETHER_LIST_METRICS.outer_margin_x * 2, AETHER_LIST_METRICS.max_content_width)
-    shell_x = self._rect.x + (self._rect.width - shell_w) / 2
-
-    btn_size = 48.0
-    btn_x = shell_x + shell_w - 24 - btn_size
-    btn_y = self._rect.y - top_bar_height + (top_bar_height - btn_size) / 2
-    btn_rect = rl.Rectangle(btn_x, btn_y, btn_size, btn_size)
-
-    hovered, pressed = self._interactive_state("static:first_aid", btn_rect, pad_y=6)
-
-    if pressed:
-      fill = with_alpha(AetherListColors.PRIMARY, 8)
-      border = with_alpha(AetherListColors.PRIMARY, 28)
-    elif hovered:
-      fill = rl.Color(255, 255, 255, 4)
-      border = rl.Color(255, 255, 255, 10)
-    else:
-      fill = rl.Color(255, 255, 255, 0)
-      border = rl.Color(255, 255, 255, 0)
-
-    draw_soft_card(btn_rect, fill, border)
-
-    s = btn_size / 60.0
-    icon_x = btn_rect.x + (btn_rect.width - 60.0 * s) / 2.0
-    icon_y = btn_rect.y + (btn_rect.height - 60.0 * s) / 2.0
-    if pressed:
-      icon_color = with_alpha(AetherListColors.PRIMARY, 190)
-    elif hovered:
-      icon_color = rl.Color(160, 170, 185, 170)
-    else:
-      icon_color = rl.Color(160, 170, 185, 80)
-    draw_custom_icon("first_aid", icon_x, icon_y, s, icon_color)
 
   def _measure_content_height(self, width: float) -> float:
     for key in self._display_slider_keys + self._power_slider_keys:
@@ -555,7 +510,7 @@ class AetherBackupsCareDialog(AetherChoiceDialog):
       PreviewChoice("reset_toggles", tr("Reset Toggles"), description=tr("Restore default settings after confirmation.")),
       PreviewChoice("reset_stock", tr("Reset To Stock"), description=tr("Restore stock openpilot settings after confirmation.")),
     ]
-    description = tr("Storage: {} · Backups: {} · Snapshots: {}").format(
+    description = tr("Storage: {} • Backups: {} • Snapshots: {}").format(
       controller.storage_summary(), controller.backup_count_text(), controller.toggle_backup_count_text())
     super().__init__(tr("Maintenance"), choices, subtitle=description, layout="list")
     self._controller = controller
