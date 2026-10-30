@@ -388,5 +388,6 @@ class SoftwareLayout(Widget):
         os.system("pkill -SIGUSR1 -f system.updated.updated")
       self._branch_dialog = None
 
-    self._branch_dialog = MultiOptionDialog(tr("Select a branch"), branches, current_target, callback=handle_selection)
+    self._branch_dialog = MultiOptionDialog(tr("Select a branch"), branches, current_target, callback=handle_selection,
+                                            subtitle=tr("Choose the software branch to install."))
     gui_app.push_widget(self._branch_dialog)

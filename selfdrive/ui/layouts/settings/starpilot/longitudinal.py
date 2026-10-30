@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from collections.abc import Callable
 
 import pyray as rl
 
 from openpilot.selfdrive.ui.lib.starpilot_state import starpilot_state
-from openpilot.system.ui.lib.application import FontWeight, MouseEvent, MousePos, gui_app
+from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
@@ -21,29 +19,25 @@ from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import (
   AetherListColors,
   COMPACT_PANEL_METRICS,
   AdjustorTogglesPanelView,
+  SettingsColumn,
   AetherAdjustorRow,
   AetherSegmentedControl,
   AetherSliderDialog,
   DEFAULT_PANEL_STYLE,
-  PanelManagerView,
   ParentToggle,
   SettingRow,
   SettingSection,
   AetherSettingsView,
   CardHubManagerView,
   TileGrid,
-  HubTile,
   TOGGLE_MIN_HEIGHT,
-  TOGGLE_ROW_HEIGHT,
   RowToggleTile,
   ToggleTile,
-  SPACING,
-  draw_section_header,
+  draw_settings_group_heading,
   draw_list_group_shell,
   SECTION_GAP,
   SECTION_HEADER_HEIGHT,
   SECTION_HEADER_GAP,
-  hex_to_color,
 )
 
 from openpilot.starpilot.common.accel_profile import (
@@ -160,8 +154,6 @@ class LongitudinalManagerView(CardHubManagerView):
 
 class ConditionalDriveModeView(AdjustorTogglesPanelView):
   METRICS = COMPACT_PANEL_METRICS
-  TAB_HEIGHT = 98
-  TAB_BOTTOM_GAP = 26
 
   def __init__(self, controller: StarPilotLongitudinalLayout):
     super().__init__()
@@ -179,7 +171,6 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
         self._get_drive_mode_index,
         self._on_drive_mode_change,
         style=PANEL_STYLE,
-        suppress_background=True,
       )
     )
 
@@ -200,7 +191,7 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     elif idx == 2:
       self._controller._params.put_bool("ConditionalExperimental", False)
       self._controller._params.put_bool("ConditionalChill", True)
-    self._update_pagination()
+    self._update_toggle_items()
 
   def _init_toggles(self):
     if PANEL_STYLE.toggle_row_mode:
@@ -208,7 +199,7 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     else:
       self._toggle_grid = TileGrid(columns=2, padding=12, min_tile_height=130.0)
     self._child(self._toggle_grid)
-    self.register_page_grid(self._toggle_grid)
+    self.register_scroll_grid(self._toggle_grid)
 
     cem_defs = [
       {"title": tr("Curves"), "subtitle": tr("Switch to Experimental Mode on open-road curves."), "get_state": lambda: self._controller._params.get_bool("CECurves"), "set_state": lambda v: self._controller._params.put_bool("CECurves", v)},
@@ -232,19 +223,12 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     self._cem_toggle_defs = cem_defs
     self._ccm_toggle_defs = ccm_defs
 
-    self._update_pagination()
+    self._update_toggle_items()
 
-  def _update_pagination(self):
+  def _update_toggle_items(self):
     mode = self._get_drive_mode_index()
-    page_size = self._compute_page_size(TOGGLE_ROW_HEIGHT)
-    if mode == 1:
-      pages = [self._cem_toggle_defs[i:i+page_size] for i in range(0, len(self._cem_toggle_defs), page_size)]
-      self._set_toggle_pages(pages)
-    elif mode == 2:
-      pages = [self._ccm_toggle_defs[i:i+page_size] for i in range(0, len(self._ccm_toggle_defs), page_size)]
-      self._set_toggle_pages(pages)
-    else:
-      self._set_toggle_pages([])
+    items = self._cem_toggle_defs if mode == 1 else self._ccm_toggle_defs if mode == 2 else []
+    self.set_toggle_items(items)
 
   def _make_toggle_tile(self, info: dict) -> ToggleTile:
     cls = RowToggleTile if PANEL_STYLE.toggle_row_mode else ToggleTile
@@ -293,7 +277,6 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
         set_active=lambda active, k=key: self._show_slider(k) if active else None,
         style=PANEL_STYLE, color=PANEL_STYLE.accent
       ))
-      adjustor.set_touch_valid_callback(lambda: self._scroll_panel.is_touch_valid())
       self._adjustor_rows[key] = adjustor
 
   def _show_slider(self, key: str):
@@ -325,6 +308,7 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
 
     gui_app.push_widget(AetherSliderDialog(
       title=spec["title"],
+      subtitle=getattr(self._adjustor_rows.get(key), "_subtitle", "") or tr("Set the threshold for this driving-mode condition."),
       min_val=float(spec["min"]), max_val=float(spec["max"]), step=0.1 if key == "CEModelStopTime" else (0.5 if key == "PulseGlideSpeedDelta" else 1.0),
       current_val=original_val,
       on_close=on_close, presets=[float(p) for p in spec["presets"]],
@@ -332,12 +316,23 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     ))
 
   def _draw_header(self, rect: rl.Rectangle):
-    pass
+    width = self._scroll_rect.width
+    height = self._drive_mode_control.measure_height(width)
+    self._drive_mode_control.render(rl.Rectangle(rect.x, rect.y, width, height))
+    total = height + AetherSegmentedControl.GAP
+    mode = self._get_drive_mode_index()
+    if mode:
+      text = tr("Switch to Experimental Mode") if mode == 1 else tr("Switch to Chill Mode")
+      gui_label(rl.Rectangle(rect.x, rect.y + total, width, 40), text, 40, AetherListColors.HEADER, FontWeight.BOLD,
+                alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER)
+      total += 52
+    self._scroll_rect.y += total
+    self._scroll_rect.height = max(0.0, self._scroll_rect.height - total)
 
   def _measure_content_height(self, content_width: float) -> float:
     mode = self._get_drive_mode_index()
     if mode == 0:
-      return self.TAB_HEIGHT + self.TAB_BOTTOM_GAP
+      return 0.0
     
     keys = self._cem_keys if mode == 1 else self._ccm_keys
     grid = self._toggle_grid
@@ -350,73 +345,55 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     default_adjustor_h = float(AETHER_LIST_METRICS.adjustor_row_height)
     left_h = len(keys) * default_adjustor_h + 16.0
     
-    num_tiles = 4 if self._has_pagination else len(grid.tiles)
-    if PANEL_STYLE.toggle_row_mode:
-      rows = num_tiles
-      tile_h = TOGGLE_ROW_HEIGHT
-    else:
-      rows = (num_tiles + 1) // 2 if self._uses_two_columns(content_width) else num_tiles
-      tile_h = grid.min_tile_height
-    
-    pagination_space = 32.0 if self._has_pagination else 0.0
-    tiles_h = rows * tile_h + (rows - 1) * grid.gap + grid.gap * 2 + pagination_space
+    right_h = self.measure_scroll_grid_height(grid, col_width)
 
-    right_h = tiles_h
-
-    banner_overhead = 52.0
     if self._uses_two_columns(content_width):
-      max_natural_h = max(left_h, right_h)
-      section_overhead = banner_overhead + SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP
-      
-      if self._scroll_rect:
-        available_h = self._scroll_rect.height - section_overhead - self.TAB_HEIGHT - self.TAB_BOTTOM_GAP - 6.0
-      else:
-        available_h = max_natural_h
-        
-      max_container_h = available_h
-      
-      left_row_h = max(95.0, (max_container_h - 16.0) / max(1, len(keys)))
-      for key in keys:
-        self._adjustor_rows[key].custom_row_height = left_row_h
-        
-      self._left_container_h = max_container_h
-      self._tiles_container_h = max_container_h
-      
-      return self._compute_two_column_height(section_overhead + max_container_h) + self.TAB_HEIGHT + self.TAB_BOTTOM_GAP
+      self._left_container_h = left_h
+      self._tiles_container_h = right_h
+      return SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP + max(left_h, right_h)
     else:
       self._left_container_h = left_h
       self._tiles_container_h = right_h
-      total = banner_overhead + left_h + SECTION_GAP + right_h + SECTION_HEADER_HEIGHT * 2 + SECTION_HEADER_GAP * 2
-      return total + self.TAB_HEIGHT + self.TAB_BOTTOM_GAP
+      return left_h + SECTION_GAP + right_h + SECTION_HEADER_HEIGHT * 2 + SECTION_HEADER_GAP * 2
+
+  def _build_scroll_columns(self, width: float) -> list[SettingsColumn]:
+    mode = self._get_drive_mode_index()
+    if not mode or not self._uses_two_columns(width):
+      return []
+    heading = SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP
+    keys = self._cem_keys if mode == 1 else self._ccm_keys
+
+    def draw_column(rect, title, draw_body):
+      body = draw_settings_group_heading(rect, tr(title), style=PANEL_STYLE)
+      draw_body(body)
+
+    def draw_adjustors(rect):
+      self._draw_adjustors(rect.y, rect.x, rect.width, keys)
+
+    def draw_toggles(rect):
+      self._draw_two_column_tile_grid(self._toggle_grid, rect.x, rect.y, rect.width, self._tiles_container_h,
+                                      columns=1 if PANEL_STYLE.toggle_row_mode else 2)
+
+    return [SettingsColumn("left", heading + self._left_container_h, lambda rect: draw_column(rect, "When", draw_adjustors)),
+            SettingsColumn("right", heading + self._tiles_container_h, lambda rect: draw_column(rect, "For", draw_toggles))]
 
   def _draw_scroll_content(self, rect: rl.Rectangle, content_width: float):
     y = rect.y + self._scroll_offset
     
-    header_w = content_width
-    bar_rect = rl.Rectangle(rect.x, y, header_w, self.TAB_HEIGHT)
-    draw_list_group_shell(bar_rect, style=PANEL_STYLE)
-    self._drive_mode_control.render(bar_rect)
-    
-    y += self.TAB_HEIGHT + self.TAB_BOTTOM_GAP
     mode = self._get_drive_mode_index()
     if mode == 0:
       return
-
-    banner_text = tr("Switch to Experimental Mode") if mode == 1 else tr("Switch to Chill Mode")
-    banner_rect = rl.Rectangle(rect.x, y, content_width, 40)
-    gui_label(banner_rect, banner_text, 40, AetherListColors.HEADER, FontWeight.BOLD, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER)
-    y += 40 + 12
 
     keys = self._cem_keys if mode == 1 else self._ccm_keys
     grid = self._toggle_grid
     
     col_width = (content_width - SECTION_GAP) / 2 if self._uses_two_columns(content_width) else content_width
 
-    draw_section_header(rl.Rectangle(rect.x, y, col_width, SECTION_HEADER_HEIGHT), tr("When"), style=PANEL_STYLE, title_size=38, align_center=True)
+    body = draw_settings_group_heading(rl.Rectangle(rect.x, y, col_width, rect.height), tr("When"), style=PANEL_STYLE)
     if self._uses_two_columns(content_width):
-      draw_section_header(rl.Rectangle(rect.x + col_width + SECTION_GAP, y, col_width, SECTION_HEADER_HEIGHT), tr("For"), style=PANEL_STYLE, title_size=38, align_center=True)
+      draw_settings_group_heading(rl.Rectangle(rect.x + col_width + SECTION_GAP, y, col_width, rect.height), tr("For"), style=PANEL_STYLE)
     
-    y += SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP
+    y = body.y
     
     self._draw_adjustors(y, rect.x, col_width, keys)
 
@@ -428,8 +405,8 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
         columns=tg_columns)
     else:
       y += self._left_container_h + SECTION_GAP
-      draw_section_header(rl.Rectangle(rect.x, y, col_width, SECTION_HEADER_HEIGHT), tr("For"), style=PANEL_STYLE, title_size=38, align_center=True)
-      y += SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP
+      body = draw_settings_group_heading(rl.Rectangle(rect.x, y, col_width, rect.height), tr("For"), style=PANEL_STYLE)
+      y = body.y
       self._draw_two_column_tile_grid(
         grid, rect.x, y, col_width,
         self._tiles_container_h, title=None, style=PANEL_STYLE,
@@ -443,7 +420,7 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
       row_h = adjustor.measure_height(width)
       row_rect = rl.Rectangle(x, current_y, width, row_h)
       adjustor.set_is_last(index == len(keys) - 1)
-      adjustor.set_parent_rect(self._scroll_rect)
+      self._bind_scroll_widget(adjustor)
       adjustor.render(row_rect)
       current_y += row_h
 
@@ -490,10 +467,6 @@ class StarPilotLongitudinalLayout(_SettingsPage):
     )
 
   def _build_view(self):
-    ol = lambda: starpilot_state.car_state.hasOpenpilotLongitudinal
-    ce_on = lambda: self._params.get_bool("ConditionalExperimental")
-    cc_on = lambda: self._params.get_bool("ConditionalChill")
-    ce_lead = lambda: ce_on() and self._params.get_bool("CELead")
     csc_on = lambda: self._params.get_bool("CurveSpeedController")
     confirmation_on = lambda: self._params.get_bool("SLCConfirmation")
     
@@ -936,7 +909,8 @@ class StarPilotLongitudinalLayout(_SettingsPage):
         secondary_options.remove("Dashboard")
       selected_secondary = current_secondary if current_secondary in secondary_options else "None"
       secondary_dialog = MultiOptionDialog(tr("SLC Secondary Priority"), secondary_options, selected_secondary,
-                                           callback=lambda res: on_secondary_select(primary, secondary_dialog, res))
+                                           callback=lambda res: on_secondary_select(primary, secondary_dialog, res),
+                                           subtitle=tr("Choose the fallback source when the primary speed limit is unavailable."))
       gui_app.push_widget(secondary_dialog)
 
     def on_primary_select(res):
@@ -948,7 +922,8 @@ class StarPilotLongitudinalLayout(_SettingsPage):
         return
       show_secondary_dialog(primary_dialog.selection)
 
-    primary_dialog = MultiOptionDialog(tr("SLC Primary Priority"), primary_options, current_primary, callback=on_primary_select)
+    primary_dialog = MultiOptionDialog(tr("SLC Primary Priority"), primary_options, current_primary, callback=on_primary_select,
+                                       subtitle=tr("Choose which speed-limit source takes priority."))
     gui_app.push_widget(primary_dialog)
 
   def _get_acceleration_profile_label(self) -> str:
@@ -1013,7 +988,8 @@ class StarPilotLongitudinalLayout(_SettingsPage):
           self._params.put_bool("ConditionalExperimental", False)
           self._params.put_bool("ConditionalChill", True)
 
-    dialog = MultiOptionDialog(tr("Conditional Drive Mode"), options, current, callback=on_select)
+    dialog = MultiOptionDialog(tr("Conditional Drive Mode"), options, current, callback=on_select,
+                               subtitle=tr("Choose when to switch driving modes automatically."))
     gui_app.push_widget(dialog)
 
   def _reset_curve_data(self):
@@ -1246,5 +1222,6 @@ class StarPilotLongitudinalLayout(_SettingsPage):
 
           gui_app.push_widget(ConfirmDialog(tr_noop("Remove API Key?"), tr_noop("Confirm"), callback=on_confirm))
 
-    dialog = MultiOptionDialog(tr_noop("Weather API Key"), options, "ADD", callback=on_select)
+    dialog = MultiOptionDialog(tr("Weather API Key"), options, "ADD", callback=on_select,
+                               subtitle=tr("Add or remove the key used to retrieve weather information."))
     gui_app.push_widget(dialog)

@@ -91,17 +91,15 @@ REGIONAL_PACKAGES = {
 }
 
 STATUS_CARD_HEIGHT = 232.0
-SEGMENTED_CONTROL_HEIGHT = 68.0
 BROWSER_SECTION_HEADER_HEIGHT = 56.0
 BROWSER_REGION_ROW_HEIGHT = 104.0
 BROWSER_EMPTY_STATE_HEIGHT = 208.0
 BROWSER_INSET = 18.0
 
-HEADER_GAP = 16.0
-SUBHEADER_GAP = 12.0
 LIST_TOP_GAP = 12.0
 
-FIXED_HEADER_HEIGHT = STATUS_CARD_HEIGHT + HEADER_GAP + SEGMENTED_CONTROL_HEIGHT + SUBHEADER_GAP + BROWSER_SECTION_HEADER_HEIGHT + LIST_TOP_GAP
+FIXED_HEADER_HEIGHT = (STATUS_CARD_HEIGHT + AetherSegmentedControl.GAP + AetherSegmentedControl.HEIGHT
+                       + AetherSegmentedControl.GAP + BROWSER_SECTION_HEADER_HEIGHT + LIST_TOP_GAP)
 
 
 def _format_mb(size_bytes: int) -> str:
@@ -171,7 +169,6 @@ class MapsManagerView(PanelManagerView):
         self._controller._get_source_segment_index,
         self._controller._on_source_segment_change,
         style=PANEL_STYLE,
-        suppress_background=True,
       )
     )
 
@@ -194,12 +191,13 @@ class MapsManagerView(PanelManagerView):
     self._draw_status_card(status_rect)
 
     # 2. Pinned Source Segmented Control ([ U.S. States & Regions | Other Countries ])
-    seg_y = scroll_rect.y + STATUS_CARD_HEIGHT + HEADER_GAP
-    seg_rect = rl.Rectangle(scroll_rect.x + BROWSER_INSET, seg_y, content_width - BROWSER_INSET * 2, SEGMENTED_CONTROL_HEIGHT)
+    seg_y = scroll_rect.y + STATUS_CARD_HEIGHT + AetherSegmentedControl.GAP
+    seg_height = self._source_segmented_control.measure_height(content_width)
+    seg_rect = rl.Rectangle(scroll_rect.x, seg_y, content_width, seg_height)
     self._source_segmented_control.render(seg_rect)
 
     # 3. Pinned Master Section Header
-    header_y = seg_y + SEGMENTED_CONTROL_HEIGHT + SUBHEADER_GAP
+    header_y = seg_y + seg_height + AetherSegmentedControl.GAP
     draw_section_header(
       rl.Rectangle(scroll_rect.x + BROWSER_INSET, header_y, content_width - BROWSER_INSET * 2, BROWSER_SECTION_HEADER_HEIGHT),
       tr("Map Packages & Regions"),
@@ -808,7 +806,8 @@ class StarPilotMapsLayout(_SettingsPage):
         if selected_value is not None:
           self._params.put_int("PreferredSchedule", selected_value)
 
-    dialog = MultiOptionDialog(tr("Auto Update Schedule"), options, current, callback=on_select)
+    dialog = MultiOptionDialog(tr("Auto Update Schedule"), options, current, callback=on_select,
+                               subtitle=tr("Choose how often to update downloaded offline maps."))
     gui_app.push_widget(dialog)
 
   def _on_download(self):

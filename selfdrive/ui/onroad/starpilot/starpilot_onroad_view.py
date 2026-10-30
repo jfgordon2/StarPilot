@@ -4,6 +4,7 @@ from openpilot.selfdrive.ui.onroad.augmented_road_view import AugmentedRoadView
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_border import render_behind, render_overlay, render_background_effects
 from openpilot.selfdrive.ui.onroad.starpilot.path import render_adjacent_lanes, render_path_edges
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.lib.starpilot_visuals import get_border_roundness
 from openpilot.selfdrive.ui.onroad.starpilot.torque_bar import TorqueBar
 from openpilot.selfdrive.ui.onroad.starpilot.rivian_lateral_mode import rivian_lateral_mode
 from openpilot.selfdrive.ui.onroad.starpilot.widget_layout_manager import WidgetLayoutManager
@@ -232,7 +233,7 @@ class StarPilotOnroadView(AugmentedRoadView):
     border_rect = rl.Rectangle(rect.x + border_width, rect.y + border_width,
                                 rect.width - 2 * border_width, rect.height - 2 * border_width)
     border_color = get_pulse_glide_border_color(ui_state.sm, get_screen_edge_color(ui_state))
-    rl.draw_rectangle_rounded_lines_ex(border_rect, 0.12, 10, border_width, border_color)
+    rl.draw_rectangle_rounded_lines_ex(border_rect, get_border_roundness(border_rect, border_width), 10, border_width, border_color)
     render_background_effects(rect, border_width)
     render_overlay(border_rect, border_width)
 

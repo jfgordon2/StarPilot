@@ -26,7 +26,7 @@ from openpilot.starpilot.assets.model_manager import (
   set_model_profile,
 )
 from openpilot.starpilot.common.starpilot_variables import MODELS_PATH, update_starpilot_toggles
-from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight, MouseEvent, MousePos, gui_app
+from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight, MousePos, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.scroll_panel2 import GuiScrollPanel2
 from openpilot.system.ui.widgets import DialogResult, Widget
@@ -925,7 +925,8 @@ class StarPilotDrivingModelLayout(_SettingsPage):
         else:
           on_confirm(dialog.selection)
 
-    dialog = MultiOptionDialog(title, option_labels, current_val, callback=_on_close)
+    dialog = MultiOptionDialog(title, option_labels, current_val, callback=_on_close,
+                               subtitle=tr("Choose a driving model to continue."))
     gui_app.push_widget(dialog)
 
   def _is_download_active(self) -> bool:
@@ -1231,7 +1232,8 @@ class StarPilotDrivingModelLayout(_SettingsPage):
       elif dialog.selection == tr("Reset All"):
         self._params.remove("BlacklistedModels")
 
-    dialog = MultiOptionDialog(tr("Manage Blacklist"), [tr("Add"), tr("Remove"), tr("Reset All")], callback=_on_close)
+    dialog = MultiOptionDialog(tr("Manage Blacklist"), [tr("Add"), tr("Remove"), tr("Reset All")], callback=_on_close,
+                               subtitle=tr("Manage models excluded from random selection."))
     gui_app.push_widget(dialog)
 
   def _on_scores_clicked(self):

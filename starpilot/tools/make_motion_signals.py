@@ -3,7 +3,7 @@
 
 Professional indicators in the on-road widget design language (the Set Speed
 card's translucent fill, border and corner radius from
-selfdrive/ui/onroad/starpilot/widget_style.py). All point left; the renderer
+selfdrive/ui/lib/aether_style.py). All point left; the renderer
 mirrors them for right turns. They use the renderer's "static" style, so they
 stay beside the current speed; the 350x170 canvas keeps them level with the
 speed digits. 12 frames at 62 ms give smooth motion in a ~750 ms cycle.
@@ -31,7 +31,7 @@ FRAMES = 12
 FRAME_MS = 62
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "assets/signal_packs"
 
-# Design tokens mirrored from widget_style.py.
+# Design tokens mirrored from selfdrive/ui/lib/aether_style.py.
 CARD_FILL_OPACITY = 166 / 255                     # CONTROL_BG
 CARD_BORDER, CARD_BORDER_OPACITY = "#C4CDD0", 180 / 255  # CONTROL_BORDER
 BORDER_WIDTH, RADIUS = 6, 31                      # CONTROL_BORDER_WIDTH, CONTROL_RADIUS

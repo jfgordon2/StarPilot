@@ -29,7 +29,6 @@ import enum
 import os
 import re
 import sys
-import tempfile
 import time
 import types
 from pathlib import Path
@@ -278,6 +277,27 @@ def parse_args(argv=None):
   return parser.parse_args(argv)
 
 
+def init_preview_window(title: str) -> None:
+  """Initialize real UI fonts with clipping in capture-target device pixels."""
+  import pyray as rl
+  from openpilot.system.ui.lib.application import gui_app
+  gui_app.init_window(title)
+  # Desktop auto scaling applies to the window, not our 2160x1080 texture.
+  rl.begin_scissor_mode = rl._orig_begin_scissor_mode
+
+
+def export_preview_frame(target, path: Path) -> None:
+  """Save the opaque, device-sized screen without render-texture alpha artifacts."""
+  import pyray as rl
+  capture = rl.load_image_from_texture(target.texture)
+  try:
+    rl.image_flip_vertical(capture)
+    rl.image_format(capture, rl.PixelFormat.PIXELFORMAT_UNCOMPRESSED_R8G8B8)
+    rl.export_image(capture, str(path))
+  finally:
+    rl.unload_image(capture)
+
+
 def render(args) -> list[Path]:
   directory = signals_dir(args.pack)
   if not directory.is_dir():
@@ -299,7 +319,7 @@ def render(args) -> list[Path]:
   import pyray as rl
   from openpilot.system.ui.lib.application import gui_app
   from openpilot.selfdrive.ui.ui_state import ui_state
-  gui_app.init_window("StarPilot on-road preview")
+  init_preview_window("StarPilot on-road preview")
   from openpilot.selfdrive.ui.onroad.starpilot import turn_signals
   from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 
@@ -326,15 +346,14 @@ def render(args) -> list[Path]:
   for index in range(captures):
     clock[0] = 1000.0 + (index + 0.25) * frame_ms / 1000  # a quarter into animation frame `index`
     draw()
-    image = rl.load_image_from_texture(target.texture)
-    rl.image_flip_vertical(image)
     path = args.out / f"frame_{index:03d}.png"
-    rl.export_image(image, str(path))
-    rl.unload_image(image)
+    export_preview_frame(target, path)
     written.append(path)
 
   if args.gif:
     write_gif(written, args.gif, frame_ms, args.gif_scale)
+  rl.unload_render_texture(target)
+  gui_app.close()
   return written
 
 

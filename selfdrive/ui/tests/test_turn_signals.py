@@ -386,20 +386,29 @@ def test_comma3_picker_only_offers_packs_with_renderable_png_frames(tmp_path, sa
 
 
 @pytest.mark.parametrize("custom_enabled", [False, True])
-def test_comma3_selection_disables_saved_random_themes_without_resetting_other_preferences(tmp_path, custom_enabled):
+@pytest.mark.parametrize("result", [0, 1])
+def test_comma3_selection_only_applies_on_confirmation_and_preserves_other_preferences(tmp_path, custom_enabled, result):
   dialogs = []
   config = {"SignalAnimation": {"default": "stock", "extra": [("stock", "None"), ("frog", "Frog")]}}
-  def dialog(_title, _themes, _current, callback):
-    return SimpleNamespace(selection="Frog", confirm=lambda: callback(1))
+  def dialog(_title, _themes, _current, callback, **_kwargs):
+    assert [choice[0] for choice in _themes] == ["None", "Frog"]
+    assert _current == "None"
+    return SimpleNamespace(selection="Frog", confirm=lambda: callback(result))
   cls = _source_class("selfdrive/ui/layouts/settings/starpilot/appearance.py", "StarPilotAppearanceLayout",
                       {"_build_theme_options", "_get_theme_value", "_show_theme_selector"},
                       dict(THEME_KEY_CONFIG=config, THEME_SAVE_PATH=tmp_path, _theme_display_name=str.title, tr=str,
-                           MultiOptionDialog=dialog, DialogResult=SimpleNamespace(CONFIRM=1),
+                           MultiOptionDialog=dialog, AetherChoiceDialog=dialog,
+                           PreviewChoice=lambda *args: args,
+                           SignalPreview=lambda *_args: SimpleNamespace(close=lambda: None), SIGNAL_PICKER_ORDER=("stock", "frog"),
+                           DialogResult=SimpleNamespace(CONFIRM=1),
                            gui_app=SimpleNamespace(push_widget=dialogs.append)))
   layout = cls()
   layout._params = Params(SignalAnimation="stock", CustomThemes=custom_enabled, RandomThemes=True, ColorScheme="saved_colors")
   layout._show_theme_selector("SignalAnimation")
   dialogs[0].confirm()
+  if result == 0:
+    assert layout._params.values == {"SignalAnimation": "stock", "CustomThemes": custom_enabled, "RandomThemes": True, "ColorScheme": "saved_colors"}
+    return
   assert layout._params.values == {"SignalAnimation": "frog", "CustomThemes": True, "RandomThemes": False, "ColorScheme": "saved_colors"}
   assert layout._get_theme_value("SignalAnimation") == "Frog"
 
@@ -812,9 +821,9 @@ def test_glide_chevrons_slide_out_and_fade():
 @pytest.mark.parametrize("tool", ["make_sequential_signals", "make_motion_signals"])
 def test_indicator_cards_use_the_on_road_widget_tokens(tool):
   module = _load_tool(tool)
-  style = (ROOT / "selfdrive/ui/onroad/starpilot/widget_style.py").read_text()
-  assert f"CONTROL_RADIUS = {module.RADIUS}" in style and f"CONTROL_BORDER_WIDTH = {module.BORDER_WIDTH}" in style
-  assert "CONTROL_BG = rl.Color(0, 0, 0, 166)" in style and "CONTROL_BORDER = rl.Color(196, 205, 208, 180)" in style
+  style = (ROOT / "selfdrive/ui/lib/aether_style.py").read_text()
+  assert f"CARD_RADIUS = {module.RADIUS}" in style and f"CARD_BORDER_WIDTH = {module.BORDER_WIDTH}" in style
+  assert "CARD_FILL = rl.Color(0, 0, 0, 166)" in style and "CARD_BORDER = rl.Color(196, 205, 208, 180)" in style
   assert (module.W, module.H) == (350, 170)
 
 
@@ -965,3 +974,14 @@ def test_preview_tool_speed_at_bottom_options():
   assert (args.speed_at_bottom, args.alert) == (False, "none")
   args = preview.parse_args(["--speed-at-bottom", "--alert", "mid"])
   assert (args.speed_at_bottom, args.alert) == (True, "mid")
+
+
+def test_starpilot_sub_menus_take_the_full_screen():
+  cls = _source_class("selfdrive/ui/layouts/settings/settings.py", "SettingsLayout",
+                      {"_sidebar_hidden", "_sidebar_width"},
+                      dict(PanelType=SimpleNamespace(STARPILOT=0, DEVICE=1), EXPANDED_WIDTH=500, COLLAPSED_WIDTH=0))
+  layout = cls.__new__(cls)
+  layout._sidebar_expanded = True
+  for panel, depth, width in ((0, 0, 500), (0, 1, 0), (0, 3, 0), (1, 1, 500)):
+    layout._current_panel, layout._panel_depth = panel, depth
+    assert layout._sidebar_width == width

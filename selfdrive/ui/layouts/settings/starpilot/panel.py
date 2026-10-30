@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import IntEnum
+import re
 
 import pyray as rl
 
@@ -299,6 +300,13 @@ class _SettingsPage(StarPilotPanel):
       if hasattr(child, "set_back_callback"):
         child.set_back_callback(self._go_back)
 
+  def prepare_page_header(self):
+    """Expose shared header controls for the currently visible settings view."""
+    view = self._sub_panels.get(self._current_sub_panel, self._manager_view)
+    if view is not None and hasattr(view, "use_page_header"):
+      return view.use_page_header()
+    return None
+
   def _render(self, rect):
     if self._current_sub_panel and self._current_sub_panel in self._sub_panels:
       self._sub_panels[self._current_sub_panel].render(rect)
@@ -323,8 +331,17 @@ class _SettingsPage(StarPilotPanel):
 
   # ── shared dialog helpers ──
 
+  def _selection_details(self, key: str, title: str | None = None, subtitle: str = "") -> tuple[str, str]:
+    views = [self._sub_panels.get(self._current_sub_panel), self._manager_view, *self._sub_panels.values()]
+    for view in views:
+      if view is not None and hasattr(view, "setting_details"):
+        details = view.setting_details(key)
+        if details is not None:
+          return tr(title or details[0]), tr(subtitle or details[1])
+    return tr(title or re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", key)), tr(subtitle) if subtitle else ""
+
   def _show_slider(self, key, min_v, max_v, step=1, unit="",
-                   value_type="int", current_value=None, title=None, color=None):
+                   value_type="int", current_value=None, title=None, color=None, subtitle=""):
     """Unified slider dialog (int/float).
     
     title: if provided, used as dialog title; otherwise uses tr(key).
@@ -337,9 +354,9 @@ class _SettingsPage(StarPilotPanel):
           self._params.put_int(key, int(val))
     if current_value is None:
       current_value = self._params.get_float(key) if value_type == "float" else self._params.get_int(key)
-    dialog_title = tr(title) if title else tr(key)
+    dialog_title, description = self._selection_details(key, title, subtitle)
     gui_app.push_widget(AetherSliderDialog(dialog_title, min_v, max_v, step, current_value, on_close,
-                                           unit=unit, color=self.SLIDER_COLOR if color is None else color))
+                                           unit=unit, color=self.SLIDER_COLOR if color is None else color, subtitle=description))
 
   def _show_string_select(self, key, options, default="None"):
     """String-based multi-option selector (puts string via params.put)."""
@@ -349,7 +366,8 @@ class _SettingsPage(StarPilotPanel):
       if res == DialogResult.CONFIRM and dialog.selection:
         self._params.put(key, dialog.selection)
 
-    dialog = MultiOptionDialog(tr(key), options, current, callback=on_select)
+    title, description = self._selection_details(key)
+    dialog = MultiOptionDialog(title, options, current, callback=on_select, subtitle=description)
     gui_app.push_widget(dialog)
 
   def _show_labeled_select(self, title, key, options, current_value):
@@ -365,5 +383,6 @@ class _SettingsPage(StarPilotPanel):
       if res == DialogResult.CONFIRM and dialog.selection in option_labels:
         self._params.put_int(key, option_values[option_labels.index(dialog.selection)])
 
-    dialog = MultiOptionDialog(tr(title), option_labels, default, callback=on_select)
+    title, description = self._selection_details(key, title)
+    dialog = MultiOptionDialog(title, option_labels, default, callback=on_select, subtitle=description)
     gui_app.push_widget(dialog)

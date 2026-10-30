@@ -3,7 +3,7 @@
 
 A professional indicator in the on-road widget design language: the same
 translucent card, border and corner radius as the Set Speed card
-(selfdrive/ui/onroad/starpilot/widget_style.py), holding three chevrons that
+(selfdrive/ui/lib/aether_style.py), holding three chevrons that
 light in sequence towards the turn, like a premium car's sequential indicator.
 
 It uses the renderer's "static" style, so the card stays put beside the current
@@ -26,7 +26,7 @@ W, H = 350, 170
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "assets/signal_packs/sequential/signals"
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT
 
-# Design tokens mirrored from widget_style.py / hud_renderer.py.
+# Design tokens mirrored from selfdrive/ui/lib/aether_style.py / hud_renderer.py.
 CARD_FILL, CARD_FILL_OPACITY = "#000000", 166 / 255          # CONTROL_BG
 CARD_BORDER, CARD_BORDER_OPACITY = "#C4CDD0", 180 / 255      # CONTROL_BORDER (196, 205, 208)
 BORDER_WIDTH = 6                                             # CONTROL_BORDER_WIDTH

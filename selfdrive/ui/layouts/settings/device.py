@@ -181,7 +181,8 @@ class DeviceLayout(Widget):
       self._select_language_dialog = None
 
     self._select_language_dialog = MultiOptionDialog(tr("Select a language"), multilang.languages, multilang.codes[multilang.language],
-                                                      option_font_weight=FontWeight.UNIFONT, callback=handle_language_selection)
+                                                      option_font_weight=FontWeight.UNIFONT, callback=handle_language_selection,
+                                                      subtitle=tr("Choose the language used for menus and alerts."))
     gui_app.push_widget(self._select_language_dialog)
 
   def _show_driver_camera(self):
@@ -341,7 +342,8 @@ class DeviceLayout(Widget):
         elif self._galaxy_manage_dialog.selection == unpair:
           gui_app.push_widget(ConfirmDialog(tr("Are you sure you want to unpair from Galaxy?"), tr("Unpair"), callback=self._unpair_galaxy))
 
-      self._galaxy_manage_dialog = MultiOptionDialog(tr("Galaxy"), [show_qr, unpair], show_qr, callback=on_select)
+      self._galaxy_manage_dialog = MultiOptionDialog(tr("Galaxy"), [show_qr, unpair], show_qr, callback=on_select,
+                                                    subtitle=tr("View pairing information or unlink your Galaxy account."))
       gui_app.push_widget(self._galaxy_manage_dialog)
       return
 

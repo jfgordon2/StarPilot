@@ -21,6 +21,8 @@ from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import (
     CardHubManagerView,
 )
 from openpilot.selfdrive.ui.layouts.settings.starpilot.simple_download_manager import SimpleDownloadManager
+from openpilot.selfdrive.ui.layouts.settings.starpilot.choice_dialog import AetherChoiceDialog, PreviewChoice
+from openpilot.selfdrive.ui.layouts.settings.starpilot.signal_preview import SignalPreview, SIGNAL_PICKER_ORDER
 from openpilot.starpilot.assets.theme_manager import ThemeManager
 from openpilot.starpilot.common.starpilot_variables import THEME_SAVE_PATH, get_starpilot_toggles
 
@@ -162,6 +164,7 @@ class StarPilotAppearanceLayout(_SettingsPage):
                 float(self._params.get_int("LeadDetectionThreshold", return_default=True, default=35)),
                 on_close,
                 presets=[25.0, 50.0, 75.0, 100.0],
+                subtitle=tr("Minimum confidence required to display a detected lead vehicle."),
                 unit="%",
                 color=PANEL_STYLE.accent,
             )
@@ -260,7 +263,7 @@ class StarPilotAppearanceLayout(_SettingsPage):
         # ═══ 2. Driving Widgets & HUD ═══
         self._hud_rows = [
             SettingRow("SignalAnimation", "value", tr_noop("Turn Signal Animation"),
-                       subtitle=tr_noop("Choose a turn-signal animation. Enables saved custom themes and disables random themes."),
+                       subtitle=tr_noop("Animation beside the speed when signalling"),
                        get_value=lambda: self._get_theme_value("SignalAnimation"),
                        on_click=lambda: self._show_theme_selector("SignalAnimation")),
             SettingRow("SpeedAtBottom", "toggle", tr_noop("Speed at Bottom"),
@@ -626,8 +629,20 @@ class StarPilotAppearanceLayout(_SettingsPage):
                     self._params.put_bool("RandomThemes", False)
                     self._params.put_bool("CustomThemes", True)
 
-        title = tr("Turn Signal Animation") if key == "SignalAnimation" else tr(key)
-        dialog = MultiOptionDialog(title, themes, current, callback=on_select)
+        title = tr({"SignalAnimation": "Turn Signal Animation", "BootLogo": "Boot Logo"}.get(key, key))
+        if key == "SignalAnimation":
+            order = {slug: index for index, slug in enumerate(SIGNAL_PICKER_ORDER)}
+            themes = sorted(themes, key=lambda display: (order.get(option_map[display], len(order)), display.casefold()))
+            choices = []
+            for display in themes:
+                slug = option_map[display]
+                preview = SignalPreview(slug, THEME_SAVE_PATH) if slug not in ("stock", "none") else None
+                choices.append(PreviewChoice(display, tr(display), preview, preview.close if preview else None))
+            if not self._params.get_bool("CustomThemes"):
+                current = "None"
+            dialog = AetherChoiceDialog(title, choices, current, subtitle=tr("Plays beside the speed while a blinker is on"), callback=on_select)
+        else:
+            dialog = MultiOptionDialog(title, themes, current, callback=on_select, subtitle=tr("Choose the image shown when the device starts."))
         gui_app.push_widget(dialog)
 
     # ── Widget helpers ──
@@ -647,7 +662,8 @@ class StarPilotAppearanceLayout(_SettingsPage):
                 idx = CAMERA_VIEWS.index(dialog.selection)
                 self._params.put_int("CameraView", idx)
 
-        dialog = MultiOptionDialog(tr("Camera View"), CAMERA_VIEWS, CAMERA_VIEWS[current], callback=on_select)
+        dialog = MultiOptionDialog(tr("Camera View"), CAMERA_VIEWS, CAMERA_VIEWS[current], callback=on_select,
+                                   subtitle=tr("Choose the camera view shown on the driving screen."))
         gui_app.push_widget(dialog)
 
     # ── Color selectors ──
@@ -668,7 +684,9 @@ class StarPilotAppearanceLayout(_SettingsPage):
                 else:
                     self._params.put(key, dialog.selection)
 
-        dialog = MultiOptionDialog(tr(key), COLOR_PRESETS, current, callback=on_select)
+        title, description = self._selection_details(key)
+        dialog = MultiOptionDialog(title, COLOR_PRESETS, current, callback=on_select,
+                                   subtitle=description or tr("Choose a color, or use the stock appearance."))
         gui_app.push_widget(dialog)
 
     # ── Numeric sliders (int / float) ──
@@ -677,8 +695,9 @@ class StarPilotAppearanceLayout(_SettingsPage):
         def on_close(res, val):
             if res == DialogResult.CONFIRM:
                 self._params.put_int(key, int(val))
-        gui_app.push_widget(AetherSliderDialog(tr(key), min_v, max_v, 1, self._params.get_int(key), on_close,
-                                                 unit=unit, color=PANEL_STYLE.accent))
+        title, description = self._selection_details(key)
+        gui_app.push_widget(AetherSliderDialog(title, min_v, max_v, 1, self._params.get_int(key), on_close,
+                                                 unit=unit, color=PANEL_STYLE.accent, subtitle=description))
 
     def _show_float_selector(self, key, min_v, max_v, step, unit="", convert=None, unconvert=None):
         current = self._params.get_float(key)
@@ -692,8 +711,9 @@ class StarPilotAppearanceLayout(_SettingsPage):
                     v = unconvert(v)
                 self._params.put_float(key, v)
 
-        gui_app.push_widget(AetherSliderDialog(tr(key), min_v, max_v, step, current, on_close,
-                                                 unit=unit, color=PANEL_STYLE.accent))
+        title, description = self._selection_details(key)
+        gui_app.push_widget(AetherSliderDialog(title, min_v, max_v, step, current, on_close,
+                                                 unit=unit, color=PANEL_STYLE.accent, subtitle=description))
 
     # ── Unit-aware display helpers ──
 
@@ -756,7 +776,8 @@ class StarPilotAppearanceLayout(_SettingsPage):
                     self._params.remove("StartupMessageTop")
                     self._params.remove("StartupMessageBottom")
 
-        dialog = MultiOptionDialog(tr("Startup Alert"), options, current, callback=on_select)
+        dialog = MultiOptionDialog(tr("Startup Alert"), options, current, callback=on_select,
+                                   subtitle=tr("Choose the message displayed when a drive starts."))
         gui_app.push_widget(dialog)
 
     # ── Developer sidebar metric selectors ──
@@ -775,7 +796,8 @@ class StarPilotAppearanceLayout(_SettingsPage):
                 )
                 self._params.put_int(key, selected_int)
 
-        dialog = MultiOptionDialog(tr(f"Metric #{idx}"), options, current_display, callback=on_select)
+        dialog = MultiOptionDialog(tr("Metric #{}").format(idx), options, current_display, callback=on_select,
+                                   subtitle=tr("Choose the information shown in this developer sidebar slot."))
         gui_app.push_widget(dialog)
 
     def _get_developer_sidebar_metric_display(self, idx: int) -> str:
