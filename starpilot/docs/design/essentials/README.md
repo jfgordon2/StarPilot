@@ -17,6 +17,20 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Alerts | [alerts.html](alerts.html) |
 | Tuner Mode | [tuner.html](tuner.html) |
 | Defaults map | [defaults.html](defaults.html) |
+| Destinations | [destinations.html](destinations.html) |
+| Search with keyboard | [navsearch.html](navsearch.html) |
+| Route preview | [routepreview.html](routepreview.html) |
+| Onroad, navigating | [onroadnav.html](onroadnav.html) |
+| Offline maps | [mapdata.html](mapdata.html) |
+| Onroad alert levels | [alertstyles.html](alertstyles.html) |
+| Confirm new speed limit | [confirmlimit.html](confirmlimit.html) |
+| Confirm dialogs | [confirmdialog.html](confirmdialog.html) |
+| Progress, blocked, done, empty | [feedback.html](feedback.html) |
+| Parked home | [home.html](home.html) |
+| First-run setup | [setup.html](setup.html) |
+| Driving Model | [model.html](model.html) |
+| System | [system.html](system.html) |
+| Vehicle | [vehicle.html](vehicle.html) |
 
 ## Principles
 
@@ -70,6 +84,29 @@ Holiday themes **on**, rotating wheel **on**, stopped timer **on**, compass off,
 - The bottom bar drops the **Toggles** and **Developer** tabs. Metric units and language move to System. SSH, ADB and joystick move under Tuner Mode.
 - The hub has six tiles: Driving, Display, Alerts, Driving Model, Vehicle, System. A "Power user" strip below them holds the three bundle switches.
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
+
+## Navigation
+
+- **Destinations are one tap from the parked home screen** ("Where to?"), not buried under Driving Controls › Navigation & Maps.
+- Destinations shows Home, Work, up to 3 more favorites and recent places. Search uses the on-device keyboard.
+- **The route preview has no toggles.** While a route is active, `NavDesiresAllowed` and `NavLongitudinalAllowed` are always on: the car slows for turns and uses route speed limits where signs are missing.
+- Onroad, the turn instruction sits top-left and the speed limit sign moves top-right. Arrival time, remaining distance and End route replace the steering bar.
+- **Offline maps start from one detected region**, with weekly updates by default (only while parked on Wi-Fi). The full state and region picker stays behind "Add another region".
+
+## Alerts and dialogs
+
+- **Three onroad alert levels.** Info is a small banner and the border stays green. Warning has an amber border and a two-line banner. Critical is a full-screen red takeover. Clean Screen never hides any of them.
+- **Speed limit confirmation** appears as a card on the speed sign, with Ignore and Match buttons and an 8 second timeout. Pressing Resume on the wheel also matches. This is the Match default with `SLCConfirmation` on.
+- **Confirm dialogs come in two kinds.** Destructive actions get a red button and a "can't be undone" line. Actions that need a restart get a blue "Restart now" button and a Later option.
+- **Every long-running job uses the same four states:** in progress (bar and cancel), blocked (lock icon and the reason, e.g. "park to download"), done (a 4 second toast, never shown while driving) and empty (a short explanation and the next action).
+
+## Remaining screens
+
+- **Parked home** shows readiness and the current setup, plus Where to? and update status. Detailed device stats move to Developer View.
+- **First-run setup** asks three questions: driving style, then speed limits, then lane changes. "Use defaults" skips all three.
+- **Driving Model** defaults to the recommended model for the car, which updates automatically. Picking another model means turning Use recommended off. The randomizer and blacklist move to Tuner Mode.
+- **System** keeps units, language, brightness (Dimmer / Auto / Brighter), Standby, uploads and weekly backups.
+- **Vehicle** shows the detected car with a "Wrong car?" link, which covers `CarMake`, `CarModel` and `ForceFingerprint`. Steering wheel buttons come preset for each car, and Auto-Lock Doors is a single switch.
 
 ## Open questions
 
