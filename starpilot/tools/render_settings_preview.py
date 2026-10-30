@@ -20,9 +20,60 @@ from render_onroad_preview import HEIGHT, WIDTH, export_preview_frame, init_prev
 
 PAGES = ("hub", "appearance", "hud", "signal-picker", "camera-picker", "metric-picker", "button-picker", "maintenance-picker",
          "sounds", "sounds-states", "sounds-volume", "system", "controls", "vehicle",
-         "gas-brake", "conditional", "maps", "sounds-reset", "alert-dialog", "rich-dialog")
-DIALOG_PAGES = {"sounds-reset", "alert-dialog", "rich-dialog", "sounds-volume", "signal-picker", "camera-picker",
+         "gas-brake", "conditional", "maps", "driving-model", "driving-model-list", "driving-model-empty", "navigation", "navigation-route",
+         "sounds-reset", "alert-dialog", "rich-dialog", "downloads", "downloads-progress")
+DIALOG_PAGES = {"downloads", "downloads-progress", "sounds-reset", "alert-dialog", "rich-dialog", "sounds-volume", "signal-picker", "camera-picker",
                 "metric-picker", "button-picker", "maintenance-picker"}
+
+
+def seed_driving_models(panel) -> None:
+  """Replace the catalog with fixed sample models: the preview has no network or model files."""
+  from openpilot.selfdrive.ui.layouts.settings.starpilot.driving_model import ModelCatalogEntry
+  if panel._manifest_fetch_thread is not None:
+    panel._manifest_fetch_thread.join(timeout=10)
+  panel._manifest_fetched = False
+  panel._update_model_metadata = lambda: None
+  samples = [
+    ("rdf43", "Regret Driven Framework V4", "Regret", "2025-09-02", True, True, True),
+    ("nlp", "North Dakota", "Vision", "2025-06-14", False, True, True),
+    ("wd40", "WD-40", "Vision", "2025-03-30", False, True, False),
+    ("tc", "Tomb Raider 10", "Tomb Raider", "2025-08-21", False, False, True),
+    ("ss", "Space Lab", "Vision", "2025-05-11", False, False, False),
+    ("cg", "Certified Herbalist", "Vision", "2024-12-01", False, False, False),
+  ]
+  panel._catalog_entries = {key: ModelCatalogEntry(key, name, series, "v1", released, builtin, installed, False, popular, key == "nlp")
+                            for key, name, series, released, builtin, installed, popular in samples}
+  panel._current_model_key = "rdf43"
+
+
+def seed_navigation(panel) -> None:
+  """A picked destination with saved favorites and a recent trip, without the destination store."""
+  panel._refresh_navigation_state = lambda force=False: None
+  panel._favorites = [{"id": "home", "name": "Home", "is_home": True, "latitude": 40.0, "longitude": -75.0},
+                      {"id": "work", "name": "Office", "is_work": True, "latitude": 40.1, "longitude": -75.1}]
+  panel._recent_destinations = [{"name": "Union Station", "place_name": "Union Station, 30 Station Ave",
+                                 "latitude": 40.2, "longitude": -75.2}]
+  panel._draft_destination = {"name": "Coffee Lab", "place_name": "Coffee Lab, 120 Main St", "latitude": 40.3, "longitude": -75.3}
+
+
+def sample_download_manager(params, downloading: bool):
+  """Boot logo manager over a temporary folder of sample logos."""
+  import tempfile
+  from openpilot.common.params import Params
+  from openpilot.selfdrive.ui.layouts.settings.starpilot.simple_download_manager import SimpleDownloadManager
+  folder = Path(tempfile.mkdtemp(prefix="bootlogos_"))
+  for name in ("frog_logo.png", "galaxy_logo.png", "retro_logo.png", "starpilot_logo.png"):
+    (folder / name).write_bytes(b"")
+  params.put("BootLogo", "galaxy_logo")
+  params.put("DownloadableBootLogos", "aurora_logo,pixel_logo")
+  manager = SimpleDownloadManager("Boot Logo", "boot logo", folder, "BootLogo", "BootLogoToDownload", "DownloadableBootLogos",
+                                  params, Params(memory=True), lambda *_: None)
+  if downloading:
+    manager._active_mode = manager.MODE_DOWNLOAD
+    manager._refresh_list()
+    manager._downloading = True
+    manager.params_memory.put("ThemeDownloadProgress", "Downloading Aurora Logo... 42%")
+  return manager
 
 
 def render(pages: list[str], destination: Path, include_scrolled: bool = False) -> list[Path]:
@@ -59,31 +110,46 @@ def render(pages: list[str], destination: Path, include_scrolled: bool = False) 
       starpilot.reset_to_root()
       if page == "controls":
         starpilot._open_folder(next(c for c in starpilot.CATEGORIES if "children" in c))
-      elif page in ("gas-brake", "conditional", "maps"):
+      elif page in ("gas-brake", "conditional", "maps", "navigation", "navigation-route"):
         folder = next(c for c in starpilot.CATEGORIES if "children" in c)
         starpilot._open_folder(folder)
-        if page == "maps":
+        if page in ("maps", "navigation", "navigation-route"):
           navigation = next(c for c in folder["children"] if c["title"] == "Navigation & Maps")
           starpilot._open_folder(navigation)
-          starpilot._open_leaf(next(c for c in navigation["children"] if c.get("panel") == "MAPS"))
+          starpilot._open_leaf(next(c for c in navigation["children"] if c.get("panel") == page.split("-")[0].upper()))
+          if page == "navigation-route":
+            seed_navigation(starpilot._panels[starpilot._current_panel].instance)
         else:
           starpilot._open_leaf(next(c for c in folder["children"] if c.get("panel") == "LONGITUDINAL"))
           if page == "conditional":
             starpilot._push_sub_panel("ce")
       elif page != "hub":
         title = {"appearance": "Appearance", "hud": "Appearance", "signal-picker": "Appearance", "sounds": "Sounds & Alerts",
-                 "system": "System", "vehicle": "Vehicle Settings", "sounds-reset": "Sounds & Alerts",
-                 "alert-dialog": "System", "rich-dialog": "System",
+                 "system": "System",
+                 "driving-model": "Driving Model", "driving-model-list": "Driving Model",
+                 "driving-model-empty": "Driving Model", "vehicle": "Vehicle Settings", "sounds-reset": "Sounds & Alerts",
+                 "alert-dialog": "System", "rich-dialog": "System", "downloads": "Appearance", "downloads-progress": "Appearance",
                  "camera-picker": "Appearance", "metric-picker": "Appearance", "button-picker": "Vehicle Settings", "maintenance-picker": "System",
                  "sounds-states": "Sounds & Alerts", "sounds-volume": "Sounds & Alerts"}[page]
         starpilot._open_leaf(next(c for c in starpilot.CATEGORIES if c["title"] == title))
         if page in ("hud", "signal-picker", "camera-picker", "metric-picker"):
           starpilot._push_sub_panel("hud")
+        elif page.startswith("driving-model"):
+          model_panel = starpilot._panels[starpilot._current_panel].instance
+          seed_driving_models(model_panel)
+          if page == "driving-model-empty":
+            model_panel._catalog_entries = {}
+          elif page == "driving-model-list":
+            # Scrolled past Active Model, with one model's Delete / Favorite pills open.
+            model_panel._manager_view._scroll_panel.set_offset(-560)
+            model_panel._manager_view._confirm_key = "wd40"
+            model_panel._manager_view._confirm_until = float("inf")
       screen = layout
       if page not in ("hub", "controls"):
         panel = starpilot._panels[starpilot._current_panel].instance
         view = panel._sub_panels.get(panel._current_sub_panel, panel._manager_view)
-        view.reset_scroll()
+        if hasattr(view, "reset_scroll"):
+          view.reset_scroll()
       if page in DIALOG_PAGES:
         panel = starpilot._panels[starpilot._current_panel].instance
         if page == "sounds-reset":
@@ -97,6 +163,8 @@ def render(pages: list[str], destination: Path, include_scrolled: bool = False) 
                   + "enables alpha-level features that aren't ready for chill mode.</p><p>Always keep your hands on the "
                   + "wheel and eyes on the road.</p>")
           gui_app.push_widget(ConfirmDialog(text, "Enable", rich=True))
+        elif page.startswith("downloads"):
+          gui_app.push_widget(sample_download_manager(params, page == "downloads-progress"))
         elif page == "sounds-volume":
           panel._manager_view._show_volume_slider("EngageVolume")
         elif page == "signal-picker":

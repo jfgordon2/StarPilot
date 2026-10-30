@@ -2077,6 +2077,36 @@ def draw_empty_state_card(
     text_y += line_height + line_gap
 
 
+EMPTY_STATE_BODY_LINES = 2
+
+
+def settings_empty_state_height() -> float:
+  """Height of draw_settings_empty_state: a row title and up to two subtitle lines inside the card inset."""
+  body_h = EMPTY_STATE_BODY_LINES * (SETTINGS_ROW_SUBTITLE_FONT_SIZE * FONT_SCALE + 2)
+  return AS.SETTINGS_CARD_INSET * 2 + SETTINGS_ROW_TITLE_FONT_SIZE * FONT_SCALE + AS.SETTINGS_TEXT_GAP + body_h
+
+
+def draw_settings_empty_state(rect: rl.Rectangle, title: str, body: str, *, style: PanelStyle = DEFAULT_PANEL_STYLE):
+  """Empty or loading list: the grouped-list outline with a centered row title and subtitle."""
+  draw_list_group_shell(rect, style=style)
+  inset = AS.SETTINGS_CARD_INSET
+  width = max(1.0, rect.width - inset * 2)
+  title_font, body_font = gui_app.font(FontWeight.SEMI_BOLD), gui_app.font(FontWeight.NORMAL)
+  lines = wrap_subtitle(body_font, body, width, SETTINGS_ROW_SUBTITLE_FONT_SIZE, EMPTY_STATE_BODY_LINES) if body else []
+  line_h = SETTINGS_ROW_SUBTITLE_FONT_SIZE * FONT_SCALE + 2
+  total_h = SETTINGS_ROW_TITLE_FONT_SIZE * FONT_SCALE + (AS.SETTINGS_TEXT_GAP + len(lines) * line_h if lines else 0)
+  y = rect.y + (rect.height - total_h) / 2
+  title_w = min(width, measure_text_cached(title_font, title, SETTINGS_ROW_TITLE_FONT_SIZE).x)
+  draw_text_fit_common(title_font, title, rl.Vector2(rect.x + (rect.width - title_w) / 2, y), width,
+                       SETTINGS_ROW_TITLE_FONT_SIZE, color=style.title_color)
+  y += SETTINGS_ROW_TITLE_FONT_SIZE * FONT_SCALE + AS.SETTINGS_TEXT_GAP
+  for line in lines:
+    line_w = min(width, measure_text_cached(body_font, line, SETTINGS_ROW_SUBTITLE_FONT_SIZE).x)
+    draw_text_fit_common(body_font, line, rl.Vector2(rect.x + (rect.width - line_w) / 2, y), width,
+                         SETTINGS_ROW_SUBTITLE_FONT_SIZE, color=style.subtitle_color)
+    y += line_h
+
+
 def draw_list_group_shell(
   rect: rl.Rectangle,
   *,
@@ -2348,8 +2378,9 @@ def draw_settings_card_row(
   if toggle_value is not None:
     control_width = AS.SWITCH_WIDTH
   elif action_text:
-    natural = measure_text_cached(gui_app.font(FontWeight.SEMI_BOLD), action_text, action_text_size).x + AS.SETTINGS_CARD_INSET
-    control_width = min(max_control, max(AS.MIN_TOUCH * 1.4, natural))  # same minimum as value pills
+    # Same side padding as AetherButton (a card inset either side), and the value pills' minimum width.
+    natural = measure_text_cached(gui_app.font(FontWeight.SEMI_BOLD), action_text, action_text_size).x + AS.SETTINGS_CARD_INSET * 2
+    control_width = min(max_control, max(AS.MIN_TOUCH * 1.4, natural))
   elif value:
     control_width = value_pill_width(value, max_control, value_size) if show_chevron else max_control
   else:
@@ -5172,11 +5203,13 @@ class AetherSegmentedControl(Widget):
     on_change: Callable[[int], None],
     statuses: list[str | Callable[[], str] | None] | None = None,
     style: PanelStyle | None = None,
+    on_reselect: Callable[[int], None] | None = None,
   ):
     super().__init__()
     self._options = options
     self._current_index = current_index
     self._on_change = on_change
+    self._on_reselect = on_reselect  # tapping the selected option again, e.g. to flip a sort direction
     self._statuses = statuses or [""] * len(options)
     if len(self._statuses) < len(self._options):
       self._statuses += [""] * (len(self._options) - len(self._statuses))
@@ -5231,8 +5264,11 @@ class AetherSegmentedControl(Widget):
       return
     r = self._option_rects[pressed_index]
     hit = rl.Rectangle(r.x - GEOMETRY_OFFSET, r.y - GEOMETRY_OFFSET, r.width + 2 * GEOMETRY_OFFSET, r.height + 2 * GEOMETRY_OFFSET)
-    if rl.check_collision_point_rec(mouse_pos, hit) and self._current() != pressed_index:
-      self._on_change(pressed_index)
+    if rl.check_collision_point_rec(mouse_pos, hit):
+      if self._current() != pressed_index:
+        self._on_change(pressed_index)
+      elif self._on_reselect is not None:
+        self._on_reselect(pressed_index)
 
   def _handle_mouse_event(self, mouse_event: MouseEvent):
     if self._pressed_index == -1:

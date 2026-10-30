@@ -177,3 +177,33 @@ def test_alert_has_one_button_and_long_messages_wrap(monkeypatch):
   lines = module._wrap(None, "word " * 200, 600, 40, 3)
   assert len(lines) == 3 and lines[-1].endswith("...")
   assert module._wrap(None, "First line\nSecond line", 2000, 40, 6) == ["First line", "Second line"]
+
+
+def test_conditional_drive_mode_rows_use_the_shared_status_rows():
+  source = _source("longitudinal.py")
+  assert "status=row_status[key]" in source
+  keys = set(re.findall(r'"(\w+)": threshold_status\(', source))
+  assert keys == {"CESpeed", "CESpeedLead", "CESignalSpeed", "CEModelStopTime", "CCMSpeed", "CCMSpeedLead", "CCMSetSpeedMargin"}
+  # Row heights come from the rows themselves (status rows are taller), not a fixed adjustor height.
+  assert "adjustor_row_height" not in source[source.index("class ConditionalDriveModeView"):source.index("class StarPilotLongitudinalLayout")]
+
+
+def test_group_two_pages_use_the_shared_rows_buttons_and_empty_state():
+  for page in ("driving_model.py", "navigation.py", "simple_download_manager.py"):
+    source = _source(page)
+    for legacy in ("draw_selection_list_row", "draw_empty_state_card", "AetherChip", "draw_action_rail", "HEADER_BUTTON_HEIGHT"):
+      assert legacy not in source, f"{page} still uses {legacy}"
+    assert "draw_settings_card_row(" in source and "draw_settings_empty_state(" in source, page
+  driving_model = _source("driving_model.py")
+  assert "AetherSegmentedControl(" in driving_model and "on_reselect=self._on_sort_reselect" in driving_model
+  assert "def use_page_header(self) -> AetherButton:" in driving_model
+  assert "AetherSegmentedControl(" in _source("simple_download_manager.py")
+
+
+def test_row_action_pills_are_padded_like_buttons():
+  """Row pills (Search, Select, Download...) get AetherButton's side padding: a card inset either side."""
+  source = _source("aethergrid.py")
+  row = source[source.index("def draw_settings_card_row("):source.index("def wrap_subtitle(")]
+  assert "action_text_size).x + AS.SETTINGS_CARD_INSET * 2" in row
+  button = source[source.index("class AetherButton"):]
+  assert "text_width + AS.SETTINGS_CARD_INSET * 2" in button[:button.index("def measure_height")]

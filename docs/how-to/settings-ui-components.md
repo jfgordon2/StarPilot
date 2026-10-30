@@ -36,7 +36,10 @@ Spacing, radii and colors live in `selfdrive/ui/lib/aether_style.py`.
   Give it the full page content width, reserve `measure_height(width)` and use
   `AetherSegmentedControl.GAP` around the bar. Do not add a separate shell or
   derive font size from a page-specific height. Long labels elide at the same
-  font size. System, Conditional Drive Mode and Map Data all use this component.
+  font size. System, Conditional Drive Mode, Map Data, Driving Model's sort and
+  the download manager's modes all use this component. Pass `statuses` for a
+  second line under each label, and `on_reselect` when tapping the selected
+  option again means something (Driving Model's Date flips newest/oldest).
 - All selection dialogs inherit `AetherSelectionDialog`. It owns the outlined
   shell, left-aligned title and description, fixed Cancel/Apply pills and the
   content rectangle below them. Titles and descriptions wrap when needed; narrow
@@ -62,6 +65,18 @@ Spacing, radii and colors live in `selfdrive/ui/lib/aether_style.py`.
   selection dialogs. A short message gets a centered card sized to its text; `rich=True`
   uses the full-size shell with scrolling formatted text. `AetherButton(confirmation=...)`
   shows this dialog, so reset and destructive actions match automatically.
+- Lists of things to pick, download or remove (Map Data regions, driving models,
+  destinations, downloadable assets) are 160-pixel `draw_settings_card_row(grouped=True)`
+  rows inside `draw_settings_group`, with the action as the row's 112-pixel pill
+  (`action_height=AS.VALUE_PILL_HEIGHT`, 34-pixel text). Pills get the same side
+  padding as `AetherButton`. Put a group's count in its heading's trailing text.
+- Empty, loading and error states use `draw_settings_empty_state` (height from
+  `settings_empty_state_height()`): the grouped-list outline with a centered row
+  title and up to two subtitle lines, under a normal group heading.
+- `SimpleDownloadManager` is fullscreen like the pickers: the same shell and
+  header with a Close button, a segmented Select / Delete / Download control and a
+  grouped list. While a download runs, a progress row with Cancel sits above the
+  list and the other rows dim.
 - Use `draw_centered_text` for prominent numeric values. It centers visible glyph
   bounds rather than the font's line box. `draw_stepper_symbol` draws centered
   plus/minus strokes, so symbols do not depend on font baselines or glyph support.
@@ -116,6 +131,11 @@ choices. With `--include-scrolled`, overflowing picker lists also get a bottom
 capture while their header remains fixed.
 `sounds-reset`, `alert-dialog` and `rich-dialog` capture `ConfirmDialog` as a
 confirmation, a one-button alert and long formatted text.
+`driving-model`, `driving-model-list` and `driving-model-empty` use a fixed sample
+catalog (the list capture is scrolled to the model groups with one Options menu open).
+`navigation` is the empty page; `navigation-route` adds a picked destination,
+favorites and a recent trip. `downloads` and `downloads-progress` open the boot logo
+manager over a temporary folder of sample logos, idle and mid-download.
 
 The capture uses device-pixel clipping, independent of desktop window scale.
 Inspect page edges, gaps, long labels, disabled controls and scroll clipping.

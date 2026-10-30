@@ -33,6 +33,9 @@ from openpilot.selfdrive.ui.layouts.settings.starpilot.aethergrid import (
   TOGGLE_MIN_HEIGHT,
   RowToggleTile,
   ToggleTile,
+  GROUP_OVERHEAD,
+  RowStatus,
+  draw_settings_group,
   draw_settings_group_heading,
   draw_list_group_shell,
   SECTION_GAP,
@@ -264,6 +267,24 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     self._cem_keys = ["CESpeed", "CESpeedLead", "CESignalSpeed", "CEModelStopTime"]
     self._ccm_keys = ["CCMSpeed", "CCMSpeedLead", "CCMSetSpeedMargin"]
 
+    def threshold_status(key: str, icon: str, on_text: str, off_text: str, is_float: bool = False):
+      def status() -> RowStatus:
+        params = self._controller._params
+        value = params.get_float(key) if is_float else params.get_int(key)
+        return RowStatus(icon, on_text if value > 0 else off_text, value > 0)
+      return status
+
+    # Same status rows as System and Sounds: icon well, one-line status, value and chevron.
+    row_status = {
+      "CESpeed": threshold_status("CESpeed", "road", tr("When driving slower than this"), tr("Not used")),
+      "CESpeedLead": threshold_status("CESpeedLead", "aicar", tr("Slower than this behind a lead"), tr("Not used")),
+      "CESignalSpeed": threshold_status("CESignalSpeed", "navigate", tr("Signaling below this speed"), tr("Not used")),
+      "CEModelStopTime": threshold_status("CEModelStopTime", "timer", tr("Stop predicted within this time"), tr("Not used"), True),
+      "CCMSpeed": threshold_status("CCMSpeed", "road", tr("When driving faster than this"), tr("At any speed")),
+      "CCMSpeedLead": threshold_status("CCMSpeedLead", "aicar", tr("Faster than this behind a lead"), tr("At any speed")),
+      "CCMSetSpeedMargin": threshold_status("CCMSetSpeedMargin", "steering", tr("This far under the set speed"), tr("At any set speed")),
+    }
+
     for key, spec in specs.items():
       adjustor = self._child(AetherAdjustorRow(
         spec["title"], spec["subtitle"], spec["min"], spec["max"], spec["step"],
@@ -275,7 +296,8 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
         presets=spec["presets"],
         is_active=lambda: False,
         set_active=lambda active, k=key: self._show_slider(k) if active else None,
-        style=PANEL_STYLE, color=PANEL_STYLE.accent
+        style=PANEL_STYLE, color=PANEL_STYLE.accent,
+        status=row_status[key],
       ))
       self._adjustor_rows[key] = adjustor
 
@@ -316,112 +338,77 @@ class ConditionalDriveModeView(AdjustorTogglesPanelView):
     ))
 
   def _draw_header(self, rect: rl.Rectangle):
-    width = self._scroll_rect.width
+    width = self._scroll_rect.width - AETHER_LIST_METRICS.content_right_gutter
     height = self._drive_mode_control.measure_height(width)
     self._drive_mode_control.render(rl.Rectangle(rect.x, rect.y, width, height))
     total = height + AetherSegmentedControl.GAP
-    mode = self._get_drive_mode_index()
-    if mode:
-      text = tr("Switch to Experimental Mode") if mode == 1 else tr("Switch to Chill Mode")
-      gui_label(rl.Rectangle(rect.x, rect.y + total, width, 40), text, 40, AetherListColors.HEADER, FontWeight.BOLD,
-                alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER)
-      total += 52
     self._scroll_rect.y += total
     self._scroll_rect.height = max(0.0, self._scroll_rect.height - total)
+
+  def _group_titles(self) -> tuple[str, str]:
+    if self._get_drive_mode_index() == 2:
+      return tr("Switch to Chill When"), tr("Switch to Chill For")
+    return tr("Switch to Experimental When"), tr("Switch to Experimental For")
 
   def _measure_content_height(self, content_width: float) -> float:
     mode = self._get_drive_mode_index()
     if mode == 0:
       return 0.0
-    
-    keys = self._cem_keys if mode == 1 else self._ccm_keys
-    grid = self._toggle_grid
-    
-    col_width = (content_width - SECTION_GAP) / 2 if self._uses_two_columns(content_width) else content_width
 
+    keys = self._cem_keys if mode == 1 else self._ccm_keys
+    col_width = self._column_width(content_width) if self._uses_two_columns(content_width) else content_width
     for key in keys:
       self._adjustor_rows[key].custom_row_height = None
-
-    default_adjustor_h = float(AETHER_LIST_METRICS.adjustor_row_height)
-    left_h = len(keys) * default_adjustor_h + 16.0
-    
-    right_h = self.measure_scroll_grid_height(grid, col_width)
+    self._left_container_h = sum(self._adjustor_rows[key].measure_height(col_width) for key in keys)
+    self._tiles_container_h = self.measure_scroll_grid_height(self._toggle_grid, col_width)
 
     if self._uses_two_columns(content_width):
-      self._left_container_h = left_h
-      self._tiles_container_h = right_h
-      return SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP + max(left_h, right_h)
-    else:
-      self._left_container_h = left_h
-      self._tiles_container_h = right_h
-      return left_h + SECTION_GAP + right_h + SECTION_HEADER_HEIGHT * 2 + SECTION_HEADER_GAP * 2
+      return GROUP_OVERHEAD + max(self._left_container_h, self._tiles_container_h)
+    return self._left_container_h + SECTION_GAP + self._tiles_container_h + GROUP_OVERHEAD * 2
 
   def _build_scroll_columns(self, width: float) -> list[SettingsColumn]:
     mode = self._get_drive_mode_index()
     if not mode or not self._uses_two_columns(width):
       return []
-    heading = SECTION_HEADER_HEIGHT + SECTION_HEADER_GAP
     keys = self._cem_keys if mode == 1 else self._ccm_keys
-
-    def draw_column(rect, title, draw_body):
-      body = draw_settings_group_heading(rect, tr(title), style=PANEL_STYLE)
-      draw_body(body)
+    when_title, for_title = self._group_titles()
 
     def draw_adjustors(rect):
-      self._draw_adjustors(rect.y, rect.x, rect.width, keys)
+      self._draw_adjustors(rect, when_title, keys)
 
     def draw_toggles(rect):
-      self._draw_two_column_tile_grid(self._toggle_grid, rect.x, rect.y, rect.width, self._tiles_container_h,
-                                      columns=1 if PANEL_STYLE.toggle_row_mode else 2)
+      self._draw_toggles(rect, for_title)
 
-    return [SettingsColumn("left", heading + self._left_container_h, lambda rect: draw_column(rect, "When", draw_adjustors)),
-            SettingsColumn("right", heading + self._tiles_container_h, lambda rect: draw_column(rect, "For", draw_toggles))]
+    return [SettingsColumn("left", GROUP_OVERHEAD + self._left_container_h, draw_adjustors),
+            SettingsColumn("right", GROUP_OVERHEAD + self._tiles_container_h, draw_toggles)]
 
   def _draw_scroll_content(self, rect: rl.Rectangle, content_width: float):
-    y = rect.y + self._scroll_offset
-    
     mode = self._get_drive_mode_index()
     if mode == 0:
       return
-
     keys = self._cem_keys if mode == 1 else self._ccm_keys
-    grid = self._toggle_grid
-    
-    col_width = (content_width - SECTION_GAP) / 2 if self._uses_two_columns(content_width) else content_width
+    when_title, for_title = self._group_titles()
+    y = rect.y + self._scroll_offset
+    left_h = GROUP_OVERHEAD + self._left_container_h
+    self._draw_adjustors(rl.Rectangle(rect.x, y, content_width, left_h), when_title, keys)
+    y += left_h + SECTION_GAP
+    self._draw_toggles(rl.Rectangle(rect.x, y, content_width, GROUP_OVERHEAD + self._tiles_container_h), for_title)
 
-    body = draw_settings_group_heading(rl.Rectangle(rect.x, y, col_width, rect.height), tr("When"), style=PANEL_STYLE)
-    if self._uses_two_columns(content_width):
-      draw_settings_group_heading(rl.Rectangle(rect.x + col_width + SECTION_GAP, y, col_width, rect.height), tr("For"), style=PANEL_STYLE)
-    
-    y = body.y
-    
-    self._draw_adjustors(y, rect.x, col_width, keys)
+  def _draw_toggles(self, rect: rl.Rectangle, title: str):
+    body = draw_settings_group_heading(rect, title, style=PANEL_STYLE)
+    self._draw_two_column_tile_grid(self._toggle_grid, body.x, body.y, body.width, self._tiles_container_h,
+                                    title=None, style=PANEL_STYLE, columns=1 if PANEL_STYLE.toggle_row_mode else 2)
 
-    tg_columns = 1 if PANEL_STYLE.toggle_row_mode else 2
-    if self._uses_two_columns(content_width):
-      self._draw_two_column_tile_grid(
-        grid, rect.x + col_width + SECTION_GAP, y, col_width,
-        self._tiles_container_h, title=None, style=PANEL_STYLE,
-        columns=tg_columns)
-    else:
-      y += self._left_container_h + SECTION_GAP
-      body = draw_settings_group_heading(rl.Rectangle(rect.x, y, col_width, rect.height), tr("For"), style=PANEL_STYLE)
-      y = body.y
-      self._draw_two_column_tile_grid(
-        grid, rect.x, y, col_width,
-        self._tiles_container_h, title=None, style=PANEL_STYLE,
-        columns=tg_columns)
-
-  def _draw_adjustors(self, y: float, x: float, width: float, keys: list[str]):
-    draw_list_group_shell(rl.Rectangle(x, y, width, self._left_container_h), style=PANEL_STYLE)
-    current_y = y + 4
+  def _draw_adjustors(self, rect: rl.Rectangle, title: str, keys: list[str]):
+    body = draw_settings_group(rl.Rectangle(rect.x, rect.y, rect.width, GROUP_OVERHEAD + self._left_container_h),
+                               title, style=PANEL_STYLE)
+    current_y = body.y
     for index, key in enumerate(keys):
       adjustor = self._adjustor_rows[key]
-      row_h = adjustor.measure_height(width)
-      row_rect = rl.Rectangle(x, current_y, width, row_h)
+      row_h = adjustor.measure_height(body.width)
       adjustor.set_is_last(index == len(keys) - 1)
       self._bind_scroll_widget(adjustor)
-      adjustor.render(row_rect)
+      adjustor.render(rl.Rectangle(body.x, current_y, body.width, row_h))
       current_y += row_h
 
   def _get_active_elements(self):
