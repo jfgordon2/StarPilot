@@ -78,13 +78,16 @@ The four chime switches stay as they are: Green Light (**on**), Lead Departure (
 
 ## Fixed values, no longer shown
 
-Holiday themes **on**, rotating wheel **on**, stopped timer **on**, compass off, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The personality button moves into the onroad bar as the Driving Style selector.
+Holiday themes **on**, rotating wheel **on**, stopped timer **on**, compass off, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
 
 ## Navigation changes
 
 - The bottom bar drops the **Toggles** and **Developer** tabs. Metric units and language move to System. SSH, ADB and joystick move under Tuner Mode.
 - The hub has six tiles: Driving, Display, Alerts, Driving Model, Vehicle, System. A "Power user" strip below them holds the three bundle switches.
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
+- **The onroad bar holds four things:** menu, MAX −/+, the current street name, and the engage button.
+  - Driving Style is set in Settings › Driving and with the wheel's distance button. There is no onroad toggle for it.
+  - The street name is always on, which retires the `RoadNameUI` toggle. While navigating, arrival time, distance left and End route take its slot, and the street name moves to a chip above the steering headroom arc.
 
 ## Steering headroom
 
@@ -96,7 +99,7 @@ This builds on the existing torque bar in `selfdrive/ui/onroad/starpilot/torque_
   - **Working (60–85%):** the arc turns amber and gets thicker.
   - **At limit (over 85%, held for about half a second):** the arc turns orange-red, the lane lines tint, and the Warning alert "Help steer" plays one chime.
 - **Preview of the curve ahead.** A faint extension of the arc shows the steering the planned path will need 2–3 seconds out, based on the model's desired curvature at the current speed. The driver sees trouble before the car reaches it.
-- The flat "STEERING" bar in the onroad bar mocks was a stand-in for this arc. The arc stays on the road view, where the driver is already looking, which frees the bar slot.
+- The arc sits on the road view just above the onroad bar, where the driver is already looking. It replaces the flat "STEERING" bar from the earlier mocks.
 
 Open: the 60% and 85% thresholds, and whether the preview should use the model's plan or map curvature when a route is active.
 

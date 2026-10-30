@@ -24,6 +24,8 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
       <path d="M392 226 L40 400" stroke="#33404D" stroke-width="3" stroke-dasharray="10 10"></path>
       <path d="M440 226 L800 400" stroke="#33404D" stroke-width="3" stroke-dasharray="10 10"></path>
       <path d="M404 230 L428 230 L530 440 L318 440 Z" fill="#3A73B3" fill-opacity="0.5"></path>
+      <path d="M250 398 Q413 370 576 398" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="9" fill="none" stroke-linecap="round"></path>
+      <path d="M250 398 Q413 370 576 398" pathLength="100" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="9" fill="none" stroke-linecap="round" stroke-dasharray="14 200" stroke-dashoffset="-50"></path>
       <circle cx="380" cy="262" r="4" fill="#E9B44C"></circle>
       <circle cx="452" cy="258" r="4" fill="#E9B44C"></circle>
       <circle cx="418" cy="270" r="5" fill="#E9B44C"></circle>
@@ -58,12 +60,10 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
         </div>
         <button type="button" aria-label="Raise max speed" style="font-family: inherit; width: 46px; height: 56px; border: 0; background: transparent; color: #F2F5F9; font-size: 26px;">+</button>
       </div>
-      <div role="radiogroup" aria-label="Driving style" style="height: 66px; box-sizing: border-box; border-radius: 16px; background: #1F2328; display: flex; align-items: center; padding: 5px; gap: 2px;">
-        <button type="button" role="radio" aria-checked="false" style="font-family: inherit; height: 56px; border: 0; background: transparent; color: #C9D0DA; font-size: 16px; font-weight: 600; padding: 0 12px; border-radius: 12px;">Relaxed</button>
-        <button type="button" role="radio" aria-checked="true" style="font-family: inherit; height: 56px; border: 0; background: #5AAAF8; color: #0B1A2B; font-size: 16px; font-weight: 700; padding: 0 12px; border-radius: 12px;">Standard</button>
-        <button type="button" role="radio" aria-checked="false" style="font-family: inherit; height: 56px; border: 0; background: transparent; color: #C9D0DA; font-size: 16px; font-weight: 600; padding: 0 12px; border-radius: 12px;">Sport</button>
+      <div style="flex-grow: 1; min-width: 0; height: 66px; border-radius: 16px; background: #1F2328; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 20px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20L10 4M20 20L14 4M12 6v2M12 11v2M12 16v2"></path></svg>
+        <span style="font-size: 22px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">[Current street name]</span>
       </div>
-      <div style="flex-grow: 1;"></div>
       <button type="button" aria-label="Disengage" style="width: 66px; height: 66px; border-radius: 16px; border: 0; background: #1F9A55; display: flex; align-items: center; justify-content: center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5"></circle><path d="M3.5 10.5h6M14.5 10.5h6M12 14.5V21"></path></svg></button>
     </div>
   </div>
