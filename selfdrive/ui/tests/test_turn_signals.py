@@ -526,3 +526,41 @@ def test_comma4_background_and_signal_margin_use_the_same_actual_event_layout(sc
   else:
     renderer._draw_background(alert)
     assert sum(call[3] for call in draws) == margin
+
+
+def test_comma3_holiday_themes_row_reads_and_writes_the_setting():
+  tree = ast.parse((ROOT / "selfdrive/ui/layouts/settings/starpilot/appearance.py").read_text())
+  call = next(node for node in ast.walk(tree) if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "SettingRow"
+              and node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == "HolidayThemes")
+  view = SimpleNamespace(_params=Params(HolidayThemes=True))
+  args, kwargs = eval(compile(ast.Expression(call), "appearance.py", "eval"),
+                      dict(SettingRow=lambda *a, **k: (a, k), tr_noop=str, self=view))
+  assert args[:3] == ("HolidayThemes", "toggle", "Holiday Themes")
+  assert "visible" not in kwargs  # shown even when driving-screen widgets are off
+  assert kwargs["get_state"]() is True
+  kwargs["set_state"](False)
+  assert view._params.values["HolidayThemes"] is False
+  assert kwargs["get_state"]() is False
+
+
+def test_comma4_holiday_themes_toggle_saves_and_refreshes_starpilot_toggles():
+  tree = ast.parse((ROOT / "selfdrive/ui/mici/layouts/settings/visuals.py").read_text())
+  cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "StarPilotBigParamControl")
+  layout = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "VisualsLayoutMici")
+  assert "StarPilotBigParamControl('holiday themes', 'HolidayThemes')" in ast.unparse(layout)
+  notifications = []
+
+  class BigParamControl:  # mirrors the real widget: flip, then save
+    def __init__(self, text, param):
+      self.param, self.params, self._checked = param, Params(HolidayThemes=True), True
+
+    def _handle_mouse_release(self, _pos):
+      self._checked = not self._checked
+      self.params.put_bool(self.param, self._checked)
+
+  namespace = dict(BigParamControl=BigParamControl,
+                   update_starpilot_toggles=lambda: notifications.append(dict(control.params.values)))
+  exec(compile(ast.Module(body=[cls], type_ignores=[]), "visuals.py", "exec"), namespace)
+  control = namespace["StarPilotBigParamControl"]("holiday themes", "HolidayThemes")
+  control._handle_mouse_release(None)
+  assert notifications == [{"HolidayThemes": False}]  # saved before StarPilot is told to refresh

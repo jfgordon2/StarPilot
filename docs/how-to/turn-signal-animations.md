@@ -17,7 +17,8 @@ Themes setting and turns Random Themes off so the selected animation takes
 effect. Enabling Custom Themes also reactivates any saved color, icon, distance
 icon, and steering-wheel selections; those preferences are not reset.
 Automatic holiday themes still override the saved signal selection, including
-when Custom Themes is off. Disable Holiday Themes if you want the selected frogs
+when Custom Themes is off. Turn off Holiday Themes (next to Turn Signal Animation on either device, or in
+The Galaxy) if you want the selected frogs
 throughout the year. Turning Random Themes back on lets it choose the active
 signal pack again. Simple Mode disables custom signal animations.
 

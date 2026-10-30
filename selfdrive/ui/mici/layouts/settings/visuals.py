@@ -91,6 +91,14 @@ class LeadInfoBigButton(BigButton):
     gui_app.push_widget(dialog)
 
 
+class StarPilotBigParamControl(BigParamControl):
+  """A param toggle whose change must also refresh StarPilot's toggles."""
+
+  def _handle_mouse_release(self, mouse_pos):
+    super()._handle_mouse_release(mouse_pos)
+    update_starpilot_toggles()
+
+
 class TurnSignalAnimationBigButton(BigButton):
   def __init__(self):
     super().__init__("turn signal animation", "", gui_app.texture("icons_mici/onroad/eye_fill.png", 64, 64))
@@ -135,6 +143,7 @@ class VisualsLayoutMici(NavScroller):
     self._torque_bar_btn = BigParamControl("torque bar", "EnableTorqueBarWidget")
     self._rainbow_path_btn = BigParamControl("rainbow road", "RainbowPath")
     self._turn_signal_animation_btn = TurnSignalAnimationBigButton()
+    self._holiday_themes_btn = StarPilotBigParamControl("holiday themes", "HolidayThemes")
     self._lead_indicator_btn = LeadIndicatorBigButton()
     self._lead_info_btn = LeadInfoBigButton()
     self._speed_limit_signs_btn = BigParamControl("show speed limits", "ShowSpeedLimits")
@@ -150,6 +159,7 @@ class VisualsLayoutMici(NavScroller):
       self._torque_bar_btn,
       self._rainbow_path_btn,
       self._turn_signal_animation_btn,
+      self._holiday_themes_btn,
       self._lead_indicator_btn,
       self._lead_info_btn,
       self._speed_limit_signs_btn,
@@ -169,6 +179,7 @@ class VisualsLayoutMici(NavScroller):
   def _refresh(self):
     self._camera_view_btn.refresh()
     self._turn_signal_animation_btn.refresh()
+    self._holiday_themes_btn.refresh()
     self._lead_indicator_btn.refresh()
     self._lead_info_btn.refresh()
     self._lead_info_btn.set_enabled(lead_indicator_enabled(self._lead_info_btn.params, hide_by_default=True))
