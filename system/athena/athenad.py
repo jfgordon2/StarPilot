@@ -855,6 +855,9 @@ def get_logs_to_send_sorted() -> list[str]:
 
 
 def log_handler(end_event: threading.Event) -> None:
+  from openpilot.starpilot.tandem.diagnostics import AUTOMATIC_DIAGNOSTICS_ENABLED
+  if not AUTOMATIC_DIAGNOSTICS_ENABLED:
+    return
   if PC:
     return
 
@@ -917,6 +920,9 @@ def log_handler(end_event: threading.Event) -> None:
 
 
 def stat_handler(end_event: threading.Event) -> None:
+  from openpilot.starpilot.tandem.diagnostics import AUTOMATIC_DIAGNOSTICS_ENABLED
+  if not AUTOMATIC_DIAGNOSTICS_ENABLED:
+    return
   STATS_DIR = Paths.stats_root()
   last_scan = 0.0
 

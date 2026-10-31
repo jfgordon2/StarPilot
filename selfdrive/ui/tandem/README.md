@@ -57,6 +57,8 @@ page = SettingsPage(
 
 ## Keeping rebases easy
 
+Automatic crash and performance reporting is disabled by the fork-owned `starpilot/tandem/diagnostics.py`. Exceptions, stall dumps and native crash artifacts remain on the device; unattended Sentry events, remote diagnostic log/stat forwarding and StarPilot statistics uploads are blocked. Sentry only sends explicitly submitted issue reports and tunes, with automatic integrations, sessions and tracing disabled. The drive-log/video Uploads setting is separate and keeps its existing behavior. Base-code integrations are small policy hooks so rebases can keep upstream's capture and upload logic.
+
 This fork is rebased onto StarPilot, and everything outside this package belongs to StarPilot or to openpilot underneath it. Our work therefore lives in new files and edits upstream files only when there is no other way.
 
 - **Ours:** everything in `selfdrive/ui/tandem/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
