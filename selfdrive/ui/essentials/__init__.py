@@ -13,7 +13,7 @@ Screens are composed from these components instead of drawing with raylib direct
   )
 
 Values can be plain or callables (read every frame), so rows can bind straight to Params.
-Tokens and drawing helpers are in `tokens` and `draw`; see starpilot/docs/design/essentials/tokens.md.
+Tokens and drawing helpers are in `tokens` and `draw`; see design/tokens.md.
 """
 from openpilot.selfdrive.ui.essentials import draw, layout, tokens
 from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of

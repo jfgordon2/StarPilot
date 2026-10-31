@@ -155,8 +155,6 @@ class FontWeight(StrEnum):
   MEDIUM = "Figtree-Medium.fnt"
   BOLD = "Figtree-Bold.fnt"
   SEMI_BOLD = "Figtree-SemiBold.fnt"
-  EXTRA_BOLD = "Figtree-ExtraBold.fnt"
-  MONO = "JetBrainsMono-Medium.fnt"
   UNIFONT = "unifont.fnt"
   BRAND = "como-heavy.fnt"
 

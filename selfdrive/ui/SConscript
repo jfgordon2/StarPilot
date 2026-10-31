@@ -35,17 +35,17 @@ if GetOption('extras') and arch != "Darwin":
 
   cont = raylib_env.Command("installer/continue_openpilot.o", "installer/continue_openpilot.sh",
                             "ld -r -b binary -o $TARGET $SOURCE")
-  figtree_medium = raylib_env.Command("installer/figtree_medium.o", "../assets/fonts/Figtree-Medium.ttf",
-                                      "ld -r -b binary -o $TARGET $SOURCE")
-  figtree_bold = raylib_env.Command("installer/figtree_bold.o", "../assets/fonts/Figtree-Bold.ttf",
-                                    "ld -r -b binary -o $TARGET $SOURCE")
-  figtree_regular = raylib_env.Command("installer/figtree_regular.o", "../assets/fonts/Figtree-Regular.ttf",
-                                       "ld -r -b binary -o $TARGET $SOURCE")
+  inter = raylib_env.Command("installer/inter_ttf.o", "installer/inter-ascii.ttf",
+                             "ld -r -b binary -o $TARGET $SOURCE")
+  inter_bold = raylib_env.Command("installer/inter_bold.o", "../assets/fonts/Inter-Bold.ttf",
+                                  "ld -r -b binary -o $TARGET $SOURCE")
+  inter_light = raylib_env.Command("installer/inter_light.o", "../assets/fonts/Inter-Light.ttf",
+                                   "ld -r -b binary -o $TARGET $SOURCE")
   for name, branch in installers:
     defines = {'BRANCH': f"'\"{branch}\"'"}
     if "internal" in name:
       defines['INTERNAL'] = "1"
 
     obj = raylib_env.Object(f"installer/installers/installer_{name}.o", ["installer/installer.cc"], CPPDEFINES=defines)
-    installer = raylib_env.Program(f"installer/installers/installer_{name}", [obj, cont, figtree_medium, figtree_bold, figtree_regular], LIBS=raylib_libs)
+    installer = raylib_env.Program(f"installer/installers/installer_{name}", [obj, cont, inter, inter_bold, inter_light], LIBS=raylib_libs)
     assert installer[0].get_size() < 2500*1e3, installer[0].get_size()

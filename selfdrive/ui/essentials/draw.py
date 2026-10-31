@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import pyray as rl
 
-from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight, gui_app
+from openpilot.system.ui.lib.application import FONT_SCALE, gui_app
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wrap_text import wrap_text
 from openpilot.selfdrive.ui.essentials import tokens as T
+from openpilot.selfdrive.ui.essentials.fonts import Face, font
 from openpilot.selfdrive.ui.essentials.layout import Align, place
 
 SEGMENTS = 16
@@ -47,15 +48,15 @@ def pressed(rect: rl.Rectangle, radius: float = 0) -> None:
 
 # ── Text ──
 
-def text_width(text: str, size: int, weight: FontWeight = T.FONT, tracking: float = 0) -> float:
-  return measure_text_cached(gui_app.font(weight), text, size, tracking).x
+def text_width(text: str, size: int, weight: Face = T.FONT, tracking: float = 0) -> float:
+  return measure_text_cached(font(weight), text, size, tracking).x
 
 
 def line_height(size: int) -> float:
   return size * FONT_SCALE
 
 
-def fit(text: str, size: int, weight: FontWeight, max_width: float, tracking: float = 0) -> str:
+def fit(text: str, size: int, weight: Face, max_width: float, tracking: float = 0) -> str:
   if text_width(text, size, weight, tracking) <= max_width:
     return text
   while text and text_width(text + ELLIPSIS, size, weight, tracking) > max_width:
@@ -63,14 +64,14 @@ def fit(text: str, size: int, weight: FontWeight, max_width: float, tracking: fl
   return text.rstrip() + ELLIPSIS if text else ""
 
 
-def text(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: FontWeight = T.FONT,
+def text(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: Face = T.FONT,
          h: Align = Align.START, v: Align = Align.CENTER, tracking: float = 0, elide: bool = True) -> float:
   """Draw one line inside rect. Returns the drawn width."""
   if elide:
     value = fit(value, size, weight, rect.width, tracking)
   width = text_width(value, size, weight, tracking)
   box = place(rect, width, line_height(size), h, v)
-  rl.draw_text_ex(gui_app.font(weight), value, rl.Vector2(round(box.x), round(box.y)), size, tracking, color)
+  rl.draw_text_ex(font(weight), value, rl.Vector2(round(box.x), round(box.y)), size, tracking, color)
   return width
 
 
@@ -79,20 +80,20 @@ def caption(rect: rl.Rectangle, value: str, color: rl.Color = T.TEXT_MUTED, h: A
   return text(rect, value.upper(), T.SIZE_CAPTION, color, T.FONT_BOLD, h, v, tracking=T.CAPTION_TRACKING)
 
 
-def paragraph_lines(value: str, size: int, weight: FontWeight, width: float) -> list[str]:
-  return wrap_text(gui_app.font(weight), value, size, int(width))
+def paragraph_lines(value: str, size: int, weight: Face, width: float) -> list[str]:
+  return wrap_text(font(weight), value, size, int(width))
 
 
-def paragraph_height(value: str, size: int, weight: FontWeight, width: float, spacing: float = 1.3) -> float:
+def paragraph_height(value: str, size: int, weight: Face, width: float, spacing: float = 1.3) -> float:
   return len(paragraph_lines(value, size, weight, width)) * line_height(size) * spacing
 
 
-def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: FontWeight = T.FONT, spacing: float = 1.3) -> float:
+def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: Face = T.FONT, spacing: float = 1.3) -> float:
   """Wrapped text from the top of rect. Returns the height used."""
   y = rect.y
   step = line_height(size) * spacing
   for line in paragraph_lines(value, size, weight, rect.width):
-    rl.draw_text_ex(gui_app.font(weight), line, rl.Vector2(round(rect.x), round(y)), size, 0, color)
+    rl.draw_text_ex(font(weight), line, rl.Vector2(round(rect.x), round(y)), size, 0, color)
     y += step
   return y - rect.y
 

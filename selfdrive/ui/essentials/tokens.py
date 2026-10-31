@@ -1,4 +1,4 @@
-"""Essentials design tokens. See starpilot/docs/design/essentials/tokens.md.
+"""Essentials design tokens. See design/tokens.md.
 
 The mocks are drawn on a 1125x563 frame; the comma 3/3X panel is 2160x1080, so one mock
 px is SCALE device px. Layout values below are already in device px. Font sizes are the
@@ -9,6 +9,7 @@ FONT_SCALE, so they are divided by it here to land on the size drawn in the mock
 import pyray as rl
 
 from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight
+from openpilot.selfdrive.ui.essentials.fonts import ExtraFont
 
 SCALE = 2160 / 1125
 
@@ -101,8 +102,8 @@ FONT = FontWeight.ROMAN                         # Figtree Regular on every UI si
 FONT_MEDIUM = FontWeight.MEDIUM
 FONT_SEMIBOLD = FontWeight.SEMI_BOLD            # row titles, buttons, nav
 FONT_BOLD = FontWeight.BOLD                     # panel titles, selected segments
-FONT_EXTRABOLD = FontWeight.EXTRA_BOLD          # screen titles, speed, big values
-FONT_MONO = FontWeight.MONO                     # numbers in Developer View and Tuner Mode
+FONT_EXTRABOLD = ExtraFont.EXTRA_BOLD           # screen titles, speed, big values (loaded on first use)
+FONT_MONO = ExtraFont.MONO                      # numbers in Developer View and Tuner Mode (loaded on first use)
 
 SIZE_VALUE = font_px(72)                # value editors
 SIZE_SPEED = font_px(62)

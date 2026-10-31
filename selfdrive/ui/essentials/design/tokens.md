@@ -1,6 +1,6 @@
 # Essentials design tokens
 
-The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes below. This page explains how they map onto the app. The values themselves live in [`selfdrive/ui/essentials/tokens.py`](../../../../selfdrive/ui/essentials/tokens.py). The components that use them are described in [`selfdrive/ui/essentials/README.md`](../../../../selfdrive/ui/essentials/README.md).
+The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes below. This page explains how they map onto the app. The values themselves live in [`tokens.py`](../tokens.py). The components that use them are described in the [library README](../README.md).
 
 ## Converting mock values
 
@@ -10,7 +10,7 @@ The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes belo
 
 ## Fonts
 
-Figtree is now the only UI typeface: every `FontWeight` member (`system/ui/lib/application.py`) points at a Figtree weight, and Inter has been removed, installer included. JetBrains Mono is `FontWeight.MONO`.
+The app UI draws in Figtree: the `FontWeight` members in `system/ui/lib/application.py` now name Figtree files instead of Inter. That is the only upstream change. Inter stays in the repo for the installer and tools that load it directly. ExtraBold and JetBrains Mono come from `selfdrive/ui/essentials/fonts.py` (`ExtraFont`), which loads them the first time a component draws with them.
 
 | Weight | Token | Used for |
 | --- | --- | --- |
@@ -21,9 +21,10 @@ Figtree is now the only UI typeface: every `FontWeight` member (`system/ui/lib/a
 | 800 ExtraBold | `FONT_EXTRABOLD` | Screen titles, the speed, big values |
 | JetBrains Mono Medium | `FONT_MONO` | Numbers in Developer View and Tuner Mode |
 
-- The `.ttf` files are in `selfdrive/assets/fonts`. The bitmap fonts (`.fnt`/`.png`) were generated with that folder's `process.py`, using the shared character set (ASCII, the `EXTRA_CHARS` list, and every non-CJK translation). `·`, `…`, `−` and `›` were added to `EXTRA_CHARS` for this design. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont.
+- The `.ttf` files are in `selfdrive/assets/fonts`. The Figtree bitmap fonts (`.fnt`/`.png`) are built by `selfdrive/ui/essentials/tools/build_figtree_fonts.py`. It runs the unchanged upstream `process.py` with `·`, `…`, `−` and `›` added to its character set, which already covers ASCII, `EXTRA_CHARS` and every non-CJK translation. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont. If you rerun `process.py` directly, it rebuilds Figtree without those four characters, so run the StarPilot script afterwards.
 - The mocks show JetBrains Mono at 700 in a few places, but only Medium ships. Medium is used for all mono text.
-- **Startup.** Every distinct `FontWeight` file loads one 2048×2048 atlas at startup. The app now loads eight: Figtree Regular, Medium, SemiBold, Bold and ExtraBold, plus mono, unifont and the brand font. Before this change it loaded six (four Inter weights, unifont and the brand font). Inter is gone, but the design adds ExtraBold and mono. If startup time matters, load mono lazily, since only Developer View and Tuner Mode use it.
+- **Startup.** Every distinct `FontWeight` file loads one 2048×2048 atlas at startup. That is still six: four Figtree weights, unifont and the brand font, exactly where Inter's four used to be. Inter no longer loads. ExtraBold and mono each add one atlas, the first time they are drawn.
+- The mono atlas is upstream's, without the four extra characters. That's fine for numbers.
 
 ## Type scale
 

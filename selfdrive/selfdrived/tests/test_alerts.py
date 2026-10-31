@@ -52,9 +52,9 @@ class TestAlerts:
   # ensure alert text doesn't exceed allowed width
   def test_alert_text_length(self):
     font_path = os.path.join(BASEDIR, "selfdrive/assets/fonts")
-    regular_font_path = os.path.join(font_path, "Figtree-SemiBold.ttf")
-    bold_font_path = os.path.join(font_path, "Figtree-Bold.ttf")
-    semibold_font_path = os.path.join(font_path, "Figtree-SemiBold.ttf")
+    regular_font_path = os.path.join(font_path, "Inter-SemiBold.ttf")
+    bold_font_path = os.path.join(font_path, "Inter-Bold.ttf")
+    semibold_font_path = os.path.join(font_path, "Inter-SemiBold.ttf")
 
     max_text_width = 2160 - 300  # full screen width is usable, minus sidebar
     draw = ImageDraw.Draw(Image.new('RGB', (0, 0)))

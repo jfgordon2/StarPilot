@@ -139,3 +139,37 @@ def test_bottom_nav_selects_the_tab_that_was_pressed_and_released():
 @pytest.mark.parametrize("cls", [BottomNav, Sidebar])
 def test_containers_do_not_grow_their_touch_area(cls):
   assert issubclass(cls, Component) and cls.grow_touch_target is False
+
+
+# ── fonts ──
+
+def _figtree_codepoints() -> set[int]:
+  import re
+  from pathlib import Path
+  fnt = Path(__file__).resolve().parents[3] / "assets/fonts/Figtree-Medium.fnt"
+  return {int(code) for code in re.findall(r"^char id=(\d+)", fnt.read_text(), re.MULTILINE)}
+
+
+def _ui_strings() -> list[tuple[str, str]]:
+  """Translated strings in StarPilot's settings panels, and every non-docstring string in this package."""
+  import ast
+  from pathlib import Path
+  root = Path(__file__).resolve().parents[2]
+  found = []
+  for path in (root / "layouts/settings/starpilot").glob("*.py"):
+    for node in ast.walk(ast.parse(path.read_text())):
+      if isinstance(node, ast.Call) and getattr(node.func, "id", None) in ("tr", "tr_noop") and node.args \
+         and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+        found.append((path.name, node.args[0].value))
+  for path in (root / "essentials").glob("*.py"):
+    tree = ast.parse(path.read_text())
+    docstrings = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
+    found += [(path.name, n.value) for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docstrings]
+  return found
+
+
+def test_figtree_atlas_can_draw_every_ui_string():
+  """The atlases are pre-baked; a missing glyph renders as '?' on the device."""
+  glyphs = _figtree_codepoints()
+  missing = {(name, ch) for name, value in _ui_strings() for ch in value if ord(ch) > 127 and ch.isprintable() and ord(ch) not in glyphs}
+  assert not missing, sorted(missing)

@@ -56,17 +56,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-## Figtree font
-
-The StarPilot Essentials design uses the Figtree typeface. Its Regular, Medium, SemiBold, Bold and
-ExtraBold weights are included unmodified in `selfdrive/assets/fonts/`, along with bitmap atlases
-generated from them by `selfdrive/assets/fonts/process.py`.
-
-- Source: <https://github.com/erikdkennedy/figtree>
-- Copyright 2022 The Figtree Project Authors
-- License: SIL Open Font License 1.1, included as
-  [`selfdrive/assets/fonts/Figtree-OFL.txt`](selfdrive/assets/fonts/Figtree-OFL.txt)
-
 ## Applicable upstream license notices
 
 The upstream repositories and branches identified above publish both `LICENSE` and `LICENSE.md`.
