@@ -109,3 +109,156 @@ class FakeData:
 
   def send_report(self, issue, discord):
     self.reports.append((issue, discord))
+
+
+class FakeNet:
+  def __init__(self, ssid, strength, security_type=2, is_tethering=False):
+    self.ssid, self.strength, self.security_type, self.is_tethering = ssid, strength, security_type, is_tethering
+
+
+class FakeWifi:
+  def __init__(self):
+    self.networks = [FakeNet("Home Wi-Fi", 90), FakeNet("Coffee Shop", 60, 0), FakeNet("Neighbor", 30)]
+    self.saved = {"Home Wi-Fi"}
+    self.connected_ssid = "Home Wi-Fi"
+    self.connecting_to_ssid = None
+    self.ipv4_address = "192.168.1.42"
+    self.tethering_password = "swordfish1"
+    self.tethering = False
+    self.calls = []
+    self.need_auth = None
+
+  def add_callbacks(self, need_auth=None, **_):
+    self.need_auth = need_auth
+
+  def process_callbacks(self):
+    pass
+
+  def set_active(self, active):
+    self.calls.append(("active", active))
+
+  def is_connection_saved(self, ssid):
+    return ssid in self.saved
+
+  def activate_connection(self, ssid):
+    self.calls.append(("activate", ssid))
+
+  def connect_to_network(self, ssid, password, hidden=False):
+    self.calls.append(("connect", ssid, password, hidden))
+
+  def forget_connection(self, ssid):
+    self.saved.discard(ssid)
+
+  def is_tethering_active(self):
+    return self.tethering
+
+  def set_tethering_active(self, on):
+    self.tethering = on
+
+  def set_tethering_password(self, password):
+    self.tethering_password = password
+
+  def set_current_network_metered(self, metered):
+    self.calls.append(("metered", metered))
+
+  def update_gsm_settings(self, roaming, apn, metered):
+    self.calls.append(("gsm", roaming, apn, metered))
+
+
+class FakeWheel:
+  favorite_slots = 3
+
+  def __init__(self):
+    self.maps = [{"id": "a", "device_name": "Wheel Remote", "event_name": "BTN_A", "slot": 3},
+                 {"id": "b", "device_name": "Wheel Remote", "event_name": "BTN_B", "slot": 4}]
+    self.keys = {3: "engage", 4: "disengage"}
+    self.state = {"testing": True, "last_tested": None, "devices": [{"name": "Wheel Remote"}]}
+    self.learning = None
+
+  def mappings(self):
+    return self.maps
+
+  def action(self, slot):
+    return f"favorite:{slot}" if slot < 3 else self.keys.get(slot)
+
+  def actions(self):
+    return [("engage", "Engage"), ("disengage", "Disengage"), ("style", "Change driving style"), ("screen", "Screen off / on"),
+            ("favorite:0", "Navigate to favorite 1")]
+
+  def status(self):
+    return self.state
+
+  def start_learning(self, slot):
+    self.learning = slot
+
+  def cancel_learning(self):
+    self.learning = None
+
+  def start_testing(self):
+    self.state["testing"] = True
+
+  def stop_testing(self):
+    self.state["testing"] = False
+
+  def free_slot(self):
+    used = {m["slot"] for m in self.maps}
+    return next(s for s in range(3, 13) if s not in used)
+
+  def assign(self, mapping_id, key):
+    mapping = next(m for m in self.maps if m["id"] == mapping_id)
+    if key.startswith("favorite:"):
+      mapping["slot"] = int(key.split(":")[1])
+    else:
+      self.keys[mapping["slot"]] = key
+
+  def delete(self, mapping_id):
+    self.maps = [m for m in self.maps if m["id"] != mapping_id]
+
+
+class FakeDevice_:
+  def __init__(self, address, name, paired=False, connected=False, audio=False, controller=False):
+    self.address, self.name, self.paired, self.connected, self.audio, self.controller = address, name, paired, connected, audio, controller
+
+
+class FakeBtStatus:
+  def __init__(self):
+    self.devices = (FakeDevice_("AA", "Car Audio", True, True, audio=True), FakeDevice_("BB", "Pixel 9"),
+                    FakeDevice_("CC", "Wheel Remote", True, True, controller=True))
+    self.selected_audio = "AA"
+    self.offroad = True
+    self.discovering = True
+
+
+class FakeBluetooth:
+  def __init__(self):
+    self._status = FakeBtStatus()
+    self.calls = []
+
+  def tick(self):
+    pass
+
+  def set_active(self, active):
+    self.calls.append(("active", active))
+
+  def status(self):
+    return self._status
+
+  def select(self, address):
+    self.calls.append(("select", address))
+
+  def test_audio(self, address):
+    self.calls.append(("test", address))
+
+  def forget(self, address):
+    self.calls.append(("forget", address))
+
+
+class FakeUpdates:
+  def __init__(self):
+    self.calls = []
+
+  def tick(self):
+    pass
+
+  def __getattr__(self, name):
+    return lambda: self.calls.append(name)

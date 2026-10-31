@@ -665,3 +665,104 @@ def test_backup_restore_asks_first():
   confirm(window, "Restore?", "Replaces settings.", "Restore", lambda: done.append(1))
   window.overlay._on_result(DialogResult.CONFIRM)
   assert done == [1]
+
+
+# ── Network, Bluetooth, Software ──
+
+def _network(values=None):
+  from openpilot.selfdrive.ui.tandem.settings.network_tab import Network
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeWifi
+  store, cache = _store(values)
+  asked = []
+  wifi = FakeWifi()
+  net = Network(wifi, store, ask=lambda title, sub, current, done, *a, **k: asked.append((title, done)))
+  return net, wifi, cache, asked
+
+
+def test_wifi_connects_saved_open_and_secured_networks():
+  net, wifi, _, asked = _network()
+  home, cafe, neighbor = wifi.networks
+  assert net.status("Home Wi-Fi") == "Connected" and net.status("Neighbor") == ""
+  net.choose(cafe)
+  assert wifi.calls[-1] == ("connect", "Coffee Shop", "", False)
+  net.choose(neighbor)
+  title, done = asked[-1]
+  assert title == "Enter password"
+  done("hunter2hunter2")
+  assert wifi.calls[-1] == ("connect", "Neighbor", "hunter2hunter2", False)
+  wifi.need_auth("Neighbor")
+  assert asked[-1][0] == "Wrong password"
+
+
+def test_save_data_marks_cellular_and_current_wifi_metered():
+  net, wifi, cache, _ = _network({"GsmApn": "fast.apn"})
+  net.set_save_data(True)
+  assert cache.values["GsmMetered"] and ("gsm", False, "fast.apn", True) in wifi.calls and ("metered", 1) in wifi.calls
+
+
+def test_wheel_buttons_highlight_and_assign():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import AssignSheet, WheelButtons
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeWheel
+  source = FakeWheel()
+  wheel = WheelButtons(source)
+  first = wheel.buttons()[0]
+  assert wheel.action_name(first) == "Engage" and not wheel.is_pressed(first)
+  source.state["last_tested"] = {"mapped": True, "slot": 3}
+  assert wheel.is_pressed(first)
+  source.state["last_tested"] = {"mapped": False}
+  assert wheel.unassigned_pressed()
+
+  sheet = AssignSheet(wheel)
+  sheet.show_event()
+  assert source.learning == 5 and not sheet.ready
+  source.maps.append({"id": "c", "device_name": "Wheel Remote", "event_name": "BTN_C", "slot": 5})
+  source.state["last_learned"] = source.maps[-1]
+  sheet._update_state()
+  sheet._pick(2)
+  assert sheet.ready and sheet.save()
+  assert wheel.action_name(source.maps[-1]) == "Change driving style"
+
+
+def test_cancelling_assignment_removes_a_learned_button():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import AssignSheet, WheelButtons
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeWheel
+  source = FakeWheel()
+  sheet = AssignSheet(WheelButtons(source))
+  sheet.show_event()
+  source.maps.append({"id": "c", "device_name": "Wheel Remote", "event_name": "BTN_C", "slot": 5})
+  source.state["last_learned"] = source.maps[-1]
+  sheet._update_state()
+  sheet.cancel()
+  assert [m["id"] for m in source.maps] == ["a", "b"] and source.learning is None
+
+
+def test_software_states_and_actions():
+  from openpilot.selfdrive.ui.tandem.settings.software_tab import Software
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeUpdates
+  store, cache = _store({"UpdaterState": "idle", "UpdaterCurrentDescription": "0.10.1 / release"})
+  updates = FakeUpdates()
+  software = Software(store, updates, lambda: None)
+  assert software.state() == "current" and software.action_label() == "Check now"
+  software.act()
+  cache.values["UpdaterFetchAvailable"] = True
+  assert software.action_label() == "Download"
+  cache.values["UpdateAvailable"] = True
+  software.act()
+  assert updates.calls == ["check_or_download", "install"]
+  cache.values["UpdaterState"] = "downloading"
+  assert software.state() == "busy" and software.status_line() == "Downloading the update"
+
+
+def test_reset_settings_applies_essentials_with_one_signal():
+  from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW
+  from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
+  cache = FakeCache({"LongitudinalPersonality": 0, "SpeedLimitController": False})
+  notified = []
+  store = SettingsStore(cache, lambda: notified.append(1))
+  DEVELOPER_VIEW.set(store, True)
+  notified.clear()
+  apply_essentials(store)
+  assert notified == [1]
+  speed = SpeedSteering(store)
+  assert speed.style == 1 and speed.matching and speed.offset == 3 and speed.higher_limits == 1 and speed.lane_changes == 1
+  assert not DEVELOPER_VIEW.is_on(store) and cache.values["GreenLightAlert"] and not cache.values["HolidayThemes"]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import contextmanager
 from typing import Any
 
 
@@ -17,6 +18,20 @@ class SettingsStore:
       notify = update_starpilot_toggles
     self._cache = cache
     self._notify = notify
+    self._batching = 0
+    self._pending = False
+
+  @contextmanager
+  def batch(self):
+    """Group many writes (e.g. Reset Settings) so the driving processes are signalled once, at the end."""
+    self._batching += 1
+    try:
+      yield
+    finally:
+      self._batching -= 1
+      if not self._batching and self._pending:
+        self._pending = False
+        self._notify()
 
   def get_bool(self, key: str) -> bool:
     return bool(self._cache.get_bool(key))
@@ -47,4 +62,7 @@ class SettingsStore:
       else:
         self._cache.put_float(key, float(value))
     self._cache.invalidate()
-    self._notify()
+    if self._batching:
+      self._pending = True
+    else:
+      self._notify()

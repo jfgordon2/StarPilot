@@ -17,10 +17,15 @@ from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
-from openpilot.selfdrive.ui.tandem.settings.device_sections import General, Report, backups_panel, general_panel, report_panel, storage_panel
+from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
+from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
+from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel, report_panel,
+                                                                    storage_panel)
+from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, NetworkPage, advanced_panel
+from openpilot.selfdrive.ui.tandem.settings.software_tab import Software, SoftwarePage
 from openpilot.selfdrive.ui.tandem.settings.driving_tab import driving_hub
 from openpilot.selfdrive.ui.tandem.settings.live import Live
-from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage, can_go_back, go_back
+from openpilot.selfdrive.ui.tandem.settings.pages import PanelPage, Section, SectionPage, can_go_back, go_back
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
@@ -61,6 +66,26 @@ def _upstream_device():
   return UpstreamDevice()
 
 
+def _upstream_wifi():
+  from openpilot.selfdrive.ui.tandem.settings.network_tab import upstream_wifi
+  return upstream_wifi()
+
+
+def _upstream_wheel():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import UpstreamWheel
+  return UpstreamWheel()
+
+
+def _upstream_bluetooth():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import UpstreamBluetooth
+  return UpstreamBluetooth()
+
+
+def _upstream_updates():
+  from openpilot.selfdrive.ui.tandem.settings.software_tab import UpstreamUpdates
+  return UpstreamUpdates()
+
+
 def _upstream_cars():
   from openpilot.selfdrive.ui.tandem.settings.vehicle import UpstreamCars
   return UpstreamCars()
@@ -68,7 +93,7 @@ def _upstream_cars():
 
 class SettingsWindow(Widget):
   def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None, device_data=None,
-               device=None):
+               device=None, wifi=None, wheel=None, bluetooth=None, updates=None):
     """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
@@ -77,8 +102,12 @@ class SettingsWindow(Widget):
     self.car_catalog = car_catalog or _upstream_cars
     self.device_data = device_data or _upstream_data
     self.device = device or _upstream_device
+    self.wifi = wifi or _upstream_wifi
+    self.wheel = wheel or _upstream_wheel
+    self.bluetooth = bluetooth or _upstream_bluetooth
+    self.updates = updates or _upstream_updates
     self._tab = Tab.DRIVING
-    self._roots: list[Callable[[], Widget]] = [self._driving, self._device, upstream.network, upstream.bluetooth, upstream.software]
+    self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._network, self._bluetooth, self._software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]
     self._shown = False
     self._overlay: Widget | None = None
@@ -241,3 +270,15 @@ class SettingsWindow(Widget):
       Section("Report a Problem", lambda: report_panel(report)),
       Section("Developer", upstream.developer, visible=lambda: TUNER_MODE.is_on(self.store)),
     ])
+
+  def _network(self) -> Widget:
+    model = Network(self.wifi(), self.store)
+    return NetworkPage(model, lambda: self.push(PanelPage(advanced_panel(model))))
+
+  def _bluetooth(self) -> Widget:
+    return BluetoothPage(WheelButtons(self.wheel()), self.bluetooth(), self)
+
+  def _software(self) -> Widget:
+    model = Software(self.store, self.updates(), lambda: apply_essentials(self.store))
+    return SoftwarePage(model, lambda title, message, label, action: confirm(self, title, message, label, action))
+
