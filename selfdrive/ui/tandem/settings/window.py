@@ -21,6 +21,7 @@ from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, 
 from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
 from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel, report_panel,
                                                                     storage_panel)
+from openpilot.selfdrive.ui.tandem.settings.model import Models
 from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, NetworkPage, advanced_panel
 from openpilot.selfdrive.ui.tandem.settings.software_tab import Software, SoftwarePage
 from openpilot.selfdrive.ui.tandem.settings.driving_tab import driving_hub
@@ -278,7 +279,7 @@ class SettingsWindow(Widget):
       Section("This Device", lambda: ThisDevicePanel(self.device())),
       Section("General", lambda: general_panel(general, self)),
       Section("Backups", lambda: backups_panel(general, self)),
-      Section("Storage & Data", lambda: storage_panel(general, self)),
+      Section("Storage & Data", lambda: storage_panel(general, self, Models(self.store, self.model_source()))),
       Section("Report a Problem", lambda: report_panel(report)),
       Section("Developer", upstream.developer, visible=lambda: TUNER_MODE.is_on(self.store)),
     ])

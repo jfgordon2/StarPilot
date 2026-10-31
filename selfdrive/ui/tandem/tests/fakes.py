@@ -47,6 +47,9 @@ class FakeModels:
   def remove(self, key):
     self.items = [m for m in self.items if m.key != key]
 
+  def removal_blocked(self):
+    return ""
+
 
 class FakeCars:
   def makes(self):

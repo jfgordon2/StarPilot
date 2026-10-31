@@ -284,7 +284,27 @@ def delete_maps_row(data: DeviceData, window, height: float | None = None) -> Se
   return SettingRow("Offline Maps", subtitle, delete, height=height)
 
 
-def storage_panel(model: General, window) -> ListPanel:
+def unused_models_row(models, window) -> SettingRow:
+  """Storage & Data's row for downloaded models that aren't in use (never the current or recommended one)."""
+  def subtitle() -> str:
+    count = len(models.unused())
+    blocked = models.source.removal_blocked()
+    if blocked and count:
+      return blocked
+    return f"{count} downloaded model{'s' if count != 1 else ''} not in use" if count else "Only the models you use are downloaded"
+
+  def remove() -> None:
+    count = len(models.unused())
+    confirm(window, "Remove unused models?",
+            f"{count} model{'s' if count != 1 else ''} you aren't using {'are' if count != 1 else 'is'} removed. " +
+            "You can download them again from the model catalog.", "Remove",
+            lambda: (models.remove_unused(), STORAGE.forget()))
+  button = Button("Remove", remove, ButtonStyle.DANGER_SOFT)
+  button.set_enabled(lambda: bool(models.unused()) and not models.source.removal_blocked())
+  return SettingRow("Unused Models", subtitle, button)
+
+
+def storage_panel(model: General, window, models) -> ListPanel:
   driver = SettingRow("Record Driver Camera", "Saved and uploaded with your drives. Restarts openpilot if the car is on.",
                       Switch(lambda: model.record_driver, model.set_record_driver))
   audio = SettingRow("Record Microphone", "Cabin audio in your drive recordings. Restarts openpilot if the car is on.",
@@ -297,6 +317,7 @@ def storage_panel(model: General, window) -> ListPanel:
                Button("Delete all", lambda: confirm(window, "Delete all drives?", DELETE_DRIVES_MESSAGE, "Delete", model.data.delete_drives),
                       ButtonStyle.DANGER_SOFT)),
     delete_maps_row(model.data, window),
+    unused_models_row(models, window),
     driver,
     audio,
   ], title="Storage & Data", header_divider=False, end_divider=True,   # the usage bar belongs to the header, as in the mock

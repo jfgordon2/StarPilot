@@ -47,6 +47,7 @@ class ModelSource(Protocol):
   def download(self, key: str) -> None: ...
   def cancel(self) -> None: ...
   def remove(self, key: str) -> None: ...
+  def removal_blocked(self) -> str: ...   # why models can't be removed right now, or ""
 
 
 class Models:
@@ -307,7 +308,7 @@ class CatalogPage(Component):
       models.source.tick))
     remove = Button(lambda: f"Remove unused models ({len(models.unused())})" if models.unused() else "Remove unused models",
                     lambda: (models.remove_unused(), STORAGE.forget()), height=T.px(46), font_size=T.font_px(15))
-    remove.set_enabled(lambda: bool(models.unused()))
+    remove.set_enabled(lambda: bool(models.unused()) and not models.source.removal_blocked())
     note = lambda text: Text(text, T.SIZE_SUBTITLE, T.TEXT_SECONDARY, padding=(0, 0))  # noqa: E731
     self._side = self._child(Stack([
       Card([
@@ -386,3 +387,12 @@ class UpstreamModels:
 
   def remove(self, key: str) -> None:
     self._layout.delete_model(key)
+
+  def removal_blocked(self) -> str:
+    """StarPilot's rules for deleting model files: not while driving, not during a download."""
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    if ui_state.started:
+      return "Park to remove models"
+    if self._layout._is_download_active():
+      return "Wait for the download to finish"
+    return ""
