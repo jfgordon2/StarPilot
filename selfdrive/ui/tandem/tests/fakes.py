@@ -334,6 +334,9 @@ class FakeBootLogos:
   def install_tandem(self):
     self.installs += 1
 
+  def image(self, slug):
+    return None
+
   def installed(self):
     return [("aurora_logo", "Aurora Logo"), ("pixel_logo", "Pixel Logo"), ("stock", "Stock")]
 

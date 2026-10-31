@@ -9,6 +9,7 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import Grid
 from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
@@ -37,11 +38,15 @@ CAMERA_VIEWS = [("Auto", 0), ("Standard", 2), ("Wide", 3)]
 TANDEM_LOGO = "tandem"
 BUILT_IN_LOGOS = [(TANDEM_LOGO, "Tandem"), ("starpilot", "StarPilot"), ("stock", "comma")]
 TANDEM_LOGO_FILE = Path(__file__).resolve().parents[1] / "assets" / "boot_logo.jpg"
+_STARPILOT_IMAGES = Path(__file__).resolve().parents[4] / "starpilot" / "assets" / "other_images"
+BUILT_IN_IMAGES = {TANDEM_LOGO: TANDEM_LOGO_FILE, "starpilot": _STARPILOT_IMAGES / "starpilot_boot_logo.jpg",
+                   "stock": _STARPILOT_IMAGES / "stock_bg.jpg"}
 
 
 class BootLogoSource(Protocol):
   def installed(self) -> list[tuple[str, str]]: ...   # (slug, name) of each boot logo StarPilot downloaded to the device
   def install_tandem(self) -> None: ...                 # puts Tandem's logo where StarPilot looks for boot logos
+  def image(self, slug: str) -> Path | None: ...        # a downloaded logo's file, for its preview
 STARTUP_TOP = "StartupMessageTop"
 STARTUP_BOTTOM = "StartupMessageBottom"
 STARTUP_DEFAULTS = ("Be ready to take over at any time", "Always keep hands on wheel and eyes on road")
@@ -136,6 +141,11 @@ class Display:
     installed = self.boot_logos.installed() if self.boot_logos is not None else []
     return BUILT_IN_LOGOS + [(slug, name) for slug, name in installed if slug not in dict(BUILT_IN_LOGOS)]
 
+  def boot_logo_image(self, slug: str) -> Path | None:
+    if slug in BUILT_IN_IMAGES:
+      return BUILT_IN_IMAGES[slug]
+    return self.boot_logos.image(slug) if self.boot_logos is not None else None
+
   def boot_logo_name(self) -> str:
     slug = self.boot_logo
     if slug == TANDEM_LOGO:
@@ -207,15 +217,14 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
 
 
 def boot_logo_sheet(model: Display, window) -> None:
-  """Pick a boot logo: the built-in ones, and any StarPilot already downloaded to the device."""
-  options = model.boot_logo_options()
-
-  def pick(index: int) -> None:
-    model.set_boot_logo(options[index][0])
+  """Pick a boot logo from previews: the built-in ones, and any StarPilot already downloaded to the device."""
+  def pick(slug: str) -> None:
+    model.set_boot_logo(slug)
     window.dismiss()
 
-  window.present(Sheet("Boot Logo", OptionList([name for _, name in options],
-                                               lambda: next((i for i, (s, _) in enumerate(options) if s == model.boot_logo), -1), pick),
+  cards = [LogoCard(name, model.boot_logo_image(slug), lambda s=slug: model.boot_logo == s, lambda s=slug: pick(s))
+           for slug, name in model.boot_logo_options()]
+  window.present(Sheet("Boot Logo", ListPanel([Grid(cards, columns=4, gap=T.px(14))], background=T.SURFACE_2, dividers=False),
                        subtitle="Shown while the device starts up",
                        actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
@@ -414,6 +423,56 @@ class PathStylePicker(Component):
               T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
 
+class LogoCard(Component):
+  """A boot logo's preview, the boot screen in small, with its name under it; outlined when chosen."""
+
+  def __init__(self, name: str, image: Path | None, chosen: Callable[[], bool], on_pick: Callable[[], None]):
+    super().__init__()
+    self._name, self._image, self._chosen = name, image, chosen
+    self.set_click_callback(on_pick)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(12) + (max_width - T.px(24)) / 2 + T.px(12) + draw.line_height(T.font_px(18)) + T.px(12)
+
+  def _render(self, rect: rl.Rectangle):
+    chosen = self._chosen()
+    draw.fill(rect, T.SURFACE_4, T.px(20))
+    if chosen:
+      draw.stroke(rect, T.ACCENT, T.px(20), T.px(2))
+    elif self.is_pressed:
+      draw.pressed(rect, T.px(20))
+    body = inset(rect, T.px(12))
+    preview = rl.Rectangle(body.x, body.y, body.width, body.width / 2)   # boot logos are 2:1
+    texture = _logo_texture(self._image, int(preview.width)) if self._image is not None else None
+    if texture is not None:
+      rl.draw_texture_pro(texture, rl.Rectangle(0, 0, texture.width, texture.height), preview, rl.Vector2(0, 0), 0, rl.WHITE)
+    else:
+      draw.fill(preview, T.BG, T.px(12))
+      draw.text(preview, "No preview", T.SIZE_SUBTITLE, T.TEXT_MUTED, h=Align.CENTER)
+    label = rl.Rectangle(body.x, preview.y + preview.height + T.px(12), body.width, draw.line_height(T.font_px(18)))
+    draw.text(label, self._name, T.font_px(18), T.TEXT, T.FONT_BOLD if chosen else T.FONT_SEMIBOLD, Align.CENTER)
+
+
+_TEXTURES: dict[tuple[str, int], rl.Texture | None] = {}
+
+
+def _logo_texture(path: Path, width: int) -> rl.Texture | None:
+  """A boot logo scaled to width, landscape (comma's is stored portrait, as the device's boot screen takes it)."""
+  key = (str(path), width)
+  if key not in _TEXTURES:
+    texture = None
+    if path.is_file():
+      image = rl.load_image(str(path))
+      if image.height > image.width:
+        rl.image_rotate_ccw(image)
+      rl.image_resize(image, width, width // 2)
+      texture = rl.load_texture_from_image(image)
+      rl.set_texture_filter(texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+      rl.unload_image(image)
+    _TEXTURES[key] = texture
+  return _TEXTURES[key]
+
+
 class UpstreamBootLogos:
   """Boot logos as StarPilot keeps them: one file per logo in its themes folder."""
 
@@ -426,6 +485,9 @@ class UpstreamBootLogos:
     if not self._folder.is_dir():
       return []
     return [(f.stem, _theme_display_name(f.stem)) for f in sorted(self._folder.iterdir()) if f.is_file()]
+
+  def image(self, slug: str) -> Path | None:
+    return next((f for f in sorted(self._folder.iterdir()) if f.is_file() and f.stem == slug), None) if self._folder.is_dir() else None
 
   def install_tandem(self) -> None:
     import shutil

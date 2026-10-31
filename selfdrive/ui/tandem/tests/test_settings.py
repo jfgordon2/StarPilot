@@ -843,11 +843,12 @@ def test_boot_logo_picker_lists_built_ins_then_downloads():
   assert display.boot_logo_options() == [("tandem", "Tandem"), ("starpilot", "StarPilot"), ("stock", "comma"), ("aurora_logo", "Aurora Logo"),
                                          ("pixel_logo", "Pixel Logo")]   # a downloaded "stock" doesn't repeat comma's
   boot_logo_sheet(display, window)
-  window.overlay._body._on_change(0)
+  cards = lambda: window.overlay._body.items[0]._items  # noqa: E731
+  cards()[0]._click_callback()
   assert cache.values["BootLogo"] == "tandem" and logos.installs == 1 and display.boot_logo_name() == "Default"
   boot_logo_sheet(display, window)
-  assert isinstance(window.overlay, Sheet)
-  window.overlay._body._on_change(3)
+  assert isinstance(window.overlay, Sheet) and len(cards()) == 5
+  cards()[3]._click_callback()
   assert cache.values["BootLogo"] == "aurora_logo" and display.boot_logo_name() == "Aurora Logo" and window.overlay is None
   boot_logo_sheet(display, window)
   assert [a._label for a in window.overlay._actions] == ["Done"]   # nothing to download
@@ -876,4 +877,13 @@ def test_upstream_boot_logos_install_tandem_once(tmp_path):
   mtime = installed.stat().st_mtime_ns
   logos.install_tandem()
   assert installed.stat().st_mtime_ns == mtime   # already there: not copied again
+
+
+def test_built_in_boot_logos_have_previews():
+  from openpilot.selfdrive.ui.tandem.settings.display import BUILT_IN_IMAGES, BUILT_IN_LOGOS, Display
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBootLogos
+  store, _ = _store()
+  display = Display(store, FakeBootLogos)
+  assert all(display.boot_logo_image(slug).is_file() for slug, _ in BUILT_IN_LOGOS)
+  assert set(BUILT_IN_IMAGES) == {slug for slug, _ in BUILT_IN_LOGOS} and display.boot_logo_image("aurora_logo") is None
 
