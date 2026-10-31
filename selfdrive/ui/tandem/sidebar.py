@@ -86,9 +86,6 @@ class SidebarView(Component):
       self._mic.render(rl.Rectangle(inner.x, y + T.px(10), inner.width, T.px(44)))
     if self._clip.is_visible:
       self._clip.render(bottom)
-    else:
-      draw.text(rl.Rectangle(inner.x, inner.y + inner.height - T.px(24), inner.width, T.px(24)), "Details move to Developer View",
-                T.font_px(13), T.TEXT_MUTED)
 
 
 def connect_status(health: Health) -> Status:
