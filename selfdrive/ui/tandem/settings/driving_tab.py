@@ -10,7 +10,9 @@ from openpilot.selfdrive.ui.tandem.chrome import HubTile
 from openpilot.selfdrive.ui.tandem.controls import Glyph, ToggleButton
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
-from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, Strip
+from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
+from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
+from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, PanelPage, Section, SectionPage, Strip
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import (Assistance, Navigation, SpeedSteering, VehicleProfile, Weather,
                                                                    assistance_panel, everyday_panel, navigation_panel,
                                                                    vehicle_profile_panel, weather_panel)
@@ -32,6 +34,8 @@ def driving_hub(window) -> Widget:
   weather = Weather(store)
   navigation = Navigation(store)
   assistance = Assistance(store, live)
+  screen = Display(store)
+  alerts = Alerts(store, sound_player())
 
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
@@ -55,8 +59,9 @@ def driving_hub(window) -> Widget:
 
   def display() -> Widget:
     return SectionPage("DISPLAY", [
-      Section("Driving Screen", lambda: upstream.StarPilotPage("VISUALS")),
-      Section("Map Data", lambda: upstream.StarPilotPage("MAPS")),
+      Section("Driving Screen", lambda: driving_screen_panel(screen, window)),
+      Section("Theme & Startup", lambda: theme_panel(screen, lambda: edit_startup_message(screen))),
+      Section("Map", lambda: map_panel(screen, opener(starpilot("MAPS")))),
     ])
 
   def car() -> str:
@@ -67,8 +72,9 @@ def driving_hub(window) -> Widget:
 
   return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
     HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), scribble("steering")),
-    HubTile("Display", ["Driving screen and theme", "Offline map data"], opener(display), scribble("display")),
-    HubTile("Alerts", ["Volumes and chimes"], opener(starpilot("SOUNDS")), scribble("sound")),
+    HubTile("Display", [screen.summary, screen.path_summary], opener(display), scribble("display")),
+    HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: PanelPage(alerts_panel(alerts, window))),
+            scribble("sound")),
     HubTile("Driving Model", ["Choose and download models"], opener(starpilot("DRIVING_MODEL")), scribble("aicar")),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile"], opener(starpilot("VEHICLE")), scribble("vehicle")),
   ], rows=[3, 2], strip=strip)

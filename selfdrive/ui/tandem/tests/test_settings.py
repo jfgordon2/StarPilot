@@ -408,3 +408,73 @@ def test_tuner_sections_hide_with_tuner_mode():
   shown["tuner"] = False
   page._update_state()
   assert page.selected == 0
+
+
+# ── Display and Alerts ──
+
+def test_path_style_presets_round_trip():
+  from openpilot.selfdrive.ui.tandem.settings.display import Display
+  store, cache = _store({"PathWidth": 6.1, "AccelerationPath": True})
+  display = Display(store)
+  assert display.path_style == 3
+  for i in range(4):
+    display.set_path_style(i)
+    assert display.path_style == i
+  display.set_path_style(1)
+  assert cache.values["PathWidth"] == 3.0 and not cache.values["AccelerationPath"]
+
+
+def test_signal_animation_turns_on_custom_themes():
+  from openpilot.selfdrive.ui.tandem.settings.display import Display
+  store, cache = _store()
+  display = Display(store)
+  assert display.signal_name() == "None"
+  display.set_signal(1)
+  assert cache.values["SignalAnimation"] == "sequential" and cache.values["CustomThemes"] and display.signal_name() == "Sequential"
+
+
+def test_clean_screen_needs_every_banner_hidden():
+  from openpilot.selfdrive.ui.tandem.settings.display import Display
+  store, cache = _store()
+  display = Display(store)
+  display.set_clean_screen(True)
+  assert display.clean_screen and cache.values["AdvancedCustomUI"]
+  cache.values["HideTurningBanner"] = False
+  assert not display.clean_screen
+
+
+def test_volume_presets_and_custom_levels():
+  from openpilot.selfdrive.ui.tandem.settings.alerts import AUTO, CUSTOM, GROUPS, Alerts
+  store, cache = _store({k: AUTO for g in GROUPS for k in g.keys})
+  alerts = Alerts(store)
+  assert alerts.preset == 0 and alerts.level_label(GROUPS[0]) == "Auto"
+  alerts.set_preset(2)
+  assert cache.values["AlertVolumeControl"] and alerts.preset == 2 and alerts.level_label(GROUPS[2]) == "80%"
+  alerts.set_level(GROUPS[0], 40)
+  assert alerts.preset == CUSTOM and cache.values["EngageVolume"] == cache.values["DisengageVolume"] == 40
+
+
+def test_safety_volumes_never_go_below_the_floor():
+  from openpilot.selfdrive.ui.tandem.settings.alerts import GROUPS, SAFETY_FLOOR, Alerts
+  store, cache = _store()
+  alerts = Alerts(store)
+  alerts.set_level(GROUPS[3], 5)
+  assert cache.values["WarningImmediateVolume"] == SAFETY_FLOOR
+  alerts.set_level(GROUPS[0], 5)
+  assert cache.values["EngageVolume"] == 5
+
+
+def test_custom_level_from_auto_starts_other_groups_at_normal():
+  from openpilot.selfdrive.ui.tandem.settings.alerts import GROUPS, Alerts
+  store, cache = _store({"AlertVolumeControl": False})
+  Alerts(store).set_level(GROUPS[1], 50)
+  assert cache.values["EngageVolume"] == GROUPS[0].levels[1] and cache.values["PromptVolume"] == 50
+
+
+def test_window_overlay_blocks_page_and_back_dismisses_it():
+  window, _, closed = _window()
+  sheet = Page("sheet", [])
+  window.present(sheet)
+  assert window.overlay is sheet
+  window.back()
+  assert window.overlay is None and not closed

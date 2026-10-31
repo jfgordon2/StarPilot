@@ -9,6 +9,7 @@ from enum import IntEnum
 
 import pyray as rl
 
+from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.chrome import BottomNav
@@ -53,6 +54,7 @@ class SettingsWindow(Widget):
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, upstream.network, upstream.bluetooth, upstream.software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]
     self._shown = False
+    self._overlay: Widget | None = None
     self._close_callback: Callable[[], None] | None = None
     self._nav = BottomNav(TABS, lambda: self._tab, self.select_tab, on_leading=self.back,
                           leading=lambda: "back" if self.can_go_back() else "close")
@@ -78,6 +80,7 @@ class SettingsWindow(Widget):
 
   def hide_event(self):
     super().hide_event()
+    self.dismiss()
     self._shown = False
     self.top.hide_event()
 
@@ -117,6 +120,7 @@ class SettingsWindow(Widget):
     return self.depth > 1 or can_go_back(self.top)
 
   def select_tab(self, tab: int) -> None:
+    self.dismiss()
     if tab == self._tab:
       return
     if self._shown:
@@ -141,8 +145,26 @@ class SettingsWindow(Widget):
       page.hide_event()
       self.top.show_event()
 
+  # Overlays: sheets and dialogs drawn over the page. The page gets no input while one is up.
+
+  @property
+  def overlay(self) -> Widget | None:
+    return self._overlay
+
+  def present(self, overlay: Widget) -> None:
+    self.dismiss()
+    self._overlay = overlay
+    overlay.show_event()
+
+  def dismiss(self) -> None:
+    if self._overlay is not None:
+      overlay, self._overlay = self._overlay, None
+      overlay.hide_event()
+
   def back(self) -> None:
-    if can_go_back(self.top):
+    if self._overlay is not None:
+      self.dismiss()
+    elif can_go_back(self.top):
       go_back(self.top)
     elif self.depth > 1:
       self.pop()
@@ -161,8 +183,19 @@ class SettingsWindow(Widget):
   def _render(self, rect: rl.Rectangle):
     body, nav = column(rect, [FILL, T.NAV_HEIGHT])
     draw.fill(body, T.BG)
-    self.top.render(body)
-    self._nav.render(nav)
+    overlay = self._overlay
+    events = gui_app.mouse_events
+    held = list(events) if overlay is not None else None
+    if held is not None:
+      events.clear()
+    try:
+      self.top.render(body)
+      self._nav.render(nav)
+    finally:
+      if held is not None:
+        events[:] = held
+    if overlay is not None:
+      overlay.render(rect)
 
   # Tabs
 

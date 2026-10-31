@@ -57,6 +57,7 @@ def line_height(size: int) -> float:
 
 
 def fit(text: str, size: int, weight: Face, max_width: float, tracking: float = 0) -> str:
+  max_width += 0.5  # layout math leaves float error; text measured for a rect must still fit in it
   if text_width(text, size, weight, tracking) <= max_width:
     return text
   while text and text_width(text + ELLIPSIS, size, weight, tracking) > max_width:

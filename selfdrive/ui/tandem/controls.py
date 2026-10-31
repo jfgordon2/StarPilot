@@ -163,7 +163,7 @@ class ToggleButton(Component):
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     width = draw.text_width(self._label, T.font_px(16), T.FONT_SEMIBOLD) + T.px(10) + draw.text_width("Off", T.font_px(14), T.FONT_MEDIUM)
-    return min(max_width, width + T.px(36)), self._height  # 4 px of slack so rounding never ellipsizes the state
+    return min(max_width, width + T.px(32)), self._height
 
   def _render(self, rect: rl.Rectangle):
     on = resolve(self._value)

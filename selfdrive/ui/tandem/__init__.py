@@ -21,7 +21,7 @@ from openpilot.selfdrive.ui.tandem.chrome import BottomNav, HubGrid, HubTile, Pa
 from openpilot.selfdrive.ui.tandem.controls import (Badge, Button, ButtonRow, ButtonStyle, ChoiceCards, Chip, ProgressBar, Segmented,
                                                     Slider, Stepper, Switch, ToggleButton, Tone, ValueButton, back_glyph)
 from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet, Toast
-from openpilot.selfdrive.ui.tandem.rows import Banner, ListPanel, Padded, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.rows import Banner, ListPanel, OptionList, Padded, SectionHeader, SettingRow, Text
 
 __all__ = [
   "draw", "layout", "tokens",
@@ -30,5 +30,5 @@ __all__ = [
   "Badge", "Button", "ButtonRow", "ButtonStyle", "ChoiceCards", "Chip", "ProgressBar", "Segmented", "Slider", "Stepper", "Switch",
   "ToggleButton", "Tone", "ValueButton", "back_glyph",
   "Dialog", "Sheet", "Toast",
-  "Banner", "ListPanel", "Padded", "SectionHeader", "SettingRow", "Text",
+  "Banner", "ListPanel", "OptionList", "Padded", "SectionHeader", "SettingRow", "Text",
 ]

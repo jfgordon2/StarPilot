@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 import pyray as rl
 
+from openpilot.system.ui.lib.application import MousePos
 from openpilot.system.ui.widgets import DialogResult, Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
@@ -22,8 +23,11 @@ class Sheet(Component):
   grow_touch_target = False
 
   def __init__(self, title: Bindable[str], body: Widget, subtitle: Bindable[str] | None = None,
-               actions: list[Button] | None = None, height: float | None = None):
+               actions: list[Button] | None = None, height: float | None = None, on_dismiss: Callable[[], None] | None = None):
+    """on_dismiss runs when the scrim above the sheet is tapped."""
     super().__init__()
+    self._on_dismiss = on_dismiss
+    self._sheet_rect = rl.Rectangle(0, 0, 0, 0)
     self._title = title
     self._subtitle = subtitle
     self._body = self._child(body)
@@ -46,6 +50,7 @@ class Sheet(Component):
     draw.fill(rect, draw.alpha(T.SCRIM, 0.85 * t))
     height = self._sheet_height(rect)
     sheet = rl.Rectangle(rect.x, rect.y + rect.height - height * t, rect.width, height)
+    self._sheet_rect = sheet
     draw.fill(sheet, T.SURFACE_2, T.RADIUS_SHEET)
     draw.fill(rl.Rectangle(sheet.x, sheet.y + T.RADIUS_SHEET, sheet.width, sheet.height - T.RADIUS_SHEET), T.SURFACE_2)
     draw.fill(place(rl.Rectangle(sheet.x, sheet.y + T.px(14), sheet.width, T.px(6)), T.px(64), T.px(6)), T.KEY_MOD, T.px(3))
@@ -67,6 +72,12 @@ class Sheet(Component):
       title_rect = text_rect
     draw.text(title_rect, resolve(self._title), T.SIZE_TITLE, T.TEXT, T.FONT_EXTRABOLD)
     self._body.render(content)
+
+
+  def _handle_mouse_release(self, mouse_pos: MousePos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    if self._on_dismiss is not None and mouse_pos.y < self._sheet_rect.y:
+      self._on_dismiss()
 
 
 class Dialog(Component):

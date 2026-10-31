@@ -287,3 +287,60 @@ class Padded(Component):
 
   def _render(self, rect: rl.Rectangle):
     self._content.render(inset(rect, x=self._x, y=self._y))
+
+
+class OptionList(Component):
+  """Pick one from a list: each option is a row, and the chosen one has a check mark. Used in picker sheets."""
+  grow_touch_target = False
+
+  def __init__(self, options: list[str] | list[tuple[str, str]], selected: Bindable[int], on_change: Callable[[int], None],
+               row_height: float = T.px(60)):
+    super().__init__()
+    self._options = [o if isinstance(o, tuple) else (o, "") for o in options]
+    self._selected = selected
+    self._on_change = on_change
+    self._row_height = row_height
+    self._pressed_row: int | None = None
+    self._scroll = GuiScrollPanel2(horizontal=False)
+    self._offset = 0.0
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, len(self._options) * self._row_height
+
+  def _row_at(self, pos) -> int | None:
+    index = int((pos.y - self._rect.y - self._offset) // self._row_height)
+    return index if 0 <= index < len(self._options) and rl.check_collision_point_rec(pos, self._rect) else None
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed_row = self._row_at(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._row_at(mouse_pos)
+    if hit is not None and hit == self._pressed_row and self._scroll.is_touch_valid():
+      self._on_change(hit)
+    self._pressed_row = None
+
+  def _render(self, rect: rl.Rectangle):
+    content = len(self._options) * self._row_height
+    self._offset = self._scroll.update(rect, content) if content > rect.height else 0.0
+    selected = resolve(self._selected)
+    rl.begin_scissor_mode(int(rect.x), int(rect.y), int(rect.width), int(rect.height))
+    for i, (title, subtitle) in enumerate(self._options):
+      r = rl.Rectangle(rect.x, rect.y + self._offset + i * self._row_height, rect.width, self._row_height)
+      chosen = i == selected
+      if chosen:
+        draw.fill(r, T.ACCENT_SELECTED, T.RADIUS_ITEM)
+      elif self.is_pressed and i == self._pressed_row:
+        draw.pressed(r, T.RADIUS_ITEM)
+      body = inset(r, x=T.px(18))
+      size = T.px(20)
+      if chosen:
+        draw.check(rl.Rectangle(body.x + body.width - size, body.y, size, body.height), T.ACCENT_TEXT, size)
+      body = inset(body, right=size + T.px(12))
+      if subtitle:
+        w = draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
+        draw.text(inset(body, left=w + T.px(14)), subtitle, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
+      else:
+        draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
+    rl.end_scissor_mode()

@@ -141,3 +141,15 @@ class SectionPage(Component):
     side, content = row(body_rect(rect), [T.SIDEBAR_WIDTH, FILL], T.PANEL_GAP)
     self._sidebar.render(inset(side, top=T.px(8)))
     self.current.render(content)
+
+
+class PanelPage(Component):
+  """One panel filling the page, for screens without a sidebar (e.g. Alerts)."""
+  grow_touch_target = False
+
+  def __init__(self, panel: Widget):
+    super().__init__()
+    self._panel = self._child(panel)
+
+  def _render(self, rect: rl.Rectangle):
+    self._panel.render(body_rect(rect))
