@@ -8,7 +8,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
-from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ChoiceCards, Segmented, Switch, ValueButton
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
@@ -156,8 +156,7 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
                          actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
   def path_sheet():
-    window.present(Sheet("Path Style", ChoiceCards([(name, line) for name, line, _ in PATH_STYLES], lambda: model.path_style,
-                                                   model.set_path_style),
+    window.present(Sheet("Path Style", PathStylePicker(lambda: model.path_style, model.set_path_style),
                          subtitle="Sets path color, width, edges and lane lines together",
                          actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
@@ -270,4 +269,102 @@ class SignPicker(Component):
         draw.fill(inset(sign, T.px(6)), rl.WHITE, T.px(17))
         draw.text(sign, "90", T.font_px(16), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
 
+
+def _hex(value: str, alpha: float = 1.0) -> rl.Color:
+  return rl.Color(int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16), round(255 * alpha))
+
+
+# Each style's preview, from the mock (a 220 x 150 picture): path corners at the top and bottom, lane line width, and the
+# path's colors from the bottom of the path to the top, with its opacity.
+PREVIEWS = [
+  ((104, 116, 70, 150), 3, [(0.0, "3A73B3"), (1.0, "3A73B3")], 0.65),
+  ((108, 112, 96, 124), 2, [(0.0, "7DBBF9"), (1.0, "7DBBF9")], 0.8),
+  ((104, 116, 70, 150), 3, [(0.0, "E5484D"), (0.25, "F5A524"), (0.5, "F5E06B"), (0.75, "3FD08A"), (1.0, "5AAAF8")], 0.75),
+  ((104, 116, 70, 150), 3, [(0.0, "3FD08A"), (0.6, "3FD08A"), (1.0, "F0B35A")], 0.6),
+]
+PREVIEW_W, PREVIEW_H = 220, 150
+ROAD = _hex("132231")
+LANE = _hex("5C6B7A")
+
+
+def _gradient(stops: list[tuple[float, str]], t: float, alpha: float) -> rl.Color:
+  for (t0, c0), (t1, c1) in zip(stops, stops[1:], strict=False):
+    if t <= t1:
+      f = 0.0 if t1 == t0 else (t - t0) / (t1 - t0)
+      a, b = _hex(c0), _hex(c1)
+      return rl.Color(round(a.r + (b.r - a.r) * f), round(a.g + (b.g - a.g) * f), round(a.b + (b.b - a.b) * f), round(255 * alpha))
+  return _hex(stops[-1][1], alpha)
+
+
+def draw_path_preview(rect: rl.Rectangle, index: int) -> None:
+  """The mock's little road picture: two lane lines and the path in this style, scaled to cover rect."""
+  (top_l, top_r, bottom_l, bottom_r), lane_w, stops, alpha = PREVIEWS[index]
+  scale = max(rect.width / PREVIEW_W, rect.height / PREVIEW_H)
+  ox = rect.x + (rect.width - PREVIEW_W * scale) / 2
+  oy = rect.y + (rect.height - PREVIEW_H * scale) / 2
+
+  def at(x: float, y: float) -> rl.Vector2:
+    return rl.Vector2(ox + x * scale, oy + y * scale)
+
+  draw.fill(rect, ROAD, T.px(12))
+  rl.begin_scissor_mode(int(rect.x), int(rect.y), int(rect.width), int(rect.height))
+  for a, b in (((100, 10), (30, 150)), ((120, 10), (190, 150))):
+    rl.draw_line_ex(at(*a), at(*b), lane_w * scale, LANE)
+  y0, y1 = at(0, 10).y, at(0, 150).y
+  for i in range(int(y1 - y0)):   # the path, one pixel row at a time, so the color can change along it
+    t = i / max(1.0, y1 - y0)
+    left = top_l + (bottom_l - top_l) * t
+    right = top_r + (bottom_r - top_r) * t
+    x0 = at(left, 0).x
+    rl.draw_rectangle_rec(rl.Rectangle(x0, y0 + i, at(right, 0).x - x0, 1), _gradient(stops, 1 - t, alpha))
+  rl.end_scissor_mode()
+
+
+class PathStylePicker(Component):
+  """The path styles side by side, each a picture of the path in that style, with its name under it."""
+  GAP = T.px(14)
+
+  def __init__(self, selected: Callable[[], int], on_change: Callable[[int], None]):
+    super().__init__()
+    self._selected = selected
+    self._on_change = on_change
+    self._pressed: int | None = None
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(214) + T.px(14) + draw.line_height(T.SIZE_SUBTITLE)
+
+  def _cards(self) -> list[rl.Rectangle]:
+    w = (self._rect.width - self.GAP * (len(PATH_STYLES) - 1)) / len(PATH_STYLES)
+    return [rl.Rectangle(self._rect.x + i * (w + self.GAP), self._rect.y, w, T.px(214)) for i in range(len(PATH_STYLES))]
+
+  def _hit(self, pos) -> int | None:
+    return next((i for i, r in enumerate(self._cards()) if rl.check_collision_point_rec(pos, r)), None)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed and hit != self._selected():
+      self._on_change(hit)
+    self._pressed = None
+
+  def _render(self, rect: rl.Rectangle):
+    selected = self._selected()
+    for i, card in enumerate(self._cards()):
+      chosen = i == selected
+      draw.fill(card, T.SURFACE_4, T.px(20))
+      if chosen:
+        draw.stroke(card, T.ACCENT, T.px(20), T.px(2))
+      elif self.is_pressed and i == self._pressed:
+        draw.pressed(card, T.px(20))
+      body = inset(card, T.px(12))
+      label_h = draw.line_height(T.font_px(18))
+      draw_path_preview(rl.Rectangle(body.x, body.y, body.width, body.height - label_h - T.px(12)), i)
+      draw.text(rl.Rectangle(body.x, body.y + body.height - label_h, body.width, label_h), PATH_STYLES[i][0], T.font_px(18), T.TEXT,
+                T.FONT_BOLD if chosen else T.FONT_SEMIBOLD, Align.CENTER)
+    note = rl.Rectangle(rect.x, rect.y + T.px(214) + T.px(14), rect.width, draw.line_height(T.SIZE_SUBTITLE))
+    draw.text(note, "Acceleration tints the path green when speeding up and amber when slowing. Each value can be changed in Tuner Mode.",
+              T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
