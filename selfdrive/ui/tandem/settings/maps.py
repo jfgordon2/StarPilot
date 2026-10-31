@@ -17,8 +17,9 @@ from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Grid, IconTitle, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.chrome import PageHeader, Sidebar, SidebarItem
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ProgressBar, Segmented
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, place, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.settings.device_sections import DELETE_MAPS_MESSAGE, StorageBar, confirm
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
 from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage, body_rect
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -54,7 +55,6 @@ class MapsSource(Protocol):
   def selection_summary(self) -> str: ...
   def has_selection(self) -> bool: ...
   def downloaded(self) -> bool: ...
-  def storage(self) -> str: ...
   def progress(self) -> Progress: ...
   def cancelling(self) -> bool: ...
   def checks(self) -> list[tuple[str, bool]]: ...      # e.g. ("Parked", True)
@@ -126,8 +126,11 @@ class ProgressCard(Component):
               T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
 
-def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
+def maps_page(maps: Maps, open_regions: Callable[[], None], sizes: Callable[[], dict[str, float]], window) -> Widget:
   """Your regions on the left, with the download; keeping up to date and storage on the right."""
+  def parked() -> bool:
+    return dict(maps.source.checks()).get("Parked", False)
+
   def label() -> str:
     if not maps.ready():
       return maps.blocked_reason() or "Download"
@@ -136,8 +139,10 @@ def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
   download = Button(label, maps.source.download, ButtonStyle.PRIMARY, height=T.px(58))
   download.set_enabled(maps.ready)
   download.set_visible(lambda: not maps.source.progress().active)
-  remove = Button("Remove maps", maps.source.remove, ButtonStyle.DANGER_SOFT, height=T.px(48))   # the source confirms first
-  remove.set_enabled(lambda: maps.source.downloaded() and not maps.source.progress().active)
+  remove = Button(lambda: "Park to remove maps" if not parked() else "Remove maps",
+                  lambda: confirm(window, "Remove offline maps?", DELETE_MAPS_MESSAGE, "Remove", maps.source.remove),
+                  ButtonStyle.DANGER_SOFT, height=T.px(48))
+  remove.set_enabled(lambda: maps.source.downloaded() and not maps.source.progress().active and parked())
   downloaded = lambda: maps.status() == "Downloaded"  # noqa: E731
   regions = Card([
     Label("YOUR REGIONS", color=T.ACCENT_TEXT, caption=True),
@@ -156,7 +161,7 @@ def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
     Label("Updates download only while parked and online", T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
   ], padding=(T.px(20), T.px(18)))
   storage = Card([
-    Columns([Label("Storage", T.font_px(18)), Label(maps.source.storage, T.font_px(15), T.TEXT_TERTIARY, T.FONT, h=Align.END)]),
+    StorageBar(sizes, heading="Storage", padding=(0, 0)),
     Label("Without maps, speed limits need a connection.", T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
     SPACER,
     remove,
@@ -283,9 +288,6 @@ class UpstreamMaps:
   def downloaded(self) -> bool:
     return self._layout._has_downloaded_data
 
-  def storage(self) -> str:
-    return self._layout._storage_text
-
   def progress(self) -> Progress:
     state = self._layout._download_state
     return Progress(state.active or self._layout._download_requested(), state.downloaded_files, state.total_files, state.primary_location)
@@ -305,17 +307,63 @@ class UpstreamMaps:
     self._layout._params_memory.remove("DownloadMaps")
 
   def remove(self) -> None:
-    self._layout._on_remove()   # upstream checks parked, confirms, and deletes
+    def done():
+      self._layout._storage_updated_at = 0.0   # re-read what's downloaded, as upstream does after removing
+    remove_offline_maps(done)
+
+
+_memory_params = None
+
+
+def removal_blocked() -> str:
+  """Why offline maps can't be deleted now, or "": StarPilot's rule is parked, and not while a download runs."""
+  global _memory_params
+  from openpilot.selfdrive.ui.ui_state import ui_state
+  sm = ui_state.sm
+  parked = ui_state.is_offroad() or (sm.valid.get("starpilotCarState", False) and bool(sm["starpilotCarState"].isParked))
+  if not parked:
+    return "Park to delete offline maps"
+  if _memory_params is None:
+    from openpilot.common.params import Params
+    _memory_params = Params(memory=True)
+  if _memory_params.get_bool("DownloadMaps"):
+    return "Wait for the download to finish"
+  return ""
+
+
+def remove_offline_maps(on_done: Callable[[], None] | None = None) -> None:
+  """Deletes downloaded map data in the background, as StarPilot's Remove Maps does; the chosen regions are kept."""
+  if removal_blocked():
+    return
+  import shutil
+  import threading
+  from openpilot.common.params import Params
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import STORAGE
+  from openpilot.starpilot.common.maps_download_progress import MAPS_STORAGE_CACHE_PARAM, load_maps_storage_cache
+  from openpilot.starpilot.common.starpilot_variables import MAPS_PATH
+
+  def worker():
+    if MAPS_PATH.exists():
+      shutil.rmtree(MAPS_PATH, ignore_errors=True)
+      MAPS_PATH.mkdir(parents=True, exist_ok=True)
+    params = Params()
+    cache = load_maps_storage_cache(params.get(MAPS_STORAGE_CACHE_PARAM, encoding="utf-8") or "")
+    cache.clear()
+    params.put(MAPS_STORAGE_CACHE_PARAM, cache.to_json())
+    STORAGE.forget()
+    if on_done is not None:
+      on_done()
+  threading.Thread(target=worker, daemon=True).start()
 
 
 class MapsPage(Component):
   """The Offline Maps panel; tracks the download while open."""
   grow_touch_target = False
 
-  def __init__(self, maps: Maps, open_regions: Callable[[], None]):
+  def __init__(self, maps: Maps, open_regions: Callable[[], None], sizes: Callable[[], dict[str, float]], window):
     super().__init__()
     self._maps = maps
-    self._page = self._child(maps_page(maps, open_regions))
+    self._page = self._child(maps_page(maps, open_regions, sizes, window))
 
   def show_event(self):
     self._maps.source.refresh()

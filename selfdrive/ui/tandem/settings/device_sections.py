@@ -15,7 +15,7 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import SPACER, Columns, Field, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, Tone, ValueButton
-from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, row
 from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, Padded, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -38,6 +38,8 @@ class DeviceData(Protocol):
   def delete_backup(self, name: str) -> None: ...
   def storage(self) -> dict[str, float]: ...             # bytes used by "Drives", "Maps", "Models", plus "Total" and "Free"
   def delete_drives(self) -> None: ...
+  def delete_maps(self) -> None: ...
+  def maps_blocked(self) -> str: ...                     # why offline maps can't be deleted right now, or ""
   def send_report(self, issue: str, discord: str) -> None: ...
 
 
@@ -186,24 +188,33 @@ class ButtonPair(Component):
 
 
 class StorageBar(Component):
-  """Used space split by kind, with a legend."""
+  """Used space split by kind, with a legend. On Storage & Data it heads the panel; in Offline Maps' Storage card it
+  takes a heading, with the used space on the right."""
   grow_touch_target = False
   KINDS = [("Drives", T.ACCENT), ("Maps", T.SUCCESS_BRIGHT), ("Models", T.WARNING)]
 
-  def __init__(self, sizes: Callable[[], dict[str, float]]):
+  def __init__(self, sizes: Callable[[], dict[str, float]], heading: str | None = None, padding: tuple[float, float] | None = None):
     super().__init__()
     self._sizes = sizes
+    self._heading = heading
+    self._padding = padding if padding is not None else (T.PANEL_HEADER_INSET, T.px(12))
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(104)
+    title = draw.line_height(T.font_px(18) if self._heading else T.SIZE_ROW_TITLE)
+    return max_width, self._padding[1] * 2 + title + T.px(14) + draw.line_height(T.SIZE_SUBTITLE) + T.px(20)
 
   def _render(self, rect: rl.Rectangle):
     sizes = self._sizes()
     total = sizes.get("Total") or 1.0
     used = total - sizes.get("Free", 0.0)
-    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(12))
-    title, bar, legend = column(body, [draw.line_height(T.SIZE_ROW_TITLE), T.px(14), FILL], T.px(10))
-    draw.text(title, f"{_gb(used)} of {_gb(total)} used", T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
+    body = inset(rect, x=self._padding[0], y=self._padding[1])
+    title_size = T.font_px(18) if self._heading else T.SIZE_ROW_TITLE
+    title, bar, legend = column(body, [draw.line_height(title_size), T.px(14), FILL], T.px(10))
+    if self._heading:
+      draw.text(title, self._heading, title_size, T.TEXT, T.FONT_BOLD)
+      draw.text(title, f"{_gb(used)} of {_gb(total)}", T.font_px(15), T.TEXT_TERTIARY, T.FONT, Align.END)
+    else:
+      draw.text(title, f"{_gb(used)} of {_gb(total)} used", title_size, T.TEXT, T.FONT_SEMIBOLD)
     draw.fill(bar, T.TRACK, T.px(7))
     # Flat segments, as in the mock's clipped track: only the bar's own ends are round.
     x, radius = bar.x, T.px(7)
@@ -236,6 +247,18 @@ def _gb(size: float) -> str:
 
 
 DELETE_DRIVES_MESSAGE = "Every recorded drive and its video is removed. This can't be undone."
+DELETE_MAPS_MESSAGE = ("Speed limits and curves will need a connection until maps download again. Your regions stay chosen, " +
+                       "so a scheduled update downloads them again.")
+
+
+def delete_maps_row(data: DeviceData, window, height: float | None = None) -> SettingRow:
+  """Storage & Data's row for offline maps: Delete, or why it can't be deleted yet."""
+  def subtitle() -> str:
+    return data.maps_blocked() or "Speed limits and curves work without a connection"
+  delete = Button("Delete", lambda: confirm(window, "Delete offline maps?", DELETE_MAPS_MESSAGE, "Delete", data.delete_maps),
+                  ButtonStyle.DANGER_SOFT)
+  delete.set_enabled(lambda: data.storage().get("Maps", 0.0) > 0 and not data.maps_blocked())
+  return SettingRow("Offline Maps", subtitle, delete, height=height)
 
 
 def storage_panel(model: General, window) -> ListPanel:
@@ -250,6 +273,7 @@ def storage_panel(model: General, window) -> ListPanel:
     SettingRow("Recorded Drives", "Oldest drives are removed when space runs low",
                Button("Delete all", lambda: confirm(window, "Delete all drives?", DELETE_DRIVES_MESSAGE, "Delete", model.data.delete_drives),
                       ButtonStyle.DANGER_SOFT)),
+    delete_maps_row(model.data, window),
     driver,
     audio,
   ], title="Storage & Data", header_divider=False, end_divider=True,   # the usage bar belongs to the header, as in the mock
@@ -312,6 +336,52 @@ def report_panel(report: Report) -> Widget:
                  T.SURFACE_2, T.RADIUS_PANEL)
 
 
+class StorageSizes:
+  """Space used on /data by kind, measured on a background thread and shared by every page that shows it. Until a
+  measurement finishes it returns the last one (zeros at first); forget() re-measures after something is deleted."""
+
+  def __init__(self):
+    self._sizes: dict[str, float] = {}
+    self._measuring = False
+    self._generation = 0   # bumped by forget(), so a measurement that started before a delete is thrown away
+
+  def sizes(self) -> dict[str, float]:
+    if not self._measuring and not self._sizes:
+      import threading
+      self._measuring = True
+      threading.Thread(target=self._measure, args=(self._generation,), daemon=True).start()
+    return self._sizes
+
+  def forget(self) -> None:
+    self._generation += 1
+    self._sizes = {}
+
+  def _measure(self, generation: int) -> None:
+    import shutil
+    from pathlib import Path
+
+    def size(*paths: str) -> float:
+      total = 0
+      for p in paths:
+        path = Path(p)
+        if path.exists():
+          total += sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+      return float(total)
+
+    try:
+      usage = shutil.disk_usage("/data")
+      sizes = {"Drives": size("/data/media/0/realdata", "/data/media/0/realdata_HD", "/data/media/0/realdata_konik"),
+                     "Maps": size("/data/media/0/osm/offline"), "Models": size("/data/models"),
+                     "Total": float(usage.total), "Free": float(usage.free)}
+      if generation == self._generation:
+        self._sizes = sizes
+    finally:
+      self._measuring = False
+
+
+STORAGE = StorageSizes()
+
+
 class UpstreamData:
   """DeviceData the way StarPilot's System screen does it: same folders, same params, same report message."""
 
@@ -319,8 +389,6 @@ class UpstreamData:
     from pathlib import Path
     self._Path = Path
     self._backups = Path("/data/toggle_backups")
-    self._sizes: dict[str, float] = {}
-    self._measuring = False
 
   def languages(self) -> list[tuple[str, str]]:
     from openpilot.system.ui.lib.multilang import multilang
@@ -371,29 +439,15 @@ class UpstreamData:
     shutil.rmtree(self._dir(name), ignore_errors=True)
 
   def storage(self) -> dict[str, float]:
-    """Sizes are measured on a background thread; the first call returns zeros until it finishes."""
-    if not self._measuring and not self._sizes:
-      import threading
-      self._measuring = True
-      threading.Thread(target=self._measure, daemon=True).start()
-    return self._sizes
+    return STORAGE.sizes()
 
-  def _measure(self) -> None:
-    import shutil
+  def delete_maps(self) -> None:
+    from openpilot.selfdrive.ui.tandem.settings.maps import remove_offline_maps
+    remove_offline_maps()
 
-    def size(*paths: str) -> float:
-      total = 0
-      for p in paths:
-        path = self._Path(p)
-        if path.exists():
-          total += sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
-      return float(total)
-
-    usage = shutil.disk_usage("/data")
-    self._sizes = {"Drives": size("/data/media/0/realdata", "/data/media/0/realdata_HD", "/data/media/0/realdata_konik"),
-                   "Maps": size("/data/media/0/osm/offline"), "Models": size("/data/models"),
-                   "Total": float(usage.total), "Free": float(usage.free)}
-    self._measuring = False
+  def maps_blocked(self) -> str:
+    from openpilot.selfdrive.ui.tandem.settings.maps import removal_blocked
+    return removal_blocked()
 
   def delete_drives(self) -> None:
     import shutil
@@ -406,7 +460,7 @@ class UpstreamData:
           for entry in p.iterdir():
             if entry.is_dir():
               shutil.rmtree(entry, ignore_errors=True)
-      self._sizes = {}
+      STORAGE.forget()
     threading.Thread(target=task, daemon=True).start()
 
   def send_report(self, issue: str, discord: str) -> None:

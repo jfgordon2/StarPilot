@@ -110,6 +110,12 @@ class FakeData:
   def delete_drives(self):
     self.drives_deleted = True
 
+  def delete_maps(self):
+    self.maps_deleted = True
+
+  def maps_blocked(self):
+    return ""
+
   def send_report(self, issue, discord):
     self.reports.append((issue, discord))
 
@@ -304,9 +310,6 @@ class FakeMaps:
 
   def downloaded(self):
     return True
-
-  def storage(self):
-    return "2.1 GB"
 
   def progress(self):
     return self.state

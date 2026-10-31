@@ -59,7 +59,7 @@ def driving_hub(window) -> Widget:
         maps.get().source.download()
         window.pop()
       window.push(RegionsPage(maps.get(), download))
-    window.push(MapsPage(maps.get(), open_regions))
+    window.push(MapsPage(maps.get(), open_regions, window.device_data().storage, window))
 
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
