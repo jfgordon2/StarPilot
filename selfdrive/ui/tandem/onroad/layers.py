@@ -42,7 +42,7 @@ def _glyph_button(name: str, on_click: Callable[[], None]) -> Button:
 
 
 class OnroadBar(Component):
-  """Menu, MAX − / +, the street name (or arrival and End route while navigating), and engage."""
+  """Menu, MAX − / +, the street name (with arrival, time left and End route while navigating), and engage."""
   grow_touch_target = False
 
   def __init__(self, state: Callable[[], BarState], on_menu: Callable[[], None], on_speed: Callable[[int], None],
@@ -57,7 +57,7 @@ class OnroadBar(Component):
     # Ghost style, so the fill drawn below (green while engaged) shows through.
     self._engage = self._child(Button(on_click=on_engage, style=ButtonStyle.GHOST, height=BAR_HEIGHT, width=BAR_HEIGHT,
                                       radius=T.RADIUS_CARD, glyph=lambda r, c, s: draw.icon(r, "wheel", T.TEXT, T.px(32))))
-    self._end = self._child(Button("End route", on_end_route, ButtonStyle.SECONDARY, height=T.px(52)))
+    self._end = self._child(Button("End route", on_end_route, ButtonStyle.DANGER_SOFT, height=T.px(52), font_size=T.font_px(17)))
     for b in (self._minus, self._plus):
       b.set_enabled(lambda: self._state().engaged and self._state().set_speed > 0)
 
@@ -87,25 +87,37 @@ class OnroadBar(Component):
     center = r["center"]
     draw.fill(center, CONTROL_FILL, T.RADIUS_CARD)
     if state.navigating:
-      body = inset(center, x=T.px(20))
+      # Arrival and time left at the left, then the street name in what's left, then End route.
+      body = inset(center, x=T.px(22))
       w, _ = self._end.preferred_size(body.width)
       self._end.render(place(body, w, T.px(52), Align.END))
-      info = inset(body, right=w + T.px(16))
-      for caption, text, cell in zip(("ARRIVE", "LEFT"), (state.arrive or "–", state.left or "–"), row(info, [FILL, FILL], T.px(16)),
-                                     strict=True):
-        top, bottom = column(place(cell, cell.width, T.px(52)), [T.px(18), FILL])
-        draw.text(top, caption, T.font_px(13), T.TEXT_MUTED, T.FONT_BOLD)
-        draw.text(bottom, text, T.font_px(20), T.TEXT, T.FONT_BOLD)
+      body = inset(body, right=w + T.px(20))
+      x = body.x
+      for caption, text in (("ARRIVE", state.arrive or "–"), ("LEFT", state.left or "–")):
+        cell_w = max(draw.text_width(caption, T.SIZE_CAPTION, T.FONT_BOLD, tracking=T.CAPTION_TRACKING), draw.text_width(text, T.font_px(22), T.FONT_BOLD))
+        top, bottom = column(place(rl.Rectangle(x, body.y, cell_w, body.height), cell_w, T.px(56)), [T.px(18), FILL], T.px(3))
+        draw.caption(top, caption)
+        draw.text(bottom, text, T.font_px(22), T.TEXT, T.FONT_BOLD)
+        x += cell_w + T.px(24)
+      if state.street and x + T.px(80) < body.x + body.width:
+        rl.draw_rectangle_rec(rl.Rectangle(x, body.y + body.height * 0.25, T.DIVIDER, body.height * 0.5), T.CONTROL)
+        self._street(rl.Rectangle(x + T.px(22), body.y, body.x + body.width - x - T.px(22), body.height), state.street, Align.START)
     elif state.street:
-      text_w = draw.text_width(state.street, T.font_px(22), T.FONT_BOLD)
-      block = place(center, min(center.width - T.px(32), text_w + T.px(40)), center.height)
-      draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
-      draw.text(inset(block, left=T.px(40)), state.street, T.font_px(22), T.TEXT, T.FONT_BOLD)
+      self._street(inset(center, x=T.px(16)), state.street, Align.CENTER)
 
     engage = r["engage"]
     draw.fill(engage, ENGAGED if state.engaged else CONTROL_FILL, T.RADIUS_CARD)
     self._engage.set_enabled(state.engaged or state.can_engage)
     self._engage.render(engage)
+
+
+  @staticmethod
+  def _street(rect: rl.Rectangle, street: str, h: Align) -> None:
+    """The road icon and street name, centered (or at the start) in rect, the name elided to fit."""
+    text_w = min(rect.width - T.px(40), draw.text_width(street, T.font_px(22), T.FONT_BOLD))
+    block = place(rect, text_w + T.px(40), rect.height, h)
+    draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
+    draw.text(inset(block, left=T.px(40)), street, T.font_px(22), T.TEXT, T.FONT_BOLD)
 
 
 class StatusChip(Component):
