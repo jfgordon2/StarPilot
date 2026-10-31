@@ -12,7 +12,7 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.tandem.layout import Align, Fill, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import Align, Fill, column, inset, place, row
 
 SPACER = None
 
@@ -213,3 +213,51 @@ class Inline(Component):
   def _render(self, rect: rl.Rectangle):
     w, h = size_of(self._content, rect.width)
     self._content.render(place(rect, w, h, self._h))
+
+
+class IconTitle(Component):
+  """An icon well beside a title and a line, as at the top of the Offline Maps region card."""
+  grow_touch_target = False
+
+  def __init__(self, icon: str, title: Bindable[str], line: Bindable[str], size: int = T.font_px(22)):
+    super().__init__()
+    self._icon, self._title, self._line, self._size = icon, title, line, size
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(60)
+
+  def _render(self, rect: rl.Rectangle):
+    well = rl.Rectangle(rect.x, rect.y, T.px(60), T.px(60))
+    draw.fill(well, T.ACCENT_SURFACE, T.px(16))
+    draw.icon(well, self._icon, T.ACCENT_TEXT, T.px(28))
+    text = inset(rect, left=T.px(76))
+    lines = [draw.line_height(self._size), draw.line_height(T.font_px(15))]
+    title, line = column(place(text, text.width, sum(lines) + T.px(3)), lines, T.px(3))
+    draw.text(title, resolve(self._title), self._size, T.TEXT, T.FONT_BOLD)
+    draw.text(line, resolve(self._line), T.font_px(15), T.TEXT_TERTIARY)
+
+
+class Field(Component):
+  """A labelled box showing a value or its placeholder; tapping it edits the value (with the keyboard)."""
+
+  def __init__(self, label: str, value: Bindable[str], placeholder: str, on_click: Callable[[], None], height: float = T.px(44)):
+    super().__init__()
+    self._label, self._value, self._placeholder, self._height = label, value, placeholder, height
+    self.set_click_callback(on_click)
+    self.grow_touch_target = False
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, draw.line_height(T.SIZE_SUBTITLE) + T.px(6) + self._height
+
+  def _render(self, rect: rl.Rectangle):
+    label_h = draw.line_height(T.SIZE_SUBTITLE)
+    draw.text(rl.Rectangle(rect.x, rect.y, rect.width, label_h), self._label, T.SIZE_SUBTITLE, T.TEXT_SECONDARY, T.FONT_SEMIBOLD)
+    box = rl.Rectangle(rect.x, rect.y + label_h + T.px(6), rect.width, self._height)
+    draw.fill(box, T.SURFACE_4, T.px(12))
+    draw.stroke(box, T.TRACK, T.px(12), T.px(1))
+    if self.is_pressed:
+      draw.pressed(box, T.px(12))
+    value = resolve(self._value)
+    text = inset(box, x=T.px(12))
+    draw.text(rl.Rectangle(text.x, text.y, text.width, min(text.height, T.px(44))), value or self._placeholder, T.font_px(15),
+              T.TEXT if value else T.TEXT_MUTED)

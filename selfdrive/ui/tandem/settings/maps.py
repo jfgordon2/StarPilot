@@ -12,12 +12,14 @@ from typing import Protocol
 import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, IconTitle, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ProgressBar, Segmented, Switch
-from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
-from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
+from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage, body_rect
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 SCHEDULES = ["Off", "Weekly", "Monthly"]   # PreferredSchedule 0, 1, 2
@@ -96,9 +98,10 @@ class ProgressCard(Component):
   """Percent and files while a download runs; hidden otherwise."""
   grow_touch_target = False
 
-  def __init__(self, maps: Maps):
+  def __init__(self, maps: Maps, padding: float = T.PANEL_HEADER_INSET):
     super().__init__()
     self._maps = maps
+    self._padding = padding
     self._bar = self._child(ProgressBar(lambda: maps.source.progress().fraction))
     self._cancel = self._child(Button("Cancel download", maps.source.cancel, ButtonStyle.DANGER_OUTLINE))
     self.set_visible(lambda: maps.source.progress().active)
@@ -112,7 +115,7 @@ class ProgressCard(Component):
 
   def _render(self, rect: rl.Rectangle):
     progress = self._maps.source.progress()
-    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(14))
+    body = inset(rect, x=self._padding, y=T.px(14))
     top, bar, note = column(body, [T.BUTTON_HEIGHT, T.px(10), FILL], T.px(12))
     text, cancel = row(top, [FILL, self._cancel.preferred_size(top.width)[0]], T.px(12))
     draw.text(text, f"{round(progress.fraction * 100)}%", T.font_px(30), T.TEXT, T.FONT_EXTRABOLD)
@@ -122,28 +125,43 @@ class ProgressCard(Component):
               T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
 
-def maps_panel(maps: Maps, open_regions: Callable[[], None]) -> ListPanel:
+def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
+  """Your regions on the left, with the download; keeping up to date and storage on the right."""
   def label() -> str:
     if not maps.ready():
       return maps.blocked_reason() or "Download"
-    return "Update" if maps.source.downloaded() else "Download"
+    return "Update now" if maps.source.downloaded() else "Download"
 
-  download = Button(label, maps.source.download,
-                    ButtonStyle.PRIMARY)
+  download = Button(label, maps.source.download, ButtonStyle.PRIMARY, height=T.px(58))
   download.set_enabled(maps.ready)
   download.set_visible(lambda: not maps.source.progress().active)
-  remove = Button("Remove maps", maps.source.remove, ButtonStyle.DANGER_OUTLINE)   # the source confirms first
+  remove = Button("Remove maps", maps.source.remove, ButtonStyle.DANGER_OUTLINE, height=T.px(48))   # the source confirms first
   remove.set_enabled(lambda: maps.source.downloaded() and not maps.source.progress().active)
-  return ListPanel([
-    SectionHeader("YOUR REGIONS"),
-    SettingRow(maps.source.selection_summary, maps.status, download,
-               subtitle_color=lambda: T.SUCCESS_TEXT if maps.status() == "Downloaded" else T.TEXT_TERTIARY, height=T.px(96)),
-    ProgressCard(maps),
-    SettingRow("Choose regions", "Add or remove states, regions and countries", on_click=open_regions),
-    SettingRow("Keep up to date", "Updates download only while parked and online",
-               Segmented(SCHEDULES, lambda: maps.schedule, maps.set_schedule)),
-    SettingRow("Storage", lambda: f"Maps use {maps.source.storage()}", remove),
-  ], title="Offline Maps", subtitle="Speed limits and curves work without a connection")
+  downloaded = lambda: maps.status() == "Downloaded"  # noqa: E731
+  regions = Card([
+    Label("YOUR REGIONS", color=T.ACCENT_TEXT, caption=True),
+    IconTitle("map", maps.source.selection_summary, "Change them in Choose regions"),
+    Label(maps.status, T.font_px(15), lambda: T.SUCCESS_TEXT if downloaded() else T.TEXT_TERTIARY, T.FONT,
+          icon=lambda: "check" if downloaded() else None),
+    ProgressCard(maps, padding=0),
+    SPACER,
+    download,
+    Surface(SettingRow("Choose regions", "Add or remove states, regions and countries", on_click=open_regions, height=T.px(64)),
+            T.SURFACE_4, T.px(14)),
+  ], gap=T.px(14))
+  schedule = Card([
+    Label("Keep up to date", T.font_px(18)),
+    Segmented(SCHEDULES, lambda: maps.schedule, maps.set_schedule, height=T.px(52), font_size=T.font_px(16), equal=True),
+    Label("Updates download only while parked and online", T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
+  ], padding=(T.px(20), T.px(18)))
+  storage = Card([
+    Columns([Label("Storage", T.font_px(18)), Label(maps.source.storage, T.font_px(15), T.TEXT_TERTIARY, T.FONT, h=Align.END)]),
+    Label("Without maps, speed limits need a connection.", T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
+    SPACER,
+    remove,
+  ], padding=(T.px(20), T.px(18)), gap=T.px(10))
+  return TitledPage("Offline Maps", "Speed limits and curves work without a connection",
+                    Columns([regions, Stack([schedule, storage], gap=T.px(14), grow=1)], [1.25, 1]))
 
 
 class RegionsPage(Component):
@@ -253,7 +271,7 @@ class MapsPage(Component):
   def __init__(self, maps: Maps, open_regions: Callable[[], None]):
     super().__init__()
     self._maps = maps
-    self._panel = self._child(maps_panel(maps, open_regions))
+    self._page = self._child(maps_page(maps, open_regions))
 
   def show_event(self):
     self._maps.source.refresh()
@@ -263,4 +281,4 @@ class MapsPage(Component):
     self._maps.source.tick()
 
   def _render(self, rect: rl.Rectangle):
-    self._panel.render(body_rect(rect))
+    self._page.render(rect)

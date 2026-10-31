@@ -10,13 +10,14 @@ from typing import Protocol
 
 import pyray as rl
 
-from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Switch, Tone, ValueButton
-from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Label
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Switch, Tone, ValueButton
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
-from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
+from openpilot.selfdrive.ui.tandem.settings.pages import FillPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
@@ -40,6 +41,11 @@ class Software:
 
   def version(self) -> str:
     return self._store.get_str("UpdaterCurrentDescription") or "Unknown version"
+
+  def version_parts(self) -> tuple[str, str]:
+    """"0.10.1 / release / Oct 28" as ("0.10.1", "release · Oct 28")."""
+    number, *rest = [p.strip() for p in self.version().split(" / ")]
+    return number, " · ".join(rest)
 
   def state(self) -> str:
     """One of: busy, failed, available (to download), ready (to install), current."""
@@ -94,53 +100,35 @@ class Software:
     self._reset()
 
 
-class VersionCard(Component):
-  """The status badge, version, status line and the main action, as one card."""
-  grow_touch_target = False
-
-  def __init__(self, model: Software):
-    super().__init__()
-    self._model = model
-    self._badge = self._child(Badge(lambda: model.status_badge()[0], lambda: model.status_badge()[1]))
-    self._action = self._child(Button(model.action_label, model.act, ButtonStyle.PRIMARY))
-    self._action.set_enabled(lambda: model.state() != "busy")
-    self._notes = self._child(Button("What's new", model.actions.release_notes))
-
-  def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(150)
-
-  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
-    super().set_parent_rect(parent_rect)
-    for w in (self._action, self._notes):
-      w.set_parent_rect(parent_rect)
-
-  def _render(self, rect: rl.Rectangle):
-    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(16))
-    text, buttons = row(body, [FILL, T.px(330)], T.px(16))
-    badge, version, line, _ = column(text, [T.px(26), draw.line_height(T.font_px(26)), draw.line_height(T.SIZE_SUBTITLE), FILL], T.px(8))
-    w, h = self._badge.preferred_size(text.width)
-    self._badge.render(rl.Rectangle(badge.x, badge.y, w, h))
-    draw.text(version, f"Version {self._model.version()}", T.font_px(26), T.TEXT, T.FONT_EXTRABOLD)
-    draw.text(line, self._model.status_line(), T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
-    top, bottom = column(buttons, [T.BUTTON_HEIGHT, T.BUTTON_HEIGHT], T.px(10))
-    self._action.render(top)
-    self._notes.render(bottom)
+STATUS_INK = {Tone.SUCCESS: T.SUCCESS_TEXT, Tone.ACCENT: T.ACCENT_TEXT, Tone.WARNING: T.WARNING}
 
 
-def software_panel(model: Software, confirm) -> ListPanel:
+def software_page(model: Software, confirm) -> Widget:
+  """The version and its actions on the left; update settings on the right."""
+  action = Button(model.action_label, model.act, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17))
+  action.set_enabled(lambda: model.state() != "busy")
+  version = Card([
+    Label(lambda: model.status_badge()[0].upper(), T.font_px(15), lambda: STATUS_INK[model.status_badge()[1]],
+          icon=lambda: "check" if model.state() in ("current", "ready") else None),
+    Label(lambda: f"Version {model.version_parts()[0]}", T.font_px(30), weight=T.FONT_EXTRABOLD),
+    Text(lambda: " · ".join(p for p in (model.version_parts()[1], model.status_line()) if p), T.font_px(16), T.TEXT_TERTIARY,
+         padding=(0, 0)),
+    SPACER,
+    Columns([action, Button("What's new", model.actions.release_notes, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17))],
+            gap=T.px(10)),
+  ], gap=T.px(10), padding=(T.px(24), T.px(24)))
   channel = SettingRow("Release Channel", lambda: "Choose another branch" if model.tuner() else "Other branches are in Tuner Mode",
-                       ValueButton(model.channel, model.actions.choose_branch))
+                       ValueButton(model.channel, model.actions.choose_branch), height=T.px(76))
   channel.set_enabled(model.tuner)
-  return ListPanel([
-    VersionCard(model),
+  settings = ListPanel([
     SettingRow("Automatic Updates", "Download while parked, install when you turn off the car",
-               Switch(lambda: model.automatic, model.set_automatic)),
+               Switch(lambda: model.automatic, model.set_automatic), height=T.px(76)),
     channel,
     SettingRow("Reset Settings", "Back to the Essentials defaults. Backups are kept.",
                Button("Reset", lambda: confirm("Reset settings?", "Every setting goes back to the Essentials default. Your backups are kept.",
-                                               "Reset", model.reset_settings), ButtonStyle.DANGER_OUTLINE)),
-    SettingRow("Uninstall", "Removes this software from the device", Button("Uninstall", model.actions.uninstall, ButtonStyle.DANGER_OUTLINE)),
-  ], title="Software")
+                                               "Reset", model.reset_settings)), height=T.px(76)),
+  ], footer=Button("Uninstall", model.actions.uninstall, ButtonStyle.DANGER_OUTLINE, height=T.px(52)))
+  return FillPage(Columns([version, settings], [1, 1.15]))
 
 
 class SoftwarePage(Component):
@@ -149,13 +137,13 @@ class SoftwarePage(Component):
   def __init__(self, model: Software, confirm):
     super().__init__()
     self._model = model
-    self._panel = self._child(software_panel(model, confirm))
+    self._page = self._child(software_page(model, confirm))
 
   def _update_state(self):
     self._model.actions.tick()
 
   def _render(self, rect: rl.Rectangle):
-    self._panel.render(body_rect(rect))
+    self._page.render(rect)
 
 
 class UpstreamUpdates:

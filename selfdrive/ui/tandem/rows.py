@@ -298,9 +298,12 @@ class OptionList(Component):
   grow_touch_target = False
 
   def __init__(self, options: list[str] | list[tuple[str, str]], selected: Bindable[int], on_change: Callable[[int], None],
-               row_height: float = T.px(60), weight=T.FONT_SEMIBOLD):
+               row_height: float = T.px(60), weight=T.FONT_SEMIBOLD, outlined: bool = False, font_size: int = T.SIZE_ROW_TITLE):
+    """outlined marks the choice with an accent outline instead of a check (the Report a Problem list)."""
     super().__init__()
     self._weight = weight
+    self._outlined = outlined
+    self._font_size = font_size
     self._options = [o if isinstance(o, tuple) else (o, "") for o in options]
     self._selected = selected
     self._on_change = on_change
@@ -337,19 +340,24 @@ class OptionList(Component):
     for i, (title, subtitle) in enumerate(self._options):
       r = rl.Rectangle(rect.x, rect.y + self._offset + i * self._row_height, rect.width, self._row_height)
       chosen = i == selected
+      if self._outlined:
+        r = inset(r, y=T.px(2))
       if chosen:
         draw.fill(r, T.ACCENT_SELECTED, T.RADIUS_ITEM)
+        if self._outlined:
+          draw.stroke(r, T.ACCENT, T.RADIUS_ITEM, T.px(2))
       elif self.is_pressed and i == self._pressed_row:
         draw.pressed(r, T.RADIUS_ITEM)
       body = inset(r, x=T.px(18))
       size = T.px(20)
-      if chosen:
+      if chosen and not self._outlined:
         draw.check(rl.Rectangle(body.x + body.width - size, body.y, size, body.height), T.ACCENT_TEXT, size)
       body = inset(body, right=size + T.px(12))
+      weight = T.FONT_BOLD if chosen and self._outlined else self._weight
       if subtitle:
-        w = draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, self._weight)
+        w = draw.text(body, title, self._font_size, T.TEXT, weight)
         draw.text(inset(body, left=w + T.px(14)), subtitle, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
       else:
-        draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, self._weight)
+        draw.text(body, title, self._font_size, T.TEXT, weight)
     if scrolls:
       rl.end_scissor_mode()

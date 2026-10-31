@@ -13,12 +13,13 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Columns, Field, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, Tone, ValueButton
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
 from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, Padded, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
-from openpilot.system.ui.widgets import DialogResult
+from openpilot.system.ui.widgets import DialogResult, Widget
 
 
 @dataclass(frozen=True)
@@ -262,7 +263,7 @@ class Report:
     self.sent = True
 
 
-def report_panel(report: Report) -> ListPanel:
+def report_panel(report: Report) -> Widget:
   def edit(title: str, get: Callable[[], str], set_: Callable[[str], None]) -> Callable[[], None]:
     def open_keyboard():
       from openpilot.system.ui.lib.application import gui_app
@@ -278,18 +279,22 @@ def report_panel(report: Report) -> ListPanel:
     report.category = index
     report.sent = False
 
-  send = Button(lambda: "Sent. Thank you!" if report.sent else "Send report", report.send, ButtonStyle.PRIMARY)
+  send = Button(lambda: "Sent. Thank you!" if report.sent else "Send report", report.send, ButtonStyle.PRIMARY, height=T.px(56))
   send.set_enabled(lambda: report.ready() and not report.sent)
-  return ListPanel([
-    SectionHeader("WHAT HAPPENED?"),
-    Padded(OptionList(REPORT_CATEGORIES, lambda: report.category, pick, row_height=T.px(52)), y=T.px(6)),
-    SettingRow("Details", lambda: report.details or "Optional", ValueButton(lambda: "Edit" if report.details else "Add",
-                                                                           edit("Details", lambda: report.details,
-                                                                                lambda v: setattr(report, "details", v)))),
-    SettingRow("Discord name", lambda: report.discord or "Optional, so we can follow up",
-               ValueButton(lambda: "Edit" if report.discord else "Add",
-                           edit("Discord name", lambda: report.discord, lambda v: setattr(report, "discord", v)))),
-  ], title="Report a Problem", footer=send)
+  happened = Stack([
+    Padded(Label("What happened?", T.font_px(22)), x=T.px(10), y=T.px(4)),
+    OptionList(REPORT_CATEGORIES, lambda: report.category, pick, row_height=T.px(52), outlined=True, font_size=T.font_px(15)),
+  ], gap=T.px(4))
+  details = Stack([
+    Field("Details (optional)", lambda: report.details, "Where and when it happened",
+          edit("Details", lambda: report.details, lambda v: setattr(report, "details", v)), height=T.px(72)),
+    Field("Discord name (optional)", lambda: report.discord, "So we can follow up",
+          edit("Discord name", lambda: report.discord, lambda v: setattr(report, "discord", v))),
+    SPACER,
+    send,
+  ], gap=T.px(14))
+  return Surface(Columns([Padded(happened, x=T.px(10), y=T.px(12)), Padded(details, x=T.px(18), y=T.px(16))], [1.25, 1], gap=0),
+                 T.SURFACE_2, T.RADIUS_PANEL)
 
 
 class UpstreamData:

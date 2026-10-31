@@ -743,6 +743,7 @@ def test_software_states_and_actions():
   updates = FakeUpdates()
   software = Software(store, updates, lambda: None)
   assert software.state() == "current" and software.action_label() == "Check now"
+  assert software.version_parts() == ("0.10.1", "release")
   software.act()
   cache.values["UpdaterFetchAvailable"] = True
   assert software.action_label() == "Download"
