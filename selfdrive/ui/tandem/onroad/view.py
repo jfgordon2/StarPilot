@@ -1,12 +1,14 @@
-"""The Essentials onroad view: StarPilot's view with the bar, status chip, headroom arc and new-limit card on top.
+"""The Essentials onroad view: StarPilot's view with the Essentials layers on top.
 
 It subclasses StarPilotOnroadView and overrides only the parts Essentials replaces:
 - the torque bar becomes the headroom arc, above the bar;
 - the road name moves into the bar;
 - the paused and weather badges beside the driver monitor become status chips;
-- the driving personality button and the experimental-mode wheel are removed;
+- the current speed, the speed limit sign and the turn card are drawn in the Essentials style, with StarPilot still
+  deciding when each shows; the speed pill carries Essentials' turn signal in place of StarPilot's animations;
+- the driving personality button, the experimental-mode wheel and the favorites menu are removed;
 - the bottom widgets (the driver monitor icon) sit above the bar.
-Everything else, from the camera and path to the speed, alerts, turn signals and navigation card, is upstream's.
+Everything else, from the camera and path to alerts, is upstream's.
 """
 from __future__ import annotations
 
@@ -63,6 +65,25 @@ class EssentialsTurnCard(NavigationCardRenderer):
     self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier)
 
 
+class _NoFavorites:
+  """Stands in for StarPilot's favorites menu (the lower-left gesture), which Essentials doesn't show."""
+
+  def process_mouse_events(self, events, rect) -> bool:
+    return False
+
+  def blocks_pointer(self, mouse_pos) -> bool:
+    return False
+
+  def render(self, rect) -> None:
+    pass
+
+  def render_corner_hint(self, rect) -> None:
+    pass
+
+  def collapse(self) -> None:
+    pass
+
+
 class EssentialsOnroadView(StarPilotOnroadView):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
@@ -94,6 +115,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._turn_card = EssentialsTurnCard()
     self._hud_renderer._navigation_card = self._turn_card
     self._hud_renderer._draw_current_speed = self._draw_current_speed
+    self._favorite_radial_menu = _NoFavorites()
     self._sign_right = False
     self._layers_visible = False
     self._nav_sm = None
@@ -101,7 +123,14 @@ class EssentialsOnroadView(StarPilotOnroadView):
   # Upstream pieces replaced here
 
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
-    draw_speed(rect, self._hud_renderer.speed, "km/h" if ui_state.is_metric else "mph", self._hud_renderer.speed_offset_y)
+    sm = ui_state.sm
+    car = sm["carState"] if sm.valid.get("carState", False) and sm.recv_frame["carState"] >= ui_state.started_frame else None
+    left, right = (bool(car.leftBlinker), bool(car.rightBlinker)) if car is not None else (False, False)
+    draw_speed(rect, self._hud_renderer.speed, "km/h" if ui_state.is_metric else "mph", self._hud_renderer.speed_offset_y,
+               left, right, time.monotonic())
+
+  def _render_turn_signals(self) -> None:
+    pass   # Essentials' turn signal is in the speed pill
 
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""

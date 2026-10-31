@@ -13,13 +13,9 @@ from openpilot.selfdrive.ui.tandem.blocks import Grid
 from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
-
-# Turn signal animations built into StarPilot (slug, name). Theme packs can add more; those still show by name.
-SIGNALS = [("stock", "None"), ("sequential", "Sequential"), ("flow", "Flow"), ("open_flow", "Open Flow"), ("glide", "Glide"),
-           ("frog", "Frog"), ("pouncing_cat", "Pouncing Cat"), ("shooting_star", "Shooting Star"), ("bouncing_ball", "Bouncing Ball")]
 
 # Path Style -> the path and lane line params it sets. Standard is upstream's path without the acceleration tint.
 _STANDARD_PATH = {"ModelUI": True, "CustomUI": True, "PathWidth": 6.1, "PathEdgeWidth": 20.0, "LaneLinesWidth": 4.0,
@@ -66,26 +62,6 @@ class Display:
     return self._boot_logo_source
 
   # Driving screen
-
-  @property
-  def signal(self) -> int:
-    if not self._store.get_bool("CustomThemes"):
-      return 0
-    slug = self._store.get_str("SignalAnimation") or "stock"
-    return next((i for i, (s, _) in enumerate(SIGNALS) if s == slug), 0)
-
-  def signal_name(self) -> str:
-    slug = self._store.get_str("SignalAnimation")
-    if self.signal == 0 and slug and slug != "stock" and self._store.get_bool("CustomThemes"):
-      return slug.replace("_", " ").title()   # a theme pack's animation
-    return SIGNALS[self.signal][1]
-
-  def set_signal(self, index: int) -> None:
-    slug = SIGNALS[index][0]
-    values: dict = {"SignalAnimation": slug}
-    if slug != "stock":
-      values |= {"CustomThemes": True, "RandomThemes": False}
-    self._store.write(values)
 
   @property
   def path_style(self) -> int:
@@ -185,18 +161,13 @@ class Display:
 
   def summary(self) -> str:
     clean = "Clean screen" if self.clean_screen else "All banners"
-    return f"{clean} · {self.signal_name()}"
+    return clean
 
   def path_summary(self) -> str:
     return f"{PATH_STYLES[self.path_style][0]} path"
 
 
 def driving_screen_panel(model: Display, window) -> ListPanel:
-  def signal_sheet():
-    window.present(Sheet("Turn Signal Animation", OptionList([name for _, name in SIGNALS], lambda: model.signal, model.set_signal),
-                         subtitle="Plays beside the speed while a blinker is on",
-                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
-
   def path_sheet():
     window.present(Sheet("Path Style", PathStylePicker(lambda: model.path_style, model.set_path_style),
                          subtitle="Sets path color, width, edges and lane lines together",
@@ -205,7 +176,6 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
   dev_get, dev_set = model.bundle(DEVELOPER_VIEW)
   lead_get, lead_set = model.bundle(LEAD_INSIGHTS)
   return ListPanel([
-    SettingRow("Turn Signal Animation", "Plays beside the speed when signalling", ValueButton(model.signal_name, signal_sheet)),
     SettingRow("Path Style", "Color, width and edges as one preset", ValueButton(lambda: PATH_STYLES[model.path_style][0], path_sheet)),
     SettingRow("Clean Screen", "Hides lane change, turn and profile banners", Switch(lambda: model.clean_screen, model.set_clean_screen)),
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",

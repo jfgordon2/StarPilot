@@ -331,17 +331,49 @@ SIGN_TILE = (T.px(82), T.px(98))
 SIGN_MARGIN = T.px(18)
 
 
-def draw_speed(rect: rl.Rectangle, speed: float, unit: str, offset_y: float = 0.0) -> None:
-  """The current speed, top center on a dark pill."""
+SIGNAL_BRIGHT, SIGNAL_DIM = T.SUCCESS_BRIGHT, rl.Color(0x2A, 0x8F, 0x5E, 255)
+SIGNAL_SIZE = (T.px(46), T.px(30))   # both chevrons, as in the onroad mock
+SIGNAL_GAP = T.px(22)
+SIGNAL_STEP = 0.4                    # seconds each chevron leads, so the light steps outward
+
+
+def draw_signal(rect: rl.Rectangle, side: str, now: float) -> None:
+  """Two chevrons pointing the way of the turn. The bright one steps outward, from beside the speed to the edge."""
+  w, h = SIGNAL_SIZE
+  box = place(rect, w, h)
+  stroke = T.px(5)
+  outer_bright = int(now / SIGNAL_STEP) % 2 == 1
+  for i, x0 in enumerate((T.px(18), T.px(36))):   # the mock's chevron tips: at 8 and 26 of 46, arms out to 18 and 36
+    outer = i == 0
+    color = SIGNAL_BRIGHT if outer == outer_bright else SIGNAL_DIM
+    tip_x, arm_x = x0 - T.px(10), x0
+    if side == "right":
+      tip_x, arm_x = w - tip_x, w - arm_x
+    tip = rl.Vector2(box.x + tip_x, box.y + h / 2)
+    for arm in (rl.Vector2(box.x + arm_x, box.y + h / 2 - T.px(10)), rl.Vector2(box.x + arm_x, box.y + h / 2 + T.px(10))):
+      rl.draw_line_ex(arm, tip, stroke, color)
+      rl.draw_circle_v(arm, stroke / 2, color)
+    rl.draw_circle_v(tip, stroke / 2, color)
+
+
+def draw_speed(rect: rl.Rectangle, speed: float, unit: str, offset_y: float = 0.0, left: bool = False, right: bool = False,
+               now: float = 0.0) -> None:
+  """The current speed, top center on a dark pill. A blinker adds our turn signal on its side; the number stays centered."""
   number, size = f"{round(speed)}", T.font_px(62)
   lines = [draw.line_height(size), draw.line_height(T.font_px(17))]
   w = max(draw.text_width(number, size, T.FONT_EXTRABOLD), draw.text_width(unit, T.font_px(17))) + T.px(80)
   h = sum(lines) + T.px(20) - T.px(6)
-  pill = rl.Rectangle(rect.x + (rect.width - w) / 2, rect.y + T.px(16) + offset_y, w, h)
+  center = rl.Rectangle(rect.x + (rect.width - w) / 2, rect.y + T.px(16) + offset_y, w, h)
+  extra = SIGNAL_SIZE[0] + SIGNAL_GAP - T.px(10)   # the mock's pill is 10 px tighter on the signal side
+  pill = rl.Rectangle(center.x - (extra if left else 0), center.y, w + (extra if left else 0) + (extra if right else 0), h)
   draw.fill(pill, HUD_PILL, T.px(22))
-  value, label = column(inset(pill, y=T.px(10)), [lines[0] - T.px(6), lines[1]])
+  value, label = column(inset(center, y=T.px(10)), [lines[0] - T.px(6), lines[1]])
   draw.text(value, number, size, T.TEXT, T.FONT_EXTRABOLD, Align.CENTER)
   draw.text(label, unit, T.font_px(17), SPEED_UNIT, h=Align.CENTER)
+  for side, on in (("left", left), ("right", right)):
+    if on:
+      x = pill.x + T.px(30) if side == "left" else pill.x + pill.width - T.px(30) - SIGNAL_SIZE[0]
+      draw_signal(rl.Rectangle(x, pill.y, SIGNAL_SIZE[0], pill.height), side, now)
 
 
 def sign_tile(rect: rl.Rectangle, right: bool) -> rl.Rectangle:

@@ -119,7 +119,7 @@ These are reached from a row or button, never as a tab:
 
 `screens.py` creates the screens MainLayout shows. Setting `TANDEM_SIDEBAR=0`, `TANDEM_HOME=0`, `TANDEM_SETTINGS=0` or `TANDEM_ONROAD=0` brings back upstream's version of that screen.
 
-- **Onroad** (`onroad/`): `EssentialsOnroadView` subclasses StarPilot's onroad view and keeps its camera, path, speed, alerts, turn signals and navigation card. It replaces the following:
+- **Onroad** (`onroad/`): `EssentialsOnroadView` subclasses StarPilot's onroad view and keeps its camera, path, lane lines and alerts. It replaces the following:
   - **Bottom bar:** a scrim, not a panel. It holds menu (the sidebar), MAX − / + (StarPilot's `SLCForceCruiseSpeed`, only while engaged), the street name, and engage.
     - Engage and disengage go through the wheel controls' action counters.
     - While a route is active, the street name gives way to arrival time, what's left and End route. That reads `navInstruction` through the view's own subscriber, since `ui_state` doesn't subscribe to it.
@@ -127,7 +127,9 @@ These are reached from a row or button, never as a tab:
   - **Steering headroom arc:** replaces the torque bar and uses its estimate. It has three stages (under 60%, 60–85%, over 85% held for 0.5 s) and a faint preview of what the path needs 2.5 s ahead.
     - At limit, the lane lines turn orange, the border turns amber, and Help steer plays one soft warning chime through soundd. It uses the warning volume and steering-limit mute-speed settings. The warning clears below 80%, or when steering becomes inactive; existing alerts take priority. The small release margin prevents repeated chimes around 85%.
   - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`. Ignore suppresses consecutive offers for that same limit, including after an offer expires or its source briefly disappears. An intervening higher or lower posted limit, or a new drive, allows it again.
-  - **Removed:** the driving personality button, the experimental-mode wheel, and the paused and weather badges, which the chips replace. The driver monitor icon sits above the bar.
+  - **Speed, sign and turn card:** StarPilot still decides when each shows (its HUD's speed with the hide-speed and stopped-timer rules, its speed card's posted limit, its turn card's route data); they're drawn as in the mocks. The sign sits top left, moves top right while navigating and hides while the new-limit card asks. The compass above the speed isn't drawn.
+  - **Turn signal:** two green chevrons in the speed pill on the signalling side, the brighter one stepping outward. It replaces StarPilot's signal animations, so Display has no animation picker.
+  - **Removed:** the driving personality button, the experimental-mode wheel, the favorites menu (the lower-left gesture), and the paused and weather badges, which the chips replace. The driver monitor icon sits above the bar.
 - **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. The home cards use the full content height without the legacy header or its tap targets. Offroad alerts and update details retain upstream's header and navigation.
 - **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, comma connect, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.

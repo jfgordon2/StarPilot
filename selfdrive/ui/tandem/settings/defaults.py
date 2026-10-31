@@ -35,7 +35,6 @@ def _apply(store: SettingsStore, boot_logos=None) -> None:
   display.set_path_style(0)               # Standard
   display.set_clean_screen(True)
   display.set_blind_spot(True)
-  display.set_signal(1)                   # Sequential
   display.set_camera_view(1)              # Standard
   display.set_boot_logo(TANDEM_LOGO)
 

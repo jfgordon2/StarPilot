@@ -425,15 +425,6 @@ def test_path_style_presets_round_trip():
   assert cache.values["PathWidth"] == 3.0 and not cache.values["AccelerationPath"]
 
 
-def test_signal_animation_turns_on_custom_themes():
-  from openpilot.selfdrive.ui.tandem.settings.display import Display
-  store, cache = _store()
-  display = Display(store)
-  assert display.signal_name() == "None"
-  display.set_signal(1)
-  assert cache.values["SignalAnimation"] == "sequential" and cache.values["CustomThemes"] and display.signal_name() == "Sequential"
-
-
 def test_clean_screen_needs_every_banner_hidden():
   from openpilot.selfdrive.ui.tandem.settings.display import Display
   store, cache = _store()
