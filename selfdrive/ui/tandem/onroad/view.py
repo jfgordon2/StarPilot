@@ -62,6 +62,14 @@ class EssentialsTurnCard(NavigationCardRenderer):
 class EssentialsAlertRenderer(AlertRenderer):
   """StarPilot's alert renderer, keeping its choice of alert, timing and fades, drawn in the mock's three levels."""
 
+  def get_alert(self, sm):
+    previous = self._prev_alert
+    alert = super().get_alert(sm)
+    if alert is not None and alerts.shown_as_chip(alert.alert_type):
+      self._prev_alert = previous   # not shown, so nothing to fade out either; the status chip says it
+      return None
+    return alert
+
   def level(self) -> str | None:
     alert, _ = self.will_render()
     return alerts.level(alert.size, alert.status, alert.alert_type) if alert is not None else None

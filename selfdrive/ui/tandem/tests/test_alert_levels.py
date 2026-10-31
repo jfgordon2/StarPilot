@@ -24,3 +24,10 @@ def test_border_only_for_warning_and_critical():
   assert alerts.border(None) is None
   assert alerts.border(alerts.WARNING) == alerts.WARNING_BORDER
   assert alerts.border(alerts.CRITICAL) == alerts.CRITICAL_BORDER
+
+
+def test_green_light_and_lead_departed_go_to_chips():
+  assert alerts.shown_as_chip("greenLight/permanent")
+  assert alerts.shown_as_chip("leadDeparting/permanent")
+  assert not alerts.shown_as_chip("promptDriverDistracted/permanent")
+  assert not alerts.shown_as_chip("")

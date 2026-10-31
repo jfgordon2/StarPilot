@@ -4,6 +4,8 @@ and timing; only the drawing changes.
 - Info: a dark pill with an info icon at the bottom; the border keeps its engaged or disengaged color.
 - Warning: an amber two-line card at the bottom and an amber border.
 - Critical: a full-screen dark red takeover with a steering wheel icon and a red border.
+
+Light Turned Green and Lead Departed are left to the status chips, which the design gives them.
 """
 from __future__ import annotations
 
@@ -45,6 +47,15 @@ def level(size: int, status: int, alert_type: str = "") -> str:
   if status == STATUS_USER_PROMPT:
     return WARNING
   return INFO
+
+
+CHIP_ALERTS = {"greenLight", "leadDeparting"}   # shown as the status chips "Light is green" and "Car ahead moved"
+
+
+def shown_as_chip(alert_type: str) -> bool:
+  """Alerts the status chips already say (design/statuschips.html, waiting on you): their chime still plays, but
+  the chip shows instead of a banner, so the bar stays usable while stopped."""
+  return (alert_type or "").split("/", 1)[0] in CHIP_ALERTS
 
 
 def border(alert_level: str | None) -> rl.Color | None:
