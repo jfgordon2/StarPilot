@@ -316,8 +316,8 @@ class CatalogPage(Component):
       ], gap=T.px(10), padding=(T.px(18), T.px(16)), background=T.SURFACE_2),
       Card([
         Label("GOOD TO KNOW", caption=True),
-        note("One download at a time. Downloads pause while driving and resume when parked."),
-        note("A new model takes effect the next time you start the car."),
+        note("One download at a time, paused while driving."),
+        note("A new model applies on your next drive."),
         SPACER,
       ], gap=T.px(10), padding=(T.px(18), T.px(16)), background=T.SURFACE_2),
     ], gap=T.px(14), grow=1))
