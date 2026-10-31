@@ -19,8 +19,15 @@ def _ease_out(t: float) -> float:
 
 
 class Sheet(Component):
-  """Slides up from the bottom over a scrim: handle, title and subtitle, actions on the right, then the body."""
+  """Slides up from the bottom over a scrim: handle, title and subtitle, actions on the right, then the body.
+
+  A sheet with on_dismiss also closes by dragging its handle or header down: past DRAG_CLOSE of its height, or with a
+  downward flick, it closes; short of that it springs back."""
   grow_touch_target = False
+  DRAG_CLOSE = 0.25       # share of the sheet's height
+  FLICK = T.px(600)       # px/s downward, over the last FLICK_S, that closes even a short drag
+  FLICK_S = 0.1
+  SNAP_S = 0.18
 
   def __init__(self, title: Bindable[str], body: Widget, subtitle: Bindable[str] | None = None,
                actions: list[Button] | None = None, height: float | None = None, on_dismiss: Callable[[], None] | None = None):
@@ -40,6 +47,12 @@ class Sheet(Component):
         a.restyle(T.px(56), T.font_px(17), T.px(28) if a is self._actions[-1] else T.px(22), T.px(16))
     self._height = height
     self._shown_at: float | None = None
+    self._grab_rects: list[rl.Rectangle] = []
+    self._grab: list[tuple[float, float]] | None = None   # (y, t) drag samples, while dragging
+    self._grab_y = 0.0
+    self._drag = 0.0
+    self._dragged = False
+    self._snap: tuple[float, float] | None = None   # (offset, start time) while springing back
 
   def show_event(self):
     super().show_event()
@@ -53,9 +66,10 @@ class Sheet(Component):
 
   def _render(self, rect: rl.Rectangle):
     t = 1.0 if self._shown_at is None else _ease_out((rl.get_time() - self._shown_at) * 1000 / T.SHEET_MS)
-    draw.fill(rect, draw.alpha(T.SCRIM, 0.85 * t))
     height = self._sheet_height(rect)
-    sheet = rl.Rectangle(rect.x, rect.y + rect.height - height * t, rect.width, height)
+    offset = self._offset()
+    draw.fill(rect, draw.alpha(T.SCRIM, 0.85 * t * (1 - min(1.0, offset / max(height, 1)))))
+    sheet = rl.Rectangle(rect.x, rect.y + rect.height - height * t + offset, rect.width, height)
     self._sheet_rect = sheet
     draw.fill(sheet, T.SURFACE_2, T.RADIUS_SHEET)
     draw.fill(rl.Rectangle(sheet.x, sheet.y + T.RADIUS_SHEET, sheet.width, sheet.height - T.RADIUS_SHEET), T.SURFACE_2)
@@ -70,6 +84,7 @@ class Sheet(Component):
       action.render(rl.Rectangle(x_end, header.y + (header.height - h) / 2, w, h))
       x_end -= T.px(12)
     text_rect = rl.Rectangle(header.x, header.y, x_end - header.x, header.height)
+    self._grab_rects = [rl.Rectangle(sheet.x, sheet.y, sheet.width, body.y - sheet.y), text_rect]   # the handle strip and the title
     if self._subtitle is not None:
       title_rect, sub_rect = column(place(text_rect, text_rect.width, draw.line_height(T.SIZE_TITLE) + T.px(4) + draw.line_height(T.SIZE_LABEL)),
                                     [draw.line_height(T.SIZE_TITLE), draw.line_height(T.SIZE_LABEL)], T.px(4))
@@ -80,8 +95,53 @@ class Sheet(Component):
     self._body.render(content)
 
 
+  def _offset(self) -> float:
+    if self._snap is not None:
+      start, at = self._snap
+      progress = (rl.get_time() - at) / self.SNAP_S
+      if progress >= 1:
+        self._snap = None
+        return 0.0
+      return start * (1 - _ease_out(progress))
+    return self._drag
+
+  def _speed(self, now: float) -> float:
+    """Downward speed over the last FLICK_S, so a finger that pauses a frame before lifting still counts as a flick."""
+    samples = self._grab or []
+    if len(samples) < 2:
+      return 0.0
+    last = samples[-1]
+    start = next(s for s in samples if now - s[1] <= self.FLICK_S or s is last)
+    if start is last:
+      start = samples[-2]
+    return (last[0] - start[0]) / max(last[1] - start[1], 1e-3)
+
+  def _handle_mouse_event(self, mouse_event) -> None:
+    if self._on_dismiss is None:
+      return
+    pos = mouse_event.pos
+    if mouse_event.left_pressed:
+      if any(rl.check_collision_point_rec(pos, r) for r in self._grab_rects):
+        self._grab, self._grab_y = [(pos.y, mouse_event.t)], pos.y
+        self._drag, self._dragged, self._snap = 0.0, False, None
+    elif self._grab is not None and mouse_event.left_released:
+      closes = self._drag > self._sheet_rect.height * self.DRAG_CLOSE or (self._speed(mouse_event.t) > self.FLICK and self._drag > T.px(20))
+      self._grab = None
+      if closes:
+        self._on_dismiss()
+      elif self._drag > 0:
+        self._snap = (self._drag, rl.get_time())
+      self._drag = 0.0
+    elif self._grab is not None and mouse_event.left_down:
+      self._grab.append((pos.y, mouse_event.t))
+      self._drag = max(0.0, pos.y - self._grab_y)
+      self._dragged = self._dragged or self._drag > T.px(8)
+
   def _handle_mouse_release(self, mouse_pos: MousePos) -> None:
     super()._handle_mouse_release(mouse_pos)
+    if self._dragged:        # the end of a drag, not a tap above the sheet
+      self._dragged = False
+      return
     if self._on_dismiss is not None and mouse_pos.y < self._sheet_rect.y:
       self._on_dismiss()
 

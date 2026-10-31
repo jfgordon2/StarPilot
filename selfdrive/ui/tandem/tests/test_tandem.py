@@ -214,3 +214,33 @@ def test_paragraph_max_lines_ends_the_last_line_in_an_ellipsis(monkeypatch):
   monkeypatch.setattr(draw, "font", lambda weight: None)
   draw.paragraph(rl.Rectangle(0, 0, 100, 100), "x", 20, rl.WHITE, max_lines=2)
   assert drawn == ["one two", "three four five six" + draw.ELLIPSIS]
+
+
+def _sheet_drag(points, on_dismiss):
+  import pyray as rl
+  from openpilot.system.ui.lib.application import MouseEvent, MousePos
+  from openpilot.selfdrive.ui.tandem.overlays import Sheet
+  from openpilot.selfdrive.ui.tandem.rows import Text
+  sheet = Sheet("What's new", Text("notes"), on_dismiss=on_dismiss)
+  sheet._sheet_rect = rl.Rectangle(0, 400, 2160, 680)
+  sheet._grab_rects = [rl.Rectangle(0, 400, 2160, 60)]
+  for i, (y, t) in enumerate(points):
+    last = i == len(points) - 1
+    sheet._handle_mouse_event(MouseEvent(MousePos(1000, y), 0, i == 0, last, not last, t))
+  sheet._handle_mouse_release(MousePos(1000, points[-1][0]))
+  return sheet
+
+
+def test_sheet_closes_when_its_handle_is_dragged_far_enough_or_flicked():
+  closed = []
+  _sheet_drag([(420, 0.0), (500, 0.5), (650, 1.0), (650, 1.1)], lambda: closed.append("far"))         # 230 px > a quarter
+  _sheet_drag([(420, 0.0), (440, 0.1), (520, 0.15), (520, 0.16)], lambda: closed.append("flick"))     # short but fast
+  assert closed == ["far", "flick"]
+
+
+def test_sheet_springs_back_from_a_short_slow_drag_and_ignores_drags_off_the_handle():
+  closed = []
+  sheet = _sheet_drag([(420, 0.0), (470, 1.0), (500, 2.0), (500, 2.1)], lambda: closed.append(True))
+  assert not closed and sheet._snap is not None and sheet._drag == 0
+  _sheet_drag([(700, 0.0), (900, 0.5), (1000, 1.0), (1000, 1.1)], lambda: closed.append(True))      # starts in the body
+  assert not closed
