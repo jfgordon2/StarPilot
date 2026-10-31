@@ -257,6 +257,9 @@ class FakeBluetooth:
   def test_audio(self, address):
     self.calls.append(("test", address))
 
+  def audio_test_text(self):
+    return "A sound plays in 3…"
+
   def forget(self, address):
     self.calls.append(("forget", address))
 
@@ -264,9 +267,26 @@ class FakeBluetooth:
 class FakeUpdates:
   def __init__(self):
     self.calls = []
+    self.target = "release"
 
   def tick(self):
     pass
+
+  def branches(self):
+    return ["release", "staging", "nightly"]
+
+  def target_branch(self):
+    return self.target
+
+  def set_branch(self, branch):
+    self.target = branch
+    self.calls.append(("branch", branch))
+
+  def uninstall(self, erase):
+    self.calls.append(("uninstall", erase))
+
+  def release_notes(self):
+    return "Version 0.10.1\n• Smoother lane changes\n• Fixes for Toyota"
 
   def __getattr__(self, name):
     return lambda: self.calls.append(name)

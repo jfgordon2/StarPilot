@@ -1,7 +1,8 @@
 """Software: version and update status, automatic updates, release channel, Reset Settings, and Uninstall.
 
-Checking, downloading, installing, choosing a branch and uninstalling are upstream's SoftwareLayout actions,
-so they keep its signals to the updater and its confirmations. Reset Settings applies the Essentials defaults.
+Checking, downloading and installing are upstream's SoftwareLayout actions, so they keep its signals to the updater.
+Choosing a branch and uninstalling use our sheet and dialogs, then write what upstream's would. Reset Settings applies
+the Essentials defaults.
 """
 from __future__ import annotations
 
@@ -25,9 +26,11 @@ class UpdateActions(Protocol):
   def tick(self) -> None: ...
   def check_or_download(self) -> None: ...
   def install(self) -> None: ...
-  def choose_branch(self) -> None: ...
-  def uninstall(self) -> None: ...
-  def release_notes(self) -> None: ...
+  def branches(self) -> list[str]: ...          # upstream's order: the current branch and the common ones first
+  def target_branch(self) -> str: ...
+  def set_branch(self, branch: str) -> None: ...
+  def uninstall(self, erase: bool) -> None: ...  # erase: a factory reset too
+  def release_notes(self) -> str: ...           # plain text
 
 
 UPDATER_STATES = {"checking": "Checking for an update", "downloading": "Downloading the update", "finalizing": "Getting the update ready"}
@@ -103,7 +106,69 @@ class Software:
 STATUS_INK = {Tone.SUCCESS: T.SUCCESS_TEXT, Tone.ACCENT: T.ACCENT_TEXT, Tone.WARNING: T.WARNING}
 
 
-def software_page(model: Software, confirm) -> Widget:
+def notes_text(html: str) -> str:
+  """Release notes arrive as the updater's HTML; our sheet shows plain paragraphs and bullets."""
+  import html as html_lib
+  import re
+  text = re.sub(r"<\s*li[^>]*>", "• ", html, flags=re.I)
+  text = re.sub(r"<\s*(br|/p|/li|/h[1-6]|/ul|/ol)[^>]*>", "\n", text, flags=re.I)
+  text = html_lib.unescape(re.sub(r"<[^>]+>", "", text))
+  lines = [line.strip() for line in text.splitlines()]
+  return "\n".join(line for line in lines if line) or "No release notes for this version."
+
+
+def show_notes(model: Software, window) -> None:
+  from openpilot.selfdrive.ui.tandem.overlays import Sheet
+  paragraphs = [Text(p, T.font_px(17), T.TEXT_SECONDARY) for p in model.actions.release_notes().split("\n") if p.strip()]
+  window.present(Sheet(f"What's new in {model.version_parts()[0]}", ListPanel(paragraphs, dividers=False, header_divider=False),
+                       on_dismiss=window.dismiss))
+
+
+def choose_branch(model: Software, window) -> None:
+  from openpilot.selfdrive.ui.tandem.overlays import Sheet
+  from openpilot.selfdrive.ui.tandem.rows import OptionList
+  branches = model.actions.branches()
+  if not branches:
+    return
+
+  def pick(index: int) -> None:
+    model.actions.set_branch(branches[index])
+    window.dismiss()
+  current = lambda: branches.index(model.actions.target_branch()) if model.actions.target_branch() in branches else 0  # noqa: E731
+  window.present(Sheet("Release Channel", OptionList(branches, current, pick), subtitle="The branch to download updates from",
+                       on_dismiss=window.dismiss))
+
+
+def uninstall(model: Software, window) -> None:
+  """Upstream's three steps in our dialogs: uninstall, then whether to erase everything too, then a last check."""
+  from openpilot.selfdrive.ui.tandem import draw
+  from openpilot.selfdrive.ui.tandem.overlays import Dialog
+  from openpilot.system.ui.widgets import DialogResult
+  trash = lambda r, c, s: draw.icon(r, "trash", c, s)  # noqa: E731
+
+  def last(result) -> None:
+    window.dismiss()
+    model.actions.uninstall(erase=result == DialogResult.CONFIRM)   # as upstream: cancelling here still uninstalls
+
+  def erase(result) -> None:
+    window.dismiss()
+    if result == DialogResult.CONFIRM:
+      window.present(Dialog("Erase everything?", "Every setting, drive and download is deleted. This can't be undone.", "Erase",
+                            last, tone=Tone.DANGER, glyph=trash))
+    else:
+      model.actions.uninstall(erase=False)
+
+  def first(result) -> None:
+    window.dismiss()
+    if result == DialogResult.CONFIRM:
+      window.present(Dialog("Factory reset too?", "A factory reset also deletes every setting, drive and download. Skip keeps them.",
+                            "Factory Reset", erase, cancel_label="Skip", tone=Tone.DANGER, glyph=trash))
+
+  window.present(Dialog("Uninstall openpilot?", "The device removes openpilot and starts its setup again.", "Uninstall", first,
+                        tone=Tone.DANGER, glyph=trash))
+
+
+def software_page(model: Software, confirm, window=None) -> Widget:
   """The version and its actions on the left; update settings on the right."""
   action = Button(model.action_label, model.act, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17), weight=T.FONT_BOLD)
   action.set_enabled(lambda: model.state() != "busy")
@@ -114,12 +179,12 @@ def software_page(model: Software, confirm) -> Widget:
     Text(lambda: " · ".join(p for p in (model.version_parts()[1], model.status_line()) if p), T.font_px(16), T.TEXT_TERTIARY,
          padding=(0, 0)),
     SPACER,
-    Columns([action, Button("What's new", model.actions.release_notes, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17),
+    Columns([action, Button("What's new", lambda: show_notes(model, window), ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17),
                             weight=T.FONT_BOLD)],
             gap=T.px(10)),
   ], gap=T.px(10), padding=(T.px(24), T.px(24)))
   channel = SettingRow("Release Channel", lambda: "Choose another branch" if model.tuner() else "Other branches are in Tuner Mode",
-                       ValueButton(model.channel, model.actions.choose_branch), height=T.px(76))
+                       ValueButton(model.channel, lambda: choose_branch(model, window)), height=T.px(76))
   channel.set_enabled(model.tuner)
   settings = ListPanel([
     SettingRow("Automatic Updates", "Download while parked, install when you turn off the car",
@@ -128,17 +193,17 @@ def software_page(model: Software, confirm) -> Widget:
     SettingRow("Reset Settings", "Back to the Essentials defaults. Backups are kept.",
                Button("Reset", lambda: confirm("Reset settings?", "Every setting goes back to the Essentials default. Your backups are kept.",
                                                "Reset", model.reset_settings)), height=T.px(76)),
-  ], footer=Button("Uninstall", model.actions.uninstall, ButtonStyle.DANGER_SOFT, height=T.px(52)))
+  ], footer=Button("Uninstall", lambda: uninstall(model, window), ButtonStyle.DANGER_SOFT, height=T.px(52)))
   return FillPage(Columns([version, settings], [1, 1.15]))
 
 
 class SoftwarePage(Component):
   grow_touch_target = False
 
-  def __init__(self, model: Software, confirm):
+  def __init__(self, model: Software, confirm, window=None):
     super().__init__()
     self._model = model
-    self._page = self._child(software_page(model, confirm))
+    self._page = self._child(software_page(model, confirm, window))
 
   def _update_state(self):
     self._model.actions.tick()
@@ -163,14 +228,35 @@ class UpstreamUpdates:
   def install(self) -> None:
     self._layout._on_install_update()
 
-  def choose_branch(self) -> None:
-    self._layout._on_select_branch()
+  def branches(self) -> list[str]:
+    """As upstream's branch picker lists them."""
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    current = ui_state.ui_params.get("GitBranch") or ""
+    branches = [b for b in (ui_state.ui_params.get("UpdaterAvailableBranches") or "").split(",") if b]
+    for b in [current, "devel-staging", "devel", "nightly", "nightly-dev", "master"]:
+      if b in branches:
+        branches.remove(b)
+        branches.insert(0, b)
+    return branches
 
-  def uninstall(self) -> None:
-    self._layout._on_uninstall()
+  def target_branch(self) -> str:
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    return ui_state.ui_params.get("UpdaterTargetBranch") or ""
 
-  def release_notes(self) -> None:
-    from openpilot.system.ui.lib.application import gui_app
-    from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
-    notes = self._layout._version_item.description or "No release notes for this version."
-    gui_app.push_widget(ConfirmDialog(notes if isinstance(notes, str) else notes(), "OK", rich=True))
+  def set_branch(self, branch: str) -> None:
+    """What upstream's picker does on a choice: the target branch, then a nudge to the updater to check."""
+    import os
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    ui_state.ui_params.put("UpdaterTargetBranch", branch)
+    os.system("pkill -SIGUSR1 -f system.updated.updated")
+
+  def uninstall(self, erase: bool) -> None:
+    """What upstream's last uninstall step does: a factory reset clears every param first."""
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    if erase:
+      ui_state.ui_params.clear_all()
+    ui_state.ui_params.put_bool("DoUninstall", True)
+
+  def release_notes(self) -> str:
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    return notes_text((ui_state.ui_params.get("UpdaterCurrentReleaseNotes") or b"").decode("utf-8", "replace"))

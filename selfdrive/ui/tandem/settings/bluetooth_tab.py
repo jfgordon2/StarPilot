@@ -348,14 +348,24 @@ class BluetoothDevices(Protocol):
   def status(self): ...
   def select(self, address: str) -> None: ...
   def test_audio(self, address: str) -> None: ...
+  def audio_test_text(self) -> str: ...            # the running test's countdown, result or error
   def forget(self, address: str) -> None: ...
 
 
-def devices_panel(bt: BluetoothDevices) -> Component:
+def sound_test(bt: BluetoothDevices, address: str, window) -> None:
+  """Upstream's delayed sound test, counted down in our dialog."""
+  from openpilot.selfdrive.ui.tandem.overlays import Dialog
+  bt.test_audio(address)
+  if window is not None:
+    window.present(Dialog("Sound test", bt.audio_test_text, "Done", lambda result: window.dismiss(), cancel_label=None,
+                          glyph=lambda r, c, s: draw.icon(r, "volume", c, s)))
+
+
+def devices_panel(bt: BluetoothDevices, window=None) -> Component:
   def audio_row(device) -> SettingRow:
     selected = lambda: bt.status().selected_audio.upper() == device.address.upper()  # noqa: E731
     return SettingRow(device.name, lambda: "Plays alerts and chimes" if selected() else ("Connected" if device.connected else "Paired"),
-                      Button("Test sound", lambda: bt.test_audio(device.address)), on_click=lambda: bt.select(device.address),
+                      Button("Test sound", lambda: sound_test(bt, device.address, window)), on_click=lambda: bt.select(device.address),
                       chevron=False)
 
   def nearby_row(device) -> SettingRow:
@@ -392,7 +402,7 @@ class BluetoothPage(Component):
     self._wheel = wheel
     self._bt = bt
     self._left = self._child(wheel_panel(wheel, window))
-    self._right = self._child(devices_panel(bt))
+    self._right = self._child(devices_panel(bt, window))
 
   def show_event(self):
     self._bt.set_active(True)
@@ -522,10 +532,24 @@ class UpstreamBluetooth:
     self._ui._select_device(address)
 
   def test_audio(self, address: str) -> None:
-    from openpilot.system.ui.lib.application import gui_app
-    from openpilot.system.ui.widgets.bluetooth import BluetoothAudioTestDialog
+    self._audio_error = ""
     self._manager.test_audio(address)
-    gui_app.push_widget(BluetoothAudioTestDialog(self._manager))
+
+  def audio_test_text(self) -> str:
+    """What upstream's test dialog says, as one line."""
+    if not getattr(self, "_audio_error", ""):
+      self._audio_error = self._manager.consume_error()
+    if self._audio_error:
+      return f"The test didn't play: {self._audio_error}"
+    phase = self._manager.audio_test_phase()
+    if phase == "NOW":
+      return "Playing now. You should hear it through the car."
+    if phase == "complete":
+      return "Done. If you didn't hear it, check the car's volume and audio source."
+    if phase == "starting":
+      return "Getting ready…"
+    return f"A sound plays in {phase}…"
+
 
   def forget(self, address: str) -> None:
     self._ui._confirm_forget(address)
