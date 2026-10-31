@@ -39,7 +39,7 @@ class HubPage(Component):
     self._strip = self._child(strip) if strip is not None else None
 
   def _render(self, rect: rl.Rectangle):
-    body = body_rect(rect)
+    body = inset(body_rect(rect), top=T.px(6))   # the hub's 24 px top padding, against 18 on other pages
     sizes = [self._header.preferred_height(body.width), self._grid.preferred_height(body.width)]
     if self._strip is not None:
       sizes.append(self._strip.preferred_height(body.width))

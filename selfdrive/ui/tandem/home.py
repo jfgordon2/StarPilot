@@ -85,10 +85,12 @@ class Card(Component):
       w, h = self._button.preferred_size(body.width / 3)
       self._button.render(place(body, w, h, Align.END))
       body = inset(body, right=w + T.px(14))
-    lines = [draw.line_height(T.font_px(22)), draw.line_height(T.font_px(15))]
+    # The line wraps to two lines, as in the mock ("Installs when you turn off / the car").
+    line_h = draw.paragraph_height(self._line(), T.font_px(15), T.FONT, body.width, 1.0)
+    lines = [draw.line_height(T.font_px(22)), min(line_h, draw.line_height(T.font_px(15)) * 2)]
     title, line = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
     draw.text(title, self._title(), T.font_px(22), T.TEXT, T.FONT_BOLD)
-    draw.text(line, self._line(), T.font_px(15), T.TEXT_TERTIARY)
+    draw.paragraph(line, self._line(), T.font_px(15), T.TEXT_TERTIARY, spacing=1.0)
 
 
 class HomeContent(Component):

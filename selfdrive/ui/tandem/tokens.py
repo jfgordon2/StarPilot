@@ -2,13 +2,14 @@
 
 The mocks are drawn on a 1125x563 frame; the comma 3/3X panel is 2160x1080, so one mock
 px is SCALE device px. Layout values below are already in device px. Font sizes are the
-values to pass to draw calls: the text patch in application.py multiplies them by
-FONT_SCALE, so they are divided by it here to land on the size drawn in the mocks.
+values to pass to draw calls. The text patch in application.py multiplies them by
+FONT_SCALE, which is what turns a draw size into the same em size as CSS (the atlases
+are sized by line height), so a mock's CSS font-size converts with SCALE alone.
 """
 
 import pyray as rl
 
-from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight
+from openpilot.system.ui.lib.application import FontWeight
 from openpilot.selfdrive.ui.tandem.fonts import ExtraFont
 
 SCALE = 2160 / 1125
@@ -19,7 +20,7 @@ def px(mock_px: float) -> int:
 
 
 def font_px(mock_px: float) -> int:
-  return round(mock_px * SCALE / FONT_SCALE)
+  return round(mock_px * SCALE)
 
 
 def _hex(value: str, alpha: int = 255) -> rl.Color:

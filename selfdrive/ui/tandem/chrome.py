@@ -160,7 +160,7 @@ class PageHeader(Component):
     self._trailing = self._child(trailing) if trailing is not None else None
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(48)
+    return max_width, T.px(36)   # the mock's 30 px title at line-height 1.2
 
   def _render(self, rect: rl.Rectangle):
     body = inset(rect, x=T.px(6))
