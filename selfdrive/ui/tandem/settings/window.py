@@ -15,7 +15,7 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.chrome import BottomNav
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings import upstream
-from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice
+from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice, pairing_page
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
 from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
@@ -271,12 +271,16 @@ class SettingsWindow(Widget):
   def _driving(self) -> Widget:
     return driving_hub(self)
 
+  def _this_device(self) -> Widget:
+    device = self.device()
+    return ThisDevicePanel(device, lambda: self.push(pairing_page(device)))
+
   def _device(self) -> Widget:
     data = self.device_data()
     general = General(self.store, data, self.live)
     report = Report(data, self.store)
     return SectionPage("DEVICE", [
-      Section("This Device", lambda: ThisDevicePanel(self.device())),
+      Section("This Device", lambda: self._this_device()),
       Section("General", lambda: general_panel(general, self)),
       Section("Backups", lambda: backups_panel(general, self)),
       Section("Storage & Data", lambda: storage_panel(general, self, Models(self.store, self.model_source()))),

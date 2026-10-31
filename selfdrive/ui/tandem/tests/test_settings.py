@@ -950,3 +950,14 @@ def test_built_in_boot_logos_have_previews():
   assert all(display.boot_logo_image(slug).is_file() for slug, _ in BUILT_IN_LOGOS)
   assert set(BUILT_IN_IMAGES) == {slug for slug, _ in BUILT_IN_LOGOS} and display.boot_logo_image("aurora_logo") is None
 
+
+
+def test_pair_opens_the_pairing_page_when_given():
+  from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, pairing_page
+  device = FakeDevice()
+  opened = []
+  panel = ThisDevicePanel(device, lambda: opened.append(pairing_page(device)))
+  _rows(panel)["Phone App"]._control._click_callback()
+  assert len(opened) == 1 and "pair" not in device.calls
+  _rows(ThisDevicePanel(device))["Phone App"]._control._click_callback()
+  assert device.calls == ["pair"]   # without a page, upstream's dialog
