@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from openpilot.starpilot.common.accel_profile import ACCELERATION_PROFILES as ACCEL, DECELERATION_PROFILES as DECEL
 from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.blocks import Grid, InfoCard
+from openpilot.selfdrive.ui.tandem.blocks import Grid, Icon, InfoCard
 from openpilot.selfdrive.ui.tandem.controls import Button, ChoiceCards, Segmented, Stepper, Switch
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, Padded, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -119,8 +119,9 @@ class SpeedSteering:
 
 
 def everyday_panel(model: SpeedSteering) -> ListPanel:
+  row_height = T.px(54)   # denser than other lists, so all seven settings fit without scrolling
   style = SettingRow("Driving Style", lambda: "Relaxed while Safe Mode is on" if model.safe_mode else
-                     "Sets following gap, acceleration and braking together", Segmented(STYLES, lambda: model.style, model.set_style))
+                     "Sets following gap, acceleration and braking together", Segmented(STYLES, lambda: model.style, model.set_style), height=row_height)
   style.set_enabled(lambda: not model.safe_mode)
   offset = SettingRow("Offset", "Added to every matched limit", indent=True,
                       control=Stepper(lambda: model.offset, model.set_offset, 0, OFFSET_MAX,
@@ -134,15 +135,15 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
   return ListPanel([
     style,
     SettingRow("Speed Limits", "Match sets cruise to the posted limit",
-               Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits)),
+               Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits), height=row_height),
     offset,
     higher,
     SettingRow("Lane Changes", lambda: f"Auto starts one change per signal, above {model.lane_change_speed} {model.unit}",
-               Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes)),
+               Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes), height=row_height),
     SettingRow("Smart Slowdowns", "Slows for curves, stop lights and stopped traffic on its own",
-               Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns)),
+               Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns), height=row_height),
     SettingRow("Always-On Steering", "Keeps steering with cruise off. Pauses while you brake.",
-               Switch(lambda: model.always_on_steering, model.set_always_on_steering)),
+               Switch(lambda: model.always_on_steering, model.set_always_on_steering), height=row_height),
   ], title="Everyday")
 
 
@@ -317,13 +318,14 @@ class Navigation:
 
 
 def navigation_panel(model: Navigation, open_destinations, open_offline_maps) -> ListPanel:
-  def place(title: str, get) -> SettingRow:
-    return SettingRow(title, lambda: get() or "Not set", Button(lambda: "Change" if get() else "Set", open_destinations))
+  def place(title: str, icon: str, get) -> SettingRow:
+    return SettingRow(title, lambda: get() or "Not set", Button(lambda: "Change" if get() else "Set", open_destinations),
+                      leading=Icon(icon))
 
   return ListPanel([
-    place("Home", model.home),
-    place("Work", model.work),
-    SettingRow("Other favorites", lambda: f"{model.others()} saved", on_click=open_destinations),
+    place("Home", "home", model.home),
+    place("Work", "work", model.work),
+    SettingRow("Other favorites", lambda: f"{model.others()} saved", on_click=open_destinations, leading=Icon("star")),
     SettingRow("End Route When Parked", "Clears the destination when you turn off the car",
                Switch(lambda: model.end_when_parked, model.set_end_when_parked)),
     SettingRow("Offline Maps", "Speed limits and routing without a connection", on_click=open_offline_maps),

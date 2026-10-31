@@ -786,3 +786,9 @@ def test_maps_download_waits_for_parked_online_and_a_selection():
   assert not maps.ready() and maps.status() == "Downloading California · 42%"
   maps.set_schedule(0)
   assert cache.values["PreferredSchedule"] == 0
+
+
+def test_download_fraction_reads_the_percent():
+  from openpilot.selfdrive.ui.tandem.settings.model import download_fraction
+  assert download_fraction("45% · about 3 min left") == 0.45
+  assert download_fraction("starting") == 0.0 and download_fraction("") == 0.0

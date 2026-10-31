@@ -286,5 +286,5 @@ class SettingsWindow(Widget):
 
   def _software(self) -> Widget:
     model = Software(self.store, self.updates(), lambda: apply_essentials(self.store))
-    return SoftwarePage(model, lambda title, message, label, action: confirm(self, title, message, label, action))
+    return SoftwarePage(model, lambda title, message, label, action: confirm(self, title, message, label, action, icon="restart"))
 

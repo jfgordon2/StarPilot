@@ -5,6 +5,7 @@ which keeps its checks (no downloads while driving, one at a time, eGPU-only mod
 """
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -12,8 +13,8 @@ from typing import Protocol
 import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Component, size_of
 from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Surface
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch, Tone
 from openpilot.selfdrive.ui.tandem.layout import FILL, row
@@ -106,7 +107,7 @@ class Models:
     return "Updates automatically" if self.use_recommended else "Chosen by you"
 
 
-def model_row(models: Models, model: ModelInfo) -> SettingRow:
+def model_row(models: Models, model: ModelInfo) -> Widget:
   def subtitle() -> str:
     status = models.status(model)
     return {
@@ -132,7 +133,46 @@ def model_row(models: Models, model: ModelInfo) -> SettingRow:
   button.set_enabled(lambda: models.status(model) != "unavailable" and (models.status(model) != "on_device" or not models.use_recommended))
   badge = Badge("ACTIVE", Tone.SUCCESS)
   badge.set_visible(lambda: models.status(model) == "active")
-  return SettingRow(model.name, subtitle, Pair(badge, button), height=T.px(66))
+  return DownloadRow(SettingRow(model.name, subtitle, Pair(badge, button), height=T.px(66)),
+                     lambda: download_fraction(models.source.progress()) if models.status(model) == "downloading" else None)
+
+
+def download_fraction(progress: str) -> float:
+  """0.45 from "45% · about 3 min left"; 0 before the first percent arrives."""
+  match = re.match(r"\s*(\d+(?:\.\d+)?)%", progress or "")
+  return min(1.0, float(match.group(1)) / 100) if match else 0.0
+
+
+class DownloadRow(Component):
+  """A row with a thin progress bar under it while its download runs."""
+  grow_touch_target = False
+
+  def __init__(self, content: SettingRow, fraction: Callable[[], float | None]):
+    super().__init__()
+    self._content = self._child(content)
+    self._fraction = fraction
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    _, h = size_of(self._content, max_width)
+    return max_width, h + (T.px(14) if self._fraction() is not None else 0)
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._content.set_parent_rect(parent_rect)
+
+  def set_touch_valid_callback(self, touch_callback) -> None:
+    super().set_touch_valid_callback(touch_callback)
+    self._content.set_touch_valid_callback(touch_callback)
+
+  def _render(self, rect: rl.Rectangle):
+    fraction = self._fraction()
+    _, h = size_of(self._content, rect.width)
+    self._content.render(rl.Rectangle(rect.x, rect.y, rect.width, h))
+    if fraction is not None:
+      bar = rl.Rectangle(rect.x + T.px(20), rect.y + h - T.px(4), rect.width - T.px(36), T.px(6))
+      draw.fill(bar, T.TRACK, T.px(3))
+      if fraction > 0:
+        draw.fill(rl.Rectangle(bar.x, bar.y, max(bar.height, bar.width * fraction), bar.height), T.ACCENT, T.px(3))
 
 
 class Pair(Component):

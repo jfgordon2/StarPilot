@@ -329,3 +329,18 @@ class InfoCard(Component):
 
   def ink(self, color: rl.Color) -> rl.Color:
     return color if self.enabled else T.TEXT_MUTED
+
+
+class Icon(Component):
+  """A mock icon as a widget, e.g. leading a row (Home, Work)."""
+  grow_touch_target = False
+
+  def __init__(self, name: str, size: float = T.px(22), color: rl.Color = T.ACCENT_TEXT):
+    super().__init__()
+    self._name, self._size, self._color = name, size, color
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return self._size, self._size
+
+  def _render(self, rect: rl.Rectangle):
+    draw.icon(rect, self._name, self._color if self.enabled else T.TEXT_MUTED, self._size)

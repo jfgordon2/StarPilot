@@ -110,12 +110,14 @@ class General:
     return self._live.engaged() or self._store.get_bool("RecordFrontLock")
 
 
-def confirm(window, title: str, message: str, label: str, action: Callable[[], None], danger: bool = True) -> None:
+def confirm(window, title: str, message: str, label: str, action: Callable[[], None], danger: bool = True, icon: str = "trash") -> None:
+  """A confirm dialog with a mock icon in its well: trash for deleting, restart for replacing settings."""
   def done(result: DialogResult) -> None:
     window.dismiss()
     if result == DialogResult.CONFIRM:
       action()
-  window.present(Dialog(title, message, label, done, tone=Tone.DANGER if danger else Tone.ACCENT))
+  window.present(Dialog(title, message, label, done, tone=Tone.DANGER if danger else Tone.ACCENT,
+                        glyph=lambda r, c, s: draw.icon(r, icon, c, s)))
 
 
 def general_panel(model: General, window) -> ListPanel:
@@ -144,7 +146,8 @@ def backups_panel(model: General, window) -> Component:
 
   def row_for(backup: Backup) -> SettingRow:
     restore = Button("Restore", lambda: confirm(window, "Restore this backup?", f"Your current settings are replaced with {backup.name}.",
-                                                "Restore", lambda: model.data.restore_backup(backup.name), danger=False))
+                                                "Restore", lambda: model.data.restore_backup(backup.name), danger=False,
+                                                icon="restart"))
     delete = Button("Delete", lambda: confirm(window, "Delete this backup?", f"{backup.name} can't be recovered.", "Delete",
                                               lambda: model.data.delete_backup(backup.name)), ButtonStyle.GHOST)
     return SettingRow(backup.name, backup.when, ButtonPair(delete, restore))
