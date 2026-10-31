@@ -45,13 +45,7 @@ class SidebarState:
 
 
 def gear(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-  box = place(rect, size, size)
-  c = rl.Vector2(box.x + size / 2, box.y + size / 2)
-  w = max(2.0, size * 0.09)
-  rl.draw_ring(c, size * 0.16, size * 0.16 + w, 0, 360, 24, color)
-  rl.draw_ring(c, size * 0.32, size * 0.32 + w, 0, 360, 36, color)
-  for i in range(8):
-    rl.draw_rectangle_pro(rl.Rectangle(c.x, c.y, size * 0.14, size * 0.16), rl.Vector2(size * 0.07, size * 0.48), i * 45, color)
+  draw.icon(rect, "gear", color, T.px(26))
 
 
 class SidebarView(Component):

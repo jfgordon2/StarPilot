@@ -8,7 +8,7 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.chrome import HubTile
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
-from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Glyph, ToggleButton
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ToggleButton
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
@@ -36,14 +36,6 @@ class Lazy:
 
 def chevron_glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
   draw.chevron(rect, color, size)
-
-
-def scribble(key: str) -> Glyph:
-  """StarPilot's vector icons (drawn on a 60 px canvas), as a glyph."""
-  def glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-    from openpilot.selfdrive.ui.layouts.settings.starpilot.scribble import draw_custom_icon
-    draw_custom_icon(key, rect.x + (rect.width - size) / 2, rect.y + (rect.height - size) / 2, size / 60, color)
-  return glyph
 
 
 def driving_hub(window) -> Widget:
@@ -111,12 +103,12 @@ def driving_hub(window) -> Widget:
     ToggleButton(b.name, lambda b=b: b.is_on(store), lambda on, b=b: set_bundle(b, on)) for b in BUNDLES])
 
   return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
-    HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), scribble("steering")),
-    HubTile("Display", [screen.summary, screen.path_summary], opener(display), scribble("display")),
+    HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), icon="wheel"),
+    HubTile("Display", [screen.summary, screen.path_summary], opener(display), icon="display"),
     HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: PanelPage(alerts_panel(alerts, window))),
-            scribble("sound")),
+            icon="volume"),
     HubTile("Driving Model", [lambda: models.get().summary(), lambda: models.get().update_summary()],
-            opener(lambda: PanelPage(model_page(models.get(), opener(lambda: CatalogPage(models.get()))))), scribble("aicar")),
+            opener(lambda: PanelPage(model_page(models.get(), opener(lambda: CatalogPage(models.get()))))), icon="model"),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
-            opener(lambda: PanelPage(vehicle_panel(vehicle.get(), window, opener(starpilot("VEHICLE"))))), scribble("vehicle")),
+            opener(lambda: PanelPage(vehicle_panel(vehicle.get(), window, opener(starpilot("VEHICLE"))))), icon="car"),
   ], rows=[3, 2], strip=strip)

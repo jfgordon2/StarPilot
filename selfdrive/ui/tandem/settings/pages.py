@@ -34,7 +34,7 @@ class HubPage(Component):
 
   def __init__(self, title: str, subtitle: str, tiles: list[HubTile], rows: list[int] | None = None, strip: Component | None = None):
     super().__init__()
-    self._header = self._child(PageHeader(title, subtitle))
+    self._header = self._child(PageHeader(title, subtitle, size=T.font_px(30)))
     self._grid = self._child(HubGrid(tiles, rows=rows))
     self._strip = self._child(strip) if strip is not None else None
 
@@ -158,3 +158,31 @@ class PanelPage(Component):
 
   def _render(self, rect: rl.Rectangle):
     self._panel.render(body_rect(rect))
+
+
+class TitledPage(Component):
+  """A page title with its subtitle beside it, then a body filling the rest (usually Columns), as on Alerts."""
+  grow_touch_target = False
+
+  def __init__(self, title: str, subtitle: str, body: Widget):
+    super().__init__()
+    self._header = self._child(PageHeader(title, subtitle))
+    self._body = self._child(body)
+
+  def _render(self, rect: rl.Rectangle):
+    body = inset(body_rect(rect), top=T.px(2))
+    header, content = column(body, [self._header.preferred_height(body.width), FILL], T.px(14))
+    self._header.render(header)
+    self._body.render(content)
+
+
+class FillPage(Component):
+  """A body filling the page, for column layouts without a title (e.g. Vehicle)."""
+  grow_touch_target = False
+
+  def __init__(self, body: Widget):
+    super().__init__()
+    self._body = self._child(body)
+
+  def _render(self, rect: rl.Rectangle):
+    self._body.render(inset(body_rect(rect), top=T.px(2)))

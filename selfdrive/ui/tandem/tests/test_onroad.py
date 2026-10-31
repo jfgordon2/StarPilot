@@ -103,3 +103,16 @@ def test_sidebar_network_status():
   assert network_status("LTE", 1).health == Health.WARN
   from openpilot.selfdrive.ui.tandem.sidebar import connect_status
   assert [connect_status(h).value for h in (Health.GOOD, Health.WARN, Health.BAD)] == ["Online", "Offline", "Error"]
+
+
+def test_every_icon_named_has_a_png():
+  import re
+  from pathlib import Path
+  from openpilot.selfdrive.ui.tandem import draw
+  root = Path(draw.__file__).parent
+  pngs = {p.stem for p in draw.ICON_DIR.glob("*.png")}
+  assert pngs == {p.stem for p in (draw.ICON_DIR / "svg").glob("*.svg")}
+  source = "\n".join(p.read_text() for p in root.rglob("*.py") if "tests" not in p.parts)
+  named = set(re.findall(r'draw\.icon\([^,]+, "(\w+)"', source)) | set(re.findall(r'icon="(\w+)"', source))
+  named |= set(re.findall(r'ChipTone\.\w+, "(\w+)"', source)) | {"lane_left", "lane_right"}
+  assert named and {draw.MIRRORED.get(n, n) for n in named} <= pngs

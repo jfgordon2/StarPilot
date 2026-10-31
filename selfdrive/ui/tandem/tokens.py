@@ -56,6 +56,8 @@ ACCENT_INK = _hex("0B1A2B")             # text on ACCENT
 ACCENT_TEXT = _hex("7DBBF9")            # links, icons, section headings
 ACCENT_SURFACE = _hex("1F2E45")         # icon wells, selected sidebar item, speed chips
 ACCENT_SELECTED = _hex("182434")        # selected card fill, with a 2 mock px ACCENT edge
+ACCENT_EDGE = _hex("2D4A6E")             # edge of the active card (the current model)
+ACCENT_INSET = _hex("13202E")            # boxes inside the active card
 ACCENT_CHIP_TEXT = _hex("DCEBFF")
 
 # ── Status ──

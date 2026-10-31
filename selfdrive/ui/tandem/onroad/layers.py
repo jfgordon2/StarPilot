@@ -15,7 +15,6 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
-from openpilot.selfdrive.ui.tandem.onroad.glyphs import icon
 from openpilot.selfdrive.ui.tandem.onroad.status import Chip, ChipTone
 
 BAR_HEIGHT = T.px(74)
@@ -39,7 +38,7 @@ class BarState:
 
 def _glyph_button(name: str, on_click: Callable[[], None]) -> Button:
   return Button(on_click=on_click, style=ButtonStyle.NAV, height=BAR_HEIGHT, width=BAR_HEIGHT, radius=T.RADIUS_CARD,
-                glyph=lambda r, c, s: icon(name, r, c, BAR_HEIGHT * 0.42))
+                glyph=lambda r, c, s: draw.icon(r, name, c, T.px(28)))
 
 
 class OnroadBar(Component):
@@ -57,7 +56,7 @@ class OnroadBar(Component):
                                     font_size=T.font_px(30)))
     # Ghost style, so the fill drawn below (green while engaged) shows through.
     self._engage = self._child(Button(on_click=on_engage, style=ButtonStyle.GHOST, height=BAR_HEIGHT, width=BAR_HEIGHT,
-                                      radius=T.RADIUS_CARD, glyph=lambda r, c, s: icon("wheel", r, T.TEXT, BAR_HEIGHT * 0.46)))
+                                      radius=T.RADIUS_CARD, glyph=lambda r, c, s: draw.icon(r, "wheel", T.TEXT, T.px(32))))
     self._end = self._child(Button("End route", on_end_route, ButtonStyle.SECONDARY, height=T.px(52)))
     for b in (self._minus, self._plus):
       b.set_enabled(lambda: self._state().engaged and self._state().set_speed > 0)
@@ -100,7 +99,7 @@ class OnroadBar(Component):
     elif state.street:
       text_w = draw.text_width(state.street, T.font_px(22), T.FONT_BOLD)
       block = place(center, min(center.width - T.px(32), text_w + T.px(40)), center.height)
-      icon("road", rl.Rectangle(block.x, block.y, T.px(28), block.height), T.ACCENT_TEXT, T.px(26))
+      draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
       draw.text(inset(block, left=T.px(40)), state.street, T.font_px(22), T.TEXT, T.FONT_BOLD)
 
     engage = r["engage"]
@@ -130,7 +129,7 @@ class StatusChip(Component):
     draw.fill(box, draw.alpha(T.BG, 0.8), T.px(12))
     body = inset(box, x=T.px(16))
     ink = self.INK[chip.tone]
-    icon(chip.icon, rl.Rectangle(body.x, body.y, T.px(22), body.height), ink, T.px(20))
+    draw.icon(rl.Rectangle(body.x, body.y, T.px(22), body.height), chip.icon, ink, T.px(22))
     draw.text(inset(body, left=T.px(32)), chip.label, T.font_px(17), T.TEXT if chip.tone == ChipTone.INFO else ink, T.FONT_SEMIBOLD)
 
 

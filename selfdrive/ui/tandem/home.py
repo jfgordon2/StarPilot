@@ -72,14 +72,13 @@ class Card(Component):
     self.set_click_callback(on_click)
 
   def _render(self, rect: rl.Rectangle):
-    from openpilot.selfdrive.ui.tandem.onroad.glyphs import icon
     draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
     if self.is_pressed:
       draw.pressed(rect, T.RADIUS_PANEL)
     body = inset(rect, x=T.px(20))
     well = place(body, T.ICON_WELL, T.ICON_WELL, Align.START)
     draw.fill(well, T.ACCENT_SURFACE, T.px(16))
-    icon(self._glyph, well, T.ACCENT_TEXT, T.px(28))
+    draw.icon(well, self._glyph, T.ACCENT_TEXT, T.px(26))
     body = inset(body, left=T.ICON_WELL + T.px(18))
     if self._button is not None:
       w, h = self._button.preferred_size(body.width / 3)

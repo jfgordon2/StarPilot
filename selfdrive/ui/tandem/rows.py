@@ -150,7 +150,8 @@ class ListPanel(Component):
 
   def __init__(self, items: list[Widget], title: Bindable[str] | None = None, subtitle: Bindable[str] | None = None,
                header_control: Widget | None = None, banner: Widget | None = None, footnote: Bindable[str] | None = None,
-               background: rl.Color = T.SURFACE_2, dividers: bool = True, footer: Widget | None = None):
+               background: rl.Color = T.SURFACE_2, dividers: bool = True, footer: Widget | None = None,
+               title_size: int = T.SIZE_PANEL_TITLE):
     super().__init__()
     self._items = items
     self._title = title
@@ -159,6 +160,7 @@ class ListPanel(Component):
     self._banner = banner
     self._footnote = Text(footnote) if footnote is not None else None
     self._footer = footer
+    self._title_size = title_size
     self._background = background
     self._dividers = dividers
     self._scroll = GuiScrollPanel2(horizontal=False)
@@ -174,7 +176,7 @@ class ListPanel(Component):
   def _header_height(self) -> float:
     if self._title is None:
       return 0
-    height = draw.line_height(T.SIZE_PANEL_TITLE)
+    height = draw.line_height(self._title_size)
     if self._subtitle is not None:
       height += T.px(3) + draw.line_height(T.SIZE_SUBTITLE)
     return height + T.px(20)
@@ -207,11 +209,11 @@ class ListPanel(Component):
         self._header_control.render(place(body, w, h, Align.END))
         body = inset(body, right=w + T.px(14))
       if self._subtitle is not None:
-        title_rect, sub_rect = column(body, [draw.line_height(T.SIZE_PANEL_TITLE), draw.line_height(T.SIZE_SUBTITLE)], T.px(3))
+        title_rect, sub_rect = column(body, [draw.line_height(self._title_size), draw.line_height(T.SIZE_SUBTITLE)], T.px(3))
         draw.text(sub_rect, resolve(self._subtitle), T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
       else:
         title_rect = body
-      draw.text(title_rect, resolve(self._title), T.SIZE_PANEL_TITLE, T.TEXT, T.FONT_BOLD)
+      draw.text(title_rect, resolve(self._title), self._title_size, T.TEXT, T.FONT_BOLD)
       y += header.height
       draw.hline(rect.x, y - T.DIVIDER, rect.width)
     if self._banner is not None:

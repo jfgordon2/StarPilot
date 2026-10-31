@@ -1,0 +1,185 @@
+"""Layout blocks for screens built like the mocks: stacks, cards, columns, labels and inline value lines.
+
+A Stack lays widgets top to bottom; SPACER entries share the leftover height, so an action can sit at a card's
+bottom as in the mocks (flex-grow: 1). A Card is a Stack on a rounded surface. Columns split the width by weight.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable
+
+import pyray as rl
+
+from openpilot.system.ui.widgets import Widget
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.tandem.layout import Align, Fill, inset, row
+
+SPACER = None
+
+
+class Stack(Component):
+  grow_touch_target = False
+
+  def __init__(self, items: list[Widget | None], gap: float = T.px(12)):
+    super().__init__()
+    self._items = items
+    for w in items:
+      if w is not None:
+        self._child(w)
+    self._gap = gap
+
+  def _visible(self) -> list[Widget | None]:
+    return [w for w in self._items if w is None or w.is_visible]
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    items = [w for w in self._visible() if w is not None]
+    gaps = max(0, len(self._visible()) - 1) * self._gap
+    return max_width, sum(size_of(w, max_width)[1] for w in items) + gaps
+
+  def set_touch_valid_callback(self, touch_callback) -> None:
+    super().set_touch_valid_callback(touch_callback)
+    for w in self._items:
+      if w is not None:
+        w.set_touch_valid_callback(touch_callback)
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    for w in self._items:
+      if w is not None:
+        w.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    items = self._visible()
+    heights = [None if w is None else size_of(w, rect.width)[1] for w in items]
+    fixed = sum(h for h in heights if h is not None) + max(0, len(items) - 1) * self._gap
+    spacers = sum(1 for h in heights if h is None)
+    spare = max(0.0, rect.height - fixed) / spacers if spacers else 0.0
+    y = rect.y
+    for w, h in zip(items, heights, strict=True):
+      height = spare if h is None else h
+      if w is not None:
+        w.render(rl.Rectangle(rect.x, y, rect.width, height))
+      y += height + self._gap
+
+
+class Card(Stack):
+  """A rounded surface holding a stack. tone="accent" is the selected/active card (accent fill and edge)."""
+
+  def __init__(self, items: list[Widget | None], gap: float = T.px(12), padding: tuple[float, float] = (T.px(22), T.px(20)),
+               tone: str = "plain", background: rl.Color | None = None):
+    super().__init__(items, gap)
+    self._padding = padding
+    self._tone = tone
+    self._background = background
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    px, py = self._padding
+    _, h = super().preferred_size(max_width - px * 2)
+    return max_width, h + py * 2
+
+  def _render(self, rect: rl.Rectangle):
+    accent = self._tone == "accent"
+    draw.fill(rect, self._background or (T.ACCENT_SELECTED if accent else T.SURFACE_2), T.RADIUS_PANEL)
+    if accent:
+      draw.stroke(rect, T.ACCENT_EDGE, T.RADIUS_PANEL, T.px(2))
+    px, py = self._padding
+    super()._render(inset(rect, x=px, y=py))
+
+
+class Columns(Component):
+  """Widgets side by side. weights are column widths relative to each other (1, 1.2 ...)."""
+  grow_touch_target = False
+
+  def __init__(self, items: list[Widget], weights: list[float] | None = None, gap: float = T.px(14)):
+    super().__init__()
+    self._items = [self._child(w) for w in items]
+    self._weights = weights or [1.0] * len(items)
+    self._gap = gap
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    widths = row(rl.Rectangle(0, 0, max_width, 0), [Fill(w) for w in self._weights], self._gap)
+    return max_width, max(size_of(w, r.width)[1] for w, r in zip(self._items, widths, strict=True))
+
+  def _render(self, rect: rl.Rectangle):
+    for w, r in zip(self._items, row(rect, [Fill(x) for x in self._weights], self._gap), strict=True):
+      w.render(r)
+
+
+class Label(Component):
+  """One line of text sized to its font: a card's title, a big name, a caption."""
+  grow_touch_target = False
+
+  def __init__(self, text: Bindable[str], size: int = T.SIZE_PANEL_TITLE, color: Bindable[rl.Color] = T.TEXT, weight=T.FONT_BOLD,
+               caption: bool = False, h: Align = Align.START):
+    super().__init__()
+    self._text, self._size, self._color, self._weight, self._caption, self._h = text, size, color, weight, caption, h
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, draw.line_height(T.SIZE_CAPTION if self._caption else self._size)
+
+  def _render(self, rect: rl.Rectangle):
+    if self._caption:
+      draw.caption(rect, resolve(self._text), resolve(self._color), self._h)
+    else:
+      draw.text(rect, resolve(self._text), self._size, resolve(self._color), self._weight, self._h)
+
+
+class ValueLine(Component):
+  """"Engage and disengage chimes ........ 60%": a muted label with its value at the right. Tappable with on_click."""
+
+  def __init__(self, label: Bindable[str], value: Bindable[str], on_click: Callable[[], None] | None = None, size: int = T.font_px(16)):
+    super().__init__()
+    self._label, self._value, self._size = label, value, size
+    self.set_click_callback(on_click)
+    self.grow_touch_target = False
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, draw.line_height(self._size) + T.px(6)
+
+  def _render(self, rect: rl.Rectangle):
+    if self._click_callback and self.is_pressed:
+      draw.pressed(rect, T.px(8))
+    w = draw.text(rect, resolve(self._value), self._size, T.TEXT, T.FONT_SEMIBOLD, Align.END)
+    draw.text(inset(rect, right=w + T.px(12)), resolve(self._label), self._size, T.TEXT_TERTIARY)
+
+
+class Sized(Component):
+  """Gives a widget a fixed height in a stack (e.g. a 76 px switch row card)."""
+  grow_touch_target = False
+
+  def __init__(self, child: Widget, height: float):
+    super().__init__()
+    self._content = self._child(child)
+    self._height = height
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, self._height
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._content.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    self._content.render(rect)
+
+
+class Surface(Component):
+  """A widget on a rounded fill, e.g. the "Use recommended" box inside the active model card."""
+  grow_touch_target = False
+
+  def __init__(self, child: Widget, background: rl.Color = T.SURFACE_1, radius: float = T.px(16), padding: float = 0):
+    super().__init__()
+    self._content = self._child(child)
+    self._background, self._radius, self._padding = background, radius, padding
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    _, h = size_of(self._content, max_width - self._padding * 2)
+    return max_width, h + self._padding * 2
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._content.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    draw.fill(rect, self._background, self._radius)
+    self._content.render(inset(rect, self._padding) if self._padding else rect)

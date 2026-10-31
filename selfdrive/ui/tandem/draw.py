@@ -1,6 +1,8 @@
 """Drawing primitives shared by every Essentials component."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pyray as rl
 
 from openpilot.system.ui.lib.application import FONT_SCALE, gui_app
@@ -100,63 +102,42 @@ def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight
 
 
 # ── Icons ──
-# Glyphs the components need are drawn as strokes so they don't depend on exported assets.
+# Line icons from the design mocks, rasterized to white PNGs in icons/ (tools/build_icons.js) and tinted here.
+# size is the icon's box, as the mocks size their SVGs; the strokes keep the mock's weight at any size.
 
-def _stroke_width(box: rl.Rectangle) -> float:
-  return max(3.0, box.width * 0.11)
-
-
-def chevron(rect: rl.Rectangle, color: rl.Color, size: float, direction: str = "right") -> None:
-  box = place(rect, size, size)
-  w = _stroke_width(box)
-  cx, cy, r = box.x + box.width / 2, box.y + box.height / 2, box.width * 0.3
-  tip, tail = {"right": ((r * 0.6, 0), (-r * 0.6, r)), "left": ((-r * 0.6, 0), (r * 0.6, r)),
-               "down": ((0, r * 0.6), (r, -r * 0.6)), "up": ((0, -r * 0.6), (r, r * 0.6))}[direction]
-  a = rl.Vector2(cx + tip[0], cy + tip[1])
-  if direction in ("right", "left"):
-    ends = (rl.Vector2(cx + tail[0], cy - tail[1]), rl.Vector2(cx + tail[0], cy + tail[1]))
-  else:
-    ends = (rl.Vector2(cx - tail[0], cy + tail[1]), rl.Vector2(cx + tail[0], cy + tail[1]))
-  for end in ends:
-    rl.draw_line_ex(end, a, w, color)
-    rl.draw_circle_v(end, w / 2, color)
-  rl.draw_circle_v(a, w / 2, color)
-
-
-def cross(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-  box = place(rect, size * 0.5, size * 0.5)
-  w = _stroke_width(rl.Rectangle(0, 0, size, size))
-  rl.draw_line_ex(rl.Vector2(box.x, box.y), rl.Vector2(box.x + box.width, box.y + box.height), w, color)
-  rl.draw_line_ex(rl.Vector2(box.x + box.width, box.y), rl.Vector2(box.x, box.y + box.height), w, color)
-
-
-def plus(rect: rl.Rectangle, color: rl.Color, size: float, vertical: bool = True) -> None:
-  box = place(rect, size * 0.5, size * 0.5)
-  w = _stroke_width(rl.Rectangle(0, 0, size, size))
-  cx, cy = box.x + box.width / 2, box.y + box.height / 2
-  rl.draw_line_ex(rl.Vector2(box.x, cy), rl.Vector2(box.x + box.width, cy), w, color)
-  if vertical:
-    rl.draw_line_ex(rl.Vector2(cx, box.y), rl.Vector2(cx, box.y + box.height), w, color)
-
-
-def minus(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-  plus(rect, color, size, vertical=False)
-
-
-def check(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-  box = place(rect, size, size)
-  w = _stroke_width(box)
-  p1 = rl.Vector2(box.x + box.width * 0.2, box.y + box.height * 0.52)
-  p2 = rl.Vector2(box.x + box.width * 0.42, box.y + box.height * 0.72)
-  p3 = rl.Vector2(box.x + box.width * 0.8, box.y + box.height * 0.3)
-  rl.draw_line_ex(p1, p2, w, color)
-  rl.draw_line_ex(p2, p3, w, color)
-  for p in (p1, p2, p3):
-    rl.draw_circle_v(p, w / 2, color)
+ICON_DIR = Path(__file__).resolve().parent / "icons"
+MIRRORED = {"lane_left": "lane_right"}   # drawn from another icon, flipped
 
 
 def icon(rect: rl.Rectangle, name: str, color: rl.Color, size: float) -> None:
-  """A white PNG from selfdrive/assets/icons, tinted and centered in rect."""
-  texture = gui_app.texture(f"icons/{name}.png", int(size), int(size))
+  """A mock icon by name (icons/svg/<name>.svg), tinted and centered in rect."""
+  flip = name in MIRRORED
+  texture = gui_app.texture((ICON_DIR / f"{MIRRORED.get(name, name)}.png").as_posix(), int(size), int(size), flip_x=flip)
   box = place(rect, texture.width, texture.height)
-  rl.draw_texture(texture, int(box.x), int(box.y), color)
+  rl.draw_texture_pro(texture, rl.Rectangle(0, 0, texture.width, texture.height), rl.Rectangle(round(box.x), round(box.y), texture.width,
+                      texture.height), rl.Vector2(0, 0), 0, color)
+
+
+def chevron(rect: rl.Rectangle, color: rl.Color, size: float, direction: str = "right") -> None:
+  icon(rect, "chevron" if direction == "right" else "back", color, size)
+
+
+def cross(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+  icon(rect, "close", color, size)
+
+
+def plus(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+  icon(rect, "plus", color, size)
+
+
+def minus(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+  box = place(rect, size * 0.58, size)   # the plus icon's bar, which has no icon of its own
+  w = max(2.0, size / 12)
+  ends = rl.Vector2(box.x, box.y + size / 2), rl.Vector2(box.x + box.width, box.y + size / 2)
+  rl.draw_line_ex(*ends, w, color)
+  for end in ends:
+    rl.draw_circle_v(end, w / 2, color)
+
+
+def check(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+  icon(rect, "check", color, size)

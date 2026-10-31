@@ -153,8 +153,10 @@ class PageHeader(Component):
   """Screen title with a subtitle beside it, and an optional control on the right."""
   grow_touch_target = False
 
-  def __init__(self, title: Bindable[str], subtitle: Bindable[str] | None = None, trailing: Widget | None = None):
+  def __init__(self, title: Bindable[str], subtitle: Bindable[str] | None = None, trailing: Widget | None = None,
+               size: int = T.SIZE_TITLE):
     super().__init__()
+    self._size = size
     self._title = title
     self._subtitle = subtitle
     self._trailing = self._child(trailing) if trailing is not None else None
@@ -168,7 +170,7 @@ class PageHeader(Component):
       w, h = size_of(self._trailing, body.width / 2)
       self._trailing.render(place(body, w, h, Align.END))
       body = inset(body, right=w + T.px(14))
-    w = draw.text(body, resolve(self._title), T.SIZE_TITLE, T.TEXT, T.FONT_EXTRABOLD)
+    w = draw.text(body, resolve(self._title), self._size, T.TEXT, T.FONT_EXTRABOLD)
     if self._subtitle is not None:
       draw.text(inset(body, left=w + T.px(16), top=T.px(4)), resolve(self._subtitle), T.font_px(16), T.TEXT_TERTIARY)
 

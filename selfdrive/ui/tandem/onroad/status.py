@@ -65,7 +65,7 @@ def chip_for(s: Snapshot) -> Chip | None:
   if s.curve_control:
     return Chip("curve", "Slowing for curve", ChipTone.INFO, "curve")
   if s.nav_turn:
-    return Chip("turn", "Slowing for turn", ChipTone.INFO, "turn")
+    return Chip("turn", "Slowing for turn", ChipTone.INFO, "turn_right")
   if s.slowing_for_lead:
     return Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car")
   if s.limit_changed and s.speed_limit:
