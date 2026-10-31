@@ -94,3 +94,10 @@ def test_setup_use_defaults():
   Setup(store, lambda: None).finish(use_answers=False)
   speed = SpeedSteering(store)
   assert (speed.style, speed.matching, speed.lane_changes) == (1, True, 1)
+
+
+def test_sidebar_network_status():
+  from openpilot.selfdrive.ui.tandem.sidebar import Health, network_status
+  assert (network_status("--", 0).value, network_status("--", 0).health) == ("Offline", Health.OFF)
+  assert network_status("Wi-Fi", 4).health == Health.GOOD
+  assert network_status("LTE", 1).health == Health.WARN

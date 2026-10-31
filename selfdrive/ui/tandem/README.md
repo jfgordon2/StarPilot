@@ -55,7 +55,7 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 - **Ours:** everything in `selfdrive/ui/tandem/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
 - **Two upstream edits:**
   - The file names in `FontWeight` (`system/ui/lib/application.py`), which switch the whole UI to Figtree.
-  - In `selfdrive/ui/layouts/main.py`, one import plus the calls that create the home, settings and onroad screens (`screens.py`).
+  - In `selfdrive/ui/layouts/main.py`: the imports, the calls that create the sidebar, home, settings and onroad screens (`screens.py`), and the left sidebar's width. StarPilot's developer sidebar on the right keeps upstream's width.
 
   If a rebase conflicts in either file, keep upstream's version and make the edit again.
 - **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, the upstream settings panels, and every existing test.
@@ -111,7 +111,7 @@ These are reached from a row or button, never as a tab:
 
 ## Onroad, home and first-run setup
 
-`screens.py` creates the three screens MainLayout shows. Setting `TANDEM_HOME=0`, `TANDEM_SETTINGS=0` or `TANDEM_ONROAD=0` brings back upstream's version of that screen.
+`screens.py` creates the screens MainLayout shows. Setting `TANDEM_SIDEBAR=0`, `TANDEM_HOME=0`, `TANDEM_SETTINGS=0` or `TANDEM_ONROAD=0` brings back upstream's version of that screen.
 
 - **Onroad** (`onroad/`): `EssentialsOnroadView` subclasses StarPilot's onroad view and keeps its camera, path, speed, alerts, turn signals and navigation card. It replaces the following:
   - **Bottom bar:** a scrim, not a panel. It holds menu (the sidebar), MAX − / + (StarPilot's `SLCForceCruiseSpeed`, only while engaged), the street name, and engage.
@@ -121,13 +121,13 @@ These are reached from a row or button, never as a tab:
   - **Steering headroom arc:** replaces the torque bar and uses its estimate. It has three stages (under 60%, 60–85%, over 85% held for 0.5 s) and a faint preview of what the path needs 2.5 s ahead.
   - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`; Ignore hides the card until StarPilot drops the offer.
   - **Removed:** the driving personality button, the experimental-mode wheel, and the paused and weather badges, which the chips replace. The driver monitor icon sits above the bar.
-- **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. Upstream's header, offroad alerts, update screen and sidebar stay.
+- **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. Upstream's header, offroad alerts and update screen stay.
+- **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.
 
 What these don't do yet:
 - **No sound for "Help steer":** at the limit, the arc and a "Help steer" banner show, but there's no chime. A chime needs a controls-side alert, which isn't built.
 - **Lane lines don't tint** at the limit.
-- **Mock sidebar not built:** the mock's home sidebar (network, temperature, vehicle, maps) is left to upstream's sidebar.
 - **Developer View metrics** keep upstream's layout.
 
 ## Third-party

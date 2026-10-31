@@ -1,7 +1,7 @@
 """The parked home screen: readiness and the current setup, Where to?, and update status.
 
 EssentialsHome subclasses upstream's HomeLayout and replaces only its home content. The header, the offroad
-alerts and the update screen are upstream's, and so is the sidebar beside it.
+alerts and the update screen are upstream's.
 """
 from __future__ import annotations
 

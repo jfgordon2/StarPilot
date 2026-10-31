@@ -1,5 +1,5 @@
 """The Essentials screens MainLayout creates. Each falls back to upstream's when its variable is "0":
-TANDEM_SETTINGS, TANDEM_HOME, TANDEM_ONROAD.
+TANDEM_SETTINGS, TANDEM_HOME, TANDEM_ONROAD, TANDEM_SIDEBAR.
 """
 import os
 
@@ -32,3 +32,22 @@ def onroad_view() -> Widget:
     return StarPilotOnroadView()
   from openpilot.selfdrive.ui.tandem.onroad.view import EssentialsOnroadView
   return EssentialsOnroadView()
+
+
+def sidebar() -> Widget:
+  if not _enabled("TANDEM_SIDEBAR"):
+    from openpilot.selfdrive.ui.layouts.sidebar import Sidebar
+    return Sidebar()
+  from openpilot.selfdrive.ui.tandem.sidebar import essentials_sidebar
+  return essentials_sidebar()
+
+
+def _sidebar_width() -> int:
+  if not _enabled("TANDEM_SIDEBAR"):
+    from openpilot.selfdrive.ui.layouts.sidebar import SIDEBAR_WIDTH as upstream_width
+    return upstream_width
+  from openpilot.selfdrive.ui.tandem.sidebar import WIDTH
+  return int(WIDTH)
+
+
+MAIN_SIDEBAR_WIDTH = _sidebar_width()   # the left sidebar; StarPilot's developer sidebar on the right keeps its own width
