@@ -222,7 +222,7 @@ def wheel_panel(model: WheelButtons, window) -> Component:
                                                                              lambda: next((i for i, (k, _) in enumerate(actions) if k == current), -1),
                                                                              pick, row_height=T.px(52)),
                            subtitle="What this button does while driving",
-                           actions=[Button("Remove", remove, ButtonStyle.DANGER_OUTLINE)], on_dismiss=window.dismiss))
+                           actions=[Button("Remove", remove, ButtonStyle.DANGER_SOFT)], on_dismiss=window.dismiss))
     return show
 
   def add():

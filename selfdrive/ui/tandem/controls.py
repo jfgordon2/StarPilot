@@ -45,8 +45,7 @@ class ButtonStyle(Enum):
   SECONDARY = "secondary"        # filled CONTROL
   GHOST = "ghost"                # text only, for links like "Reset to default"
   DANGER = "danger"              # filled red, destructive confirm
-  DANGER_OUTLINE = "outline"     # outlined red, destructive entry points
-  DANGER_SOFT = "soft"           # tinted red, e.g. Power Off
+  DANGER_SOFT = "soft"           # tinted red: every destructive entry point (End route, Delete all, Uninstall, Power Off)
   NAV = "nav"                    # back/close squares and onroad controls
 
 
@@ -55,7 +54,6 @@ _BUTTON_COLORS = {
   ButtonStyle.SECONDARY: (T.CONTROL, T.TEXT, None),
   ButtonStyle.GHOST: (None, T.ACCENT_TEXT, None),
   ButtonStyle.DANGER: (T.DANGER_BUTTON, T.TEXT, None),
-  ButtonStyle.DANGER_OUTLINE: (None, T.DANGER_TEXT_OUTLINE, T.DANGER_BORDER),
   ButtonStyle.DANGER_SOFT: (T.DANGER_SURFACE, T.DANGER_TEXT, None),
   ButtonStyle.NAV: (T.CONTROL_NAV, T.TEXT, None),
 }

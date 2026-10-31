@@ -127,7 +127,7 @@ def software_page(model: Software, confirm) -> Widget:
     SettingRow("Reset Settings", "Back to the Essentials defaults. Backups are kept.",
                Button("Reset", lambda: confirm("Reset settings?", "Every setting goes back to the Essentials default. Your backups are kept.",
                                                "Reset", model.reset_settings)), height=T.px(76)),
-  ], footer=Button("Uninstall", model.actions.uninstall, ButtonStyle.DANGER_OUTLINE, height=T.px(52)))
+  ], footer=Button("Uninstall", model.actions.uninstall, ButtonStyle.DANGER_SOFT, height=T.px(52)))
   return FillPage(Columns([version, settings], [1, 1.15]))
 
 

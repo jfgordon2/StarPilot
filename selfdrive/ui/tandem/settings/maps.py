@@ -104,7 +104,7 @@ class ProgressCard(Component):
     self._maps = maps
     self._padding = padding
     self._bar = self._child(ProgressBar(lambda: maps.source.progress().fraction))
-    self._cancel = self._child(Button("Cancel download", maps.source.cancel, ButtonStyle.DANGER_OUTLINE))
+    self._cancel = self._child(Button("Cancel download", maps.source.cancel, ButtonStyle.DANGER_SOFT))
     self.set_visible(lambda: maps.source.progress().active)
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
@@ -136,7 +136,7 @@ def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
   download = Button(label, maps.source.download, ButtonStyle.PRIMARY, height=T.px(58))
   download.set_enabled(maps.ready)
   download.set_visible(lambda: not maps.source.progress().active)
-  remove = Button("Remove maps", maps.source.remove, ButtonStyle.DANGER_OUTLINE, height=T.px(48))   # the source confirms first
+  remove = Button("Remove maps", maps.source.remove, ButtonStyle.DANGER_SOFT, height=T.px(48))   # the source confirms first
   remove.set_enabled(lambda: maps.source.downloaded() and not maps.source.progress().active)
   downloaded = lambda: maps.status() == "Downloaded"  # noqa: E731
   regions = Card([

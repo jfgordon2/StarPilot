@@ -394,4 +394,4 @@ def tuner_page(tuner: Tuner, window):
             value_tone=Tone.WARNING),
     Section("Bundle Overrides", lambda: BundleOverrides(tuner),
             lambda: _changed_label(sum(tuner.bundle_changes(b) for b in OVERRIDE_BUNDLES)), value_tone=Tone.WARNING),
-  ], tone=Tone.WARNING, footer=[Button("Reset all tuning", reset_all, ButtonStyle.DANGER_OUTLINE, width=T.SIDEBAR_WIDTH)])
+  ], tone=Tone.WARNING, footer=[Button("Reset all tuning", reset_all, ButtonStyle.DANGER_SOFT, width=T.SIDEBAR_WIDTH)])

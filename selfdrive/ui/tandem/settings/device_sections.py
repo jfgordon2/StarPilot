@@ -149,7 +149,7 @@ def backups_panel(model: General, window) -> Component:
                                                 "Restore", lambda: model.data.restore_backup(backup.name), danger=False,
                                                 icon="restart"))
     delete = Button("Delete", lambda: confirm(window, "Delete this backup?", f"{backup.name} can't be recovered.", "Delete",
-                                              lambda: model.data.delete_backup(backup.name)), ButtonStyle.GHOST)
+                                              lambda: model.data.delete_backup(backup.name)), ButtonStyle.DANGER_SOFT)
     return SettingRow(backup.name, backup.when, ButtonPair(delete, restore))
 
   def build() -> ListPanel:
@@ -237,7 +237,7 @@ def storage_panel(model: General, window) -> ListPanel:
     StorageBar(model.data.storage),
     SettingRow("Recorded Drives", "Oldest drives are removed when space runs low",
                Button("Delete all", lambda: confirm(window, "Delete all drives?", DELETE_DRIVES_MESSAGE, "Delete", model.data.delete_drives),
-                      ButtonStyle.DANGER_OUTLINE)),
+                      ButtonStyle.DANGER_SOFT)),
     driver,
     audio,
   ], title="Storage & Data", header_divider=False, end_divider=True,   # the usage bar belongs to the header, as in the mock
