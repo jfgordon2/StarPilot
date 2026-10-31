@@ -8,7 +8,8 @@ It subclasses StarPilotOnroadView and overrides only the parts Essentials replac
   deciding when each shows; the speed pill carries Essentials' turn signal in place of StarPilot's animations;
 - the driving personality button, the experimental-mode wheel, the favorites menu, the side-camera bubble and the stopped
   timer are removed;
-- the driver monitor icon moves top right, drawn as an Essentials tile from upstream's driver state.
+- the driver monitor icon moves top right, drawn as an Essentials tile from upstream's driver state;
+- alerts are drawn in the mock's three levels (info pill, warning card, critical takeover), with upstream still choosing them.
 Everything else, from the camera and path to alerts, is upstream's.
 """
 from __future__ import annotations
@@ -21,12 +22,14 @@ import pyray as rl
 
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.augmented_road_view import CAMERA_VIEW_DRIVER
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem.onroad import alerts
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
@@ -54,6 +57,32 @@ class EssentialsTurnCard(NavigationCardRenderer):
       return
     text = " ".join(t for t in (self._primary_text, self._secondary_text) if t)
     self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier, self._top())
+
+
+class EssentialsAlertRenderer(AlertRenderer):
+  """StarPilot's alert renderer, keeping its choice of alert, timing and fades, drawn in the mock's three levels."""
+
+  def level(self) -> str | None:
+    alert, _ = self.will_render()
+    return alerts.level(alert.size, alert.status, alert.alert_type) if alert is not None else None
+
+  def _get_alert_rect(self, rect: rl.Rectangle, size: int) -> rl.Rectangle:
+    alert = self._current_alert or self._prev_alert
+    kind = alerts.level(alert.size, alert.status, alert.alert_type) if alert is not None else alerts.REVERSE
+    if kind == alerts.REVERSE:
+      return super()._get_alert_rect(rect, size)
+    return alerts.box(rect, kind, alert.text1, alert.text2)
+
+  def _draw_background(self, alert) -> None:
+    kind = alerts.level(alert.size, alert.status, alert.alert_type)
+    if kind == alerts.REVERSE:
+      return super()._draw_background(alert)
+    where = rl.Rectangle(self._rect.x, self._alert_y_filter.x, self._rect.width, self._rect.height)   # slides as upstream's does
+    alerts.draw_alert(where, kind, alert.text1, alert.text2, self._alpha_filter.x)
+
+  def _draw_text(self, alert) -> None:
+    if alerts.level(alert.size, alert.status, alert.alert_type) == alerts.REVERSE:
+      super()._draw_text(alert)   # drawn with the background above otherwise
 
 
 class _NoFavorites:
@@ -115,6 +144,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._favorite_radial_menu = _NoFavorites()
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()
+    self.alert_renderer = EssentialsAlertRenderer()
     self._layers_visible = False
     self._nav_sm = None
 
@@ -132,7 +162,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""
-    if self._full_alert_showing():
+    if self._full_alert_showing() or self.alert_renderer.level() == alerts.CRITICAL:
       self._unified_speed_widget.collapse_sources()
       return
     limit = self._posted_limit()
@@ -158,7 +188,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     dm = self.driver_state_renderer
     dm._update_state()
     attentive = dm._color_fade_filter.update(0.0 if dm._awareness_unfull else 1.0)
-    if not (ui_state.started and self._draw_hud_controls):
+    if not (ui_state.started and self._draw_hud_controls) or self.alert_renderer.will_render()[0] is not None:
       return
     draw_driver_monitor(dm_tile(self._content_rect), dm._fade_filter.x, attentive, dm.is_active)
 
@@ -205,7 +235,9 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._headroom_warning = warning
 
   def _get_border_color(self):
-    return LIMIT_BORDER_COLOR if self._headroom_warning else super()._get_border_color()
+    if self._headroom_warning:
+      return LIMIT_BORDER_COLOR
+    return alerts.border(self.alert_renderer.level()) or super()._get_border_color()
 
   def hide_event(self):
     self._headroom.stage(0.0, time.monotonic(), active=False)
