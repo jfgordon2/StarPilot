@@ -61,6 +61,12 @@ def driving_hub(window) -> Widget:
       window.push(RegionsPage(maps.get(), download))
     window.push(MapsPage(maps.get(), open_regions, window.device_data().storage, window))
 
+  def open_destinations() -> None:
+    """Where to? over the settings window; its Offline maps button closes it and opens ours."""
+    from openpilot.system.ui.lib.application import gui_app
+    from openpilot.selfdrive.ui.tandem.destinations import destinations_screen
+    gui_app.push_widget(destinations_screen(gui_app.pop_widget, lambda: (gui_app.pop_widget(), open_maps())))
+
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
 
@@ -85,7 +91,7 @@ def driving_hub(window) -> Widget:
       Section("Everyday", lambda: everyday_panel(speed)),
       Section("Vehicle Profile", lambda: vehicle_profile_panel(profile), value=profile.summary),
       Section("Weather", lambda: weather_panel(weather), value=weather.summary),
-      Section("Navigation", lambda: navigation_panel(navigation, opener(starpilot("NAVIGATION")), open_maps)),
+      Section("Navigation", lambda: navigation_panel(navigation, open_destinations, open_maps)),
       Section("Assistance", lambda: assistance_panel(assistance)),
     ], footer=[tuner_button])
 

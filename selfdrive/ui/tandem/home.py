@@ -149,8 +149,7 @@ def essentials_home():
 
     def _where_to(self) -> None:
       from openpilot.system.ui.lib.application import gui_app
-      from openpilot.selfdrive.ui.tandem.settings.upstream import StarPilotPage
-      page = StarPilotPage("NAVIGATION", on_exit=gui_app.pop_widget)
-      gui_app.push_widget(page)
+      from openpilot.selfdrive.ui.tandem.destinations import destinations_screen
+      gui_app.push_widget(destinations_screen(gui_app.pop_widget))
 
   return EssentialsHome()

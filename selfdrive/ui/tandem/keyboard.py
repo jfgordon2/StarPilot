@@ -129,10 +129,19 @@ class EssentialsKeyboard(upstream.Keyboard):
     draw.fill(rect, T.BG)
     header, keys = column(rect, [T.px(146), FILL])
     self._render_header(inset(header, left=T.px(16), right=T.px(16), top=T.px(14), bottom=T.px(10)))
-    draw.fill(keys, PANEL_FILL)
-    draw.hline(keys.x, keys.y, keys.width, DIVIDER)
+    self.render_keys(keys)
+
+  def render_keys(self, rect: rl.Rectangle) -> None:
+    """The key panel: its darker fill and top edge, then the four rows."""
+    draw.fill(rect, PANEL_FILL)
+    draw.hline(rect.x, rect.y, rect.width, DIVIDER)
     self._repeat_backspace()
-    self._render_keys(inset(keys, left=T.px(12), right=T.px(12), top=T.px(10), bottom=T.px(12)))
+    self._render_keys(inset(rect, left=T.px(12), right=T.px(12), top=T.px(10), bottom=T.px(12)))
+
+  def render_text(self, rect: rl.Rectangle) -> None:
+    """What's typed, with upstream's cursor, inside a field the caller draws."""
+    self._input_box.set_password_mode(self._password_mode)
+    self._input_box.render(rect)
 
   def _render_header(self, rect: rl.Rectangle) -> None:
     top, field = column(rect, [T.px(56), T.px(56)], T.px(10))
@@ -188,3 +197,18 @@ class EssentialsKeyboard(upstream.Keyboard):
         widget.set_enabled(key != ENTER or len(self._input_box.text) >= self._min_text_size)
         widget.render(cell)
 
+
+
+class KeyPad(EssentialsKeyboard):
+  """The keyboard as part of a page rather than a screen of its own (destination search): the page draws the field and
+  calls render_text and render_keys; the blue key calls on_enter instead of closing anything."""
+
+  def __init__(self, on_enter, action: str, min_text_size: int = 0, max_text_size: int = 255):
+    super().__init__(max_text_size, min_text_size, action=action)
+    self._on_enter = on_enter
+
+  def _key_callback(self, k):
+    if k == ENTER:
+      self._on_enter()
+    else:
+      self.handle_key_press(k)
