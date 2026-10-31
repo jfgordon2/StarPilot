@@ -30,7 +30,7 @@ from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad import alerts
-from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DeviceStats, draw_strip
+from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DevData, developer_ui_on, draw_lead_tag, draw_strip, lead_of, read
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
@@ -155,8 +155,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._stopped_timer_widget = _NoStoppedTimer()
     self.alert_renderer = EssentialsAlertRenderer()
     self._layers_visible = False
-    self._dev_stats = DeviceStats()
-    self._dev_parts: list[tuple[str, str]] = []
+    self._dev: DevData | None = None            # Developer View's readout, while StarPilot's Developer UI is on
+    self.model_renderer._draw_lead_metrics = self._lead_tag   # Lead Insights' text becomes the mock's tag
     self._nav_sm = None
 
   # Upstream pieces replaced here
@@ -178,7 +178,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
       return
     limit = self._posted_limit()
     if limit is not None:
-      draw_speed_limit(sign_tile(self._content_rect), limit, ui_state.ui_params.get_bool("UseVienna"))
+      draw_speed_limit(sign_tile(self._content_rect), limit, ui_state.ui_params.get_bool("UseVienna"), self._sign_note())
 
   def _turn_top(self) -> float:
     """The turn card stays below whatever holds the top left corner: the new-limit card while it asks, else the sign."""
@@ -203,9 +203,26 @@ class EssentialsOnroadView(StarPilotOnroadView):
       return
     draw_driver_monitor(dm_tile(self._content_rect), dm._fade_filter.x, attentive, dm.is_active)
 
+  def _sign_note(self) -> str:
+    """Developer View's line under the sign: where the limit came from and the offset ("MAP · +3")."""
+    if self._dev is None or not ui_state.sm.valid.get("starpilotPlan", False):
+      return ""
+    plan = ui_state.sm["starpilotPlan"]
+    offset = round(plan.slcSpeedLimitOffset * (CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH))
+    return f"{self._dev.limit_source.upper()} · {offset:+d}".replace("-", "−")
+
+  def _lead_tag(self, adjacent, chevron, lead_data) -> None:
+    """Lead Insights for the lead car: our tag above it. Adjacent cars keep only StarPilot's markers, as in the mock."""
+    if adjacent:
+      return
+    car = ui_state.sm["carState"]
+    lead = lead_of(lead_data, car.vEgo, bool(ui_state.is_metric))
+    if lead is not None:
+      draw_lead_tag(chevron[1][0], min(p[1] for p in chevron), lead)
+
   def _render_developer_metrics(self):
-    """StarPilot's device stats, gathered here and drawn as our strip above the bar (see _render)."""
-    self._dev_parts = self._dev_stats.parts(self._params)
+    """Developer View's readout, gathered here; StarPilot's device line moves to our panel and the controls to our strip."""
+    self._dev = read(ui_state) if developer_ui_on(ui_state, self._params) else None   # drawn as our strip, see _render
 
   def _render_road_name(self):
     pass
@@ -279,9 +296,9 @@ class EssentialsOnroadView(StarPilotOnroadView):
       return
     c = self._content_rect
     lift = 0.0
-    if self._dev_parts:   # Developer View's device stats, just above the bar; the chip moves up over them
+    if self._dev is not None:   # Developer View's control readout, just above the bar; the chip moves up over it
       lift = STRIP_H + T.px(6)
-      draw_strip(rl.Rectangle(c.x, c.y + c.height - BAR_MARGIN - BAR_HEIGHT - lift, c.width, STRIP_H), self._dev_parts)
+      draw_strip(rl.Rectangle(c.x, c.y + c.height - BAR_MARGIN - BAR_HEIGHT - lift, c.width, STRIP_H), self._dev)
     self._chip_view.render(rl.Rectangle(c.x, c.y, c.width, c.height - lift))
     self._limit.render(c)
     self._bar.render(c)

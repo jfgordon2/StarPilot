@@ -363,28 +363,34 @@ def sign_tile(rect: rl.Rectangle) -> rl.Rectangle:
   return rl.Rectangle(rect.x + SIGN_MARGIN, rect.y + SIGN_MARGIN, *SIGN_TILE)
 
 
-def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
-  """The posted limit on a dark tile."""
+def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool, note: str = "") -> None:
+  """The posted limit on a dark tile. note is Developer View's source and offset ("MAP · +3")."""
   draw.fill(tile, rl.Color(0x0B, 0x0D, 0x10, 255), T.px(14))
-  draw_sign(place(tile, *SIGN_SIZE), limit, vienna)
+  draw_sign(place(tile, *SIGN_SIZE), limit, vienna, note)
 
 
-def draw_sign(area: rl.Rectangle, limit: str, vienna: bool) -> None:
-  """A US sign filling area, or Vienna's red ring centered on it (a little wider than the US sign, as in the mock)."""
+def draw_sign(area: rl.Rectangle, limit: str, vienna: bool, note: str = "") -> None:
+  """A US sign filling area, or Vienna's red ring centered on it (a little wider than the US sign, as in the mock). A note
+  sits small under the US sign's number, or under Vienna's ring."""
   if vienna:
     sign = place(area, T.px(72), T.px(72))
     draw.fill(sign, VIENNA_RED, sign.width / 2)
     draw.fill(inset(sign, T.px(8)), rl.WHITE, sign.width / 2)
     draw.text(sign, limit, T.font_px(28), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+    if note:
+      draw.text(rl.Rectangle(area.x - T.px(10), sign.y + sign.height, area.width + T.px(20), T.px(14)), note, T.font_px(9), T.TEXT_TERTIARY,
+                T.FONT_EXTRABOLD, Align.CENTER)
     return
   sign = area
   draw.fill(sign, rl.WHITE, T.px(8))
   draw.stroke(inset(sign, T.px(2)), T.BG, T.px(7), T.px(3))
   body = inset(sign, x=T.px(5), y=T.px(9))
-  top, middle, number = column(body, [T.px(12), T.px(12), FILL])
+  top, middle, number, small = column(body, [T.px(12), T.px(12), FILL, T.px(11) if note else 0])
   draw.text(top, "SPEED", T.font_px(10), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
   draw.text(middle, "LIMIT", T.font_px(10), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
-  draw.text(number, limit, T.font_px(32), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+  draw.text(number, limit, T.font_px(28 if note else 32), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+  if note:
+    draw.text(small, note, T.font_px(9), T._hex("3A4552"), T.FONT_EXTRABOLD, Align.CENTER)
 
 
 DM_TILE = T.px(64)

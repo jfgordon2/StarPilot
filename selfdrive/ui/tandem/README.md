@@ -146,7 +146,7 @@ These are reached from a row or button, never as a tab:
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.
 
 What these don't do yet:
-- **Developer View** (`onroad/developer.py`, `design/onroaddev.html`): StarPilot's developer sidebar keeps its chosen metrics, their calculations and tuning colors, drawn as our tiles (one column at its 300 px width); its device stats (CPU, GPU, temperature, RAM, FPS) follow StarPilot's toggles as a strip above the bar, and the status chip moves up over it. `main.py` creates the sidebar through `screens.developer_sidebar()`.
+- **Developer View** (`onroad/developer.py`, `design/onroaddev.html`): a panel on the right with LEAD (distance, gap, relative speed, radar or vision), DEVICE (CPU and temperature, GPU, RAM, FPS) and CONTROLS (curve speed, limit source, lane widths); a strip above the bar with accel, want, jerk, lateral accel and steering delay; Lead Insights' tag above the lead car; and the limit's source and offset under the sign. Values come from openpilot's and StarPilot's messages (`read()`). StarPilot's settings still decide when each shows: its developer sidebar switch for the panel, Developer UI for the rest. `main.py` takes the panel and its width from `screens.py`. Numbers are in Figtree; the mock's JetBrains Mono isn't on the device.
 
 ## Third-party
 

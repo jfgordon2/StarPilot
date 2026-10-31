@@ -59,4 +59,13 @@ def _sidebar_width() -> int:
   return int(WIDTH)
 
 
+def _developer_width() -> int:
+  if not _enabled("TANDEM_ONROAD"):
+    from openpilot.selfdrive.ui.layouts.sidebar import SIDEBAR_WIDTH
+    return SIDEBAR_WIDTH
+  from openpilot.selfdrive.ui.tandem.onroad.developer import WIDTH
+  return int(WIDTH)
+
+
+DEVELOPER_SIDEBAR_WIDTH = _developer_width()   # the Developer View panel on the right
 MAIN_SIDEBAR_WIDTH = _sidebar_width()   # the left sidebar; StarPilot's developer sidebar on the right keeps its own width
