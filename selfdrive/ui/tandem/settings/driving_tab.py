@@ -11,11 +11,24 @@ from openpilot.selfdrive.ui.tandem.controls import Glyph, ToggleButton
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
+from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
+from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_panel
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
 from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, PanelPage, Section, SectionPage, Strip
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import (Assistance, Navigation, SpeedSteering, VehicleProfile, Weather,
                                                                    assistance_panel, everyday_panel, navigation_panel,
                                                                    vehicle_profile_panel, weather_panel)
+
+
+class Lazy:
+  def __init__(self, make: Callable):
+    self._make = make
+    self._value = None
+
+  def get(self):
+    if self._value is None:
+      self._value = self._make()
+    return self._value
 
 
 def scribble(key: str) -> Glyph:
@@ -36,6 +49,9 @@ def driving_hub(window) -> Widget:
   assistance = Assistance(store, live)
   screen = Display(store)
   alerts = Alerts(store, sound_player())
+  # Model and car data come from StarPilot's own screens, built the first time they're needed.
+  models = Lazy(lambda: Models(store, window.model_source()))
+  vehicle = Lazy(lambda: Vehicle(store, window.car_catalog()))
 
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
@@ -75,6 +91,8 @@ def driving_hub(window) -> Widget:
     HubTile("Display", [screen.summary, screen.path_summary], opener(display), scribble("display")),
     HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: PanelPage(alerts_panel(alerts, window))),
             scribble("sound")),
-    HubTile("Driving Model", ["Choose and download models"], opener(starpilot("DRIVING_MODEL")), scribble("aicar")),
-    HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile"], opener(starpilot("VEHICLE")), scribble("vehicle")),
+    HubTile("Driving Model", [lambda: models.get().summary(), lambda: models.get().update_summary()],
+            opener(lambda: PanelPage(model_page(models.get(), opener(lambda: CatalogPage(models.get()))))), scribble("aicar")),
+    HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
+            opener(lambda: PanelPage(vehicle_panel(vehicle.get(), window, opener(starpilot("VEHICLE"))))), scribble("vehicle")),
   ], rows=[3, 2], strip=strip)

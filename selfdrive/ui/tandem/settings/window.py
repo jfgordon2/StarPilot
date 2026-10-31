@@ -45,11 +45,24 @@ PANEL_TABS = {
 }
 
 
+def _upstream_models():
+  from openpilot.selfdrive.ui.tandem.settings.model import UpstreamModels
+  return UpstreamModels()
+
+
+def _upstream_cars():
+  from openpilot.selfdrive.ui.tandem.settings.vehicle import UpstreamCars
+  return UpstreamCars()
+
+
 class SettingsWindow(Widget):
-  def __init__(self, store: SettingsStore | None = None, live=None):
+  def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None):
+    """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
     self._live = live
+    self.model_source = model_source or _upstream_models
+    self.car_catalog = car_catalog or _upstream_cars
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, upstream.network, upstream.bluetooth, upstream.software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]

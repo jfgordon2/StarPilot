@@ -478,3 +478,62 @@ def test_window_overlay_blocks_page_and_back_dismisses_it():
   assert window.overlay is sheet
   window.back()
   assert window.overlay is None and not closed
+
+
+# ── Driving Model and Vehicle ──
+
+def test_model_states_and_use_recommended():
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeModels
+  from openpilot.selfdrive.ui.tandem.settings.model import Models
+  store, cache = _store({"AutomaticallyDownloadModels": True})
+  source = FakeModels()
+  models = Models(store, source)
+  assert models.use_recommended and models.summary() == "Recommended"
+  assert [models.status(m) for m in source.items] == ["active", "on_device", "download", "unavailable"]
+  source.download("nlp")
+  assert models.status(source.items[2]) == "downloading" and models.update_summary() == "Downloading"
+  source.use("vtx")
+  assert not models.use_recommended and models.summary() == "Vortex"
+  models.set_use_recommended(True)
+  assert source.current == "rdf43" and cache.values["AutomaticallyDownloadModels"]
+
+
+def test_remove_unused_keeps_active_and_recommended():
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeModels
+  from openpilot.selfdrive.ui.tandem.settings.model import Models
+  store, _ = _store()
+  source = FakeModels()
+  source.use("vtx")
+  Models(store, source).remove_unused()
+  assert [m.key for m in source.items if m.installed] == ["rdf43", "vtx"]
+  source.use("rdf43")
+  Models(store, source).remove_unused()
+  assert [m.key for m in source.items if m.installed] == ["rdf43"]
+
+
+def test_choosing_a_car_turns_off_detection():
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeCars
+  from openpilot.selfdrive.ui.tandem.settings.vehicle import CarPicker, Vehicle
+  store, cache = _store({"CarMake": "Toyota", "CarModelName": "RAV4 2019-21"})
+  vehicle = Vehicle(store, FakeCars())
+  picker = CarPicker(vehicle)
+  assert picker._make == 2 and picker._model == 0
+  picker._pick_model(1)
+  assert picker.save()
+  assert cache.values["ForceFingerprint"] and cache.values["CarModel"] == "TOYOTA_RAV4H_TSS2" and vehicle.manual
+  picker._pick_make(1)
+  assert not picker.save()    # a make alone isn't a car
+  vehicle.use_detection()
+  assert not vehicle.manual
+
+
+def test_wheel_button_actions():
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeCars
+  from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle
+  store, cache = _store()
+  vehicle = Vehicle(store, FakeCars())
+  lkas = vehicle.catalog.buttons()[2]
+  assert vehicle.action_name(lkas) == "Car default" and vehicle.buttons_summary() == "Car default buttons"
+  vehicle.set_action(lkas, 9)
+  assert cache.values["LKASButtonControl"] == 9 and vehicle.action_name(lkas) == "Always-on steering"
+  assert vehicle.buttons_summary() == "Buttons customized"

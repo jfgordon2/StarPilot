@@ -172,7 +172,8 @@ class ToggleButton(Component):
       draw.pressed(rect, T.RADIUS_CONTROL)
     body = inset(rect, x=T.px(16))
     w = draw.text(body, self._label, T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
-    draw.text(inset(body, left=w + T.px(10)), self._state(), T.font_px(14), T.ACCENT_TEXT if on else T.TEXT_MUTED, T.FONT_MEDIUM)
+    draw.text(inset(body, left=w + T.px(10)), self._state(), T.font_px(14), T.ACCENT_TEXT if on else T.TEXT_MUTED, T.FONT_MEDIUM,
+              elide=False)
 
 
 class ChoiceCards(Component):
