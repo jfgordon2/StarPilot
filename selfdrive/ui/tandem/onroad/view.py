@@ -40,12 +40,12 @@ V_CRUISE_UNSET = 255
 
 
 class EssentialsTurnCard(NavigationCardRenderer):
-  """StarPilot's turn card, keeping its route data, drawn as the mock's card top left, below the speed limit sign when
-  there is one. Taps do nothing: End route is in the bar."""
+  """StarPilot's turn card, keeping its route data, drawn as the mock's card top left, below the speed limit sign or
+  the new-limit card when one is showing. Taps do nothing: End route is in the bar."""
 
-  def __init__(self, below_sign: Callable[[], bool]):
+  def __init__(self, top: Callable[[], float]):
     super().__init__()
-    self._below_sign = below_sign
+    self._top = top
     self.box: rl.Rectangle | None = None   # where it was drawn this frame, if it was
 
   def _render(self, rect: rl.Rectangle) -> None:
@@ -53,8 +53,7 @@ class EssentialsTurnCard(NavigationCardRenderer):
     if not self._valid:
       return
     text = " ".join(t for t in (self._primary_text, self._secondary_text) if t)
-    self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier,
-                              TURN_BELOW_SIGN if self._below_sign() else TURN_CARD_TOP)
+    self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier, self._top())
 
 
 class _NoFavorites:
@@ -108,11 +107,9 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._chip_view = StatusChip(lambda: self._chip)
     self._arc = HeadroomArc(lambda: self._arc_state)
     self._help = HelpSteer()
-    self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit,
-                            lambda: (self._turn_card.box.y + self._turn_card.box.height - self._content_rect.y + T.px(12))
-                            if self._turn_card.box is not None else T.px(16))
+    self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit)   # in the sign's place, top left
     # StarPilot's HUD keeps deciding when the speed and turn card show; they're drawn in the Essentials style.
-    self._turn_card = EssentialsTurnCard(lambda: self._posted_limit() is not None)
+    self._turn_card = EssentialsTurnCard(self._turn_top)
     self._hud_renderer._navigation_card = self._turn_card
     self._hud_renderer._draw_current_speed = self._draw_current_speed
     self._favorite_radial_menu = _NoFavorites()
@@ -141,6 +138,13 @@ class EssentialsOnroadView(StarPilotOnroadView):
     limit = self._posted_limit()
     if limit is not None:
       draw_speed_limit(sign_tile(self._content_rect), limit, ui_state.ui_params.get_bool("UseVienna"))
+
+  def _turn_top(self) -> float:
+    """The turn card stays below whatever holds the top left corner: the new-limit card while it asks, else the sign."""
+    if self._offer() is not None:
+      box = self._limit.box(self._content_rect)
+      return box.y + box.height - self._content_rect.y + T.px(12)
+    return TURN_BELOW_SIGN if self._posted_limit() is not None else TURN_CARD_TOP
 
   def _posted_limit(self) -> str | None:
     """The limit for the sign, or None when it's hidden: no limit known, or the new-limit card is asking."""
