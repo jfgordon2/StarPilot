@@ -33,7 +33,10 @@ def fill(rect: rl.Rectangle, color: rl.Color, radius: float = 0) -> None:
 
 
 def stroke(rect: rl.Rectangle, color: rl.Color, radius: float = 0, width: float = T.DIVIDER) -> None:
-  rl.draw_rectangle_rounded_lines_ex(rect, _roundness(rect, radius), SEGMENTS, width, color)
+  """An outline inside rect, as a CSS border is. raylib draws its lines outside the rectangle it's given, which would make
+  outlined cards bigger than their fill and get clipped at the edge of a scrolling list."""
+  inner = rl.Rectangle(rect.x + width, rect.y + width, rect.width - width * 2, rect.height - width * 2)
+  rl.draw_rectangle_rounded_lines_ex(inner, _roundness(inner, max(0.0, radius - width)), SEGMENTS, width, color)
 
 
 def gradient_v(rect: rl.Rectangle, top: rl.Color, bottom: rl.Color) -> None:
