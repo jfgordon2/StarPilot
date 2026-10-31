@@ -39,7 +39,7 @@ def test_inset_place_and_grow():
 
 def test_tokens_convert_mock_pixels_to_device_pixels():
   assert T.px(1125) == 2160
-  assert T.ROW_HEIGHT == T.px(60)
+  assert T.ROW_HEIGHT == T.px(70)   # the Theme & Startup mock's rows
   # Font sizes convert like layout: the text patch's FONT_SCALE already maps draw size to CSS em size.
   assert T.font_px(30) == T.px(30)
   assert T.MIN_TOUCH >= 112
