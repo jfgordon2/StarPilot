@@ -14,10 +14,10 @@ import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
-from openpilot.selfdrive.ui.tandem.base import Component, size_of
+from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Stack, Surface
-from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch, Tone
-from openpilot.selfdrive.ui.tandem.layout import FILL, row
+from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -43,6 +43,7 @@ class ModelSource(Protocol):
   def progress(self) -> str: ...
   def egpu_available(self) -> bool: ...
   def free_space(self) -> str: ...
+  def disk_used(self) -> float | None: ...   # share of the device's storage in use
   def use(self, key: str) -> None: ...
   def download(self, key: str) -> None: ...
   def cancel(self) -> None: ...
@@ -108,71 +109,89 @@ class Models:
 
 
 def model_row(models: Models, model: ModelInfo) -> Widget:
-  def subtitle() -> str:
-    status = models.status(model)
+  return ModelRow(models, model)
+
+
+class ModelRow(Component):
+  """A model with its state and action, as in the mock: the active one lit up with a filled ACTIVE badge, a download with
+  its progress bar, Use in the accent when it can be used, and a model that can't run here dimmed."""
+  grow_touch_target = False
+  INK = {"downloading": T.ACCENT_TEXT, "on_device": T.SUCCESS_TEXT}
+
+  def __init__(self, models: Models, model: ModelInfo):
+    super().__init__()
+    self._models, self._model = models, model
+    status = lambda: models.status(model)  # noqa: E731
+    self._badge = self._child(Badge("ACTIVE", solid=True))
+    self._use = self._child(Button("Use", lambda: models.source.use(model.key), ButtonStyle.PRIMARY, height=T.px(42),
+                                   font_size=T.font_px(15)))
+    self._use.set_visible(lambda: status() == "on_device" and not models.use_recommended)
+    label = {"downloading": "Cancel", "on_device": "Use", "download": "Download", "unavailable": "Not available"}
+    self._action = self._child(Button(lambda: label.get(status(), ""), self._act, height=T.px(42), font_size=T.font_px(15)))
+    self._action.set_visible(lambda: status() != "active" and not self._use.is_visible)
+    self._action.set_enabled(lambda: status() in ("downloading", "download"))
+
+  def _act(self) -> None:
+    status = self._models.status(self._model)
+    if status == "downloading":
+      self._models.source.cancel()
+    elif status == "download":
+      self._models.source.download(self._model.key)
+
+  def subtitle(self) -> str:
+    status, source = self._models.status(self._model), self._models.source
     return {
-      "active": "Recommended · On device" if model.key == models.source.recommended_key() else "On device",
-      "downloading": f"Downloading · {models.source.progress() or 'starting'}",
+      "active": "Recommended · On device" if self._model.key == source.recommended_key() else "On device",
+      "downloading": f"Downloading · {source.progress() or 'starting'}",
       "on_device": "On device",
       "unavailable": "Needs an eGPU",
-      "download": "Community pick" if model.community_pick else "Available to download",
+      "download": "Community pick" if self._model.community_pick else "Available to download",
     }[status]
 
-  def action() -> None:
-    status = models.status(model)
-    if status == "downloading":
-      models.source.cancel()
-    elif status == "on_device":
-      models.source.use(model.key)
-    elif status == "download":
-      models.source.download(model.key)
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    status = self._models.status(self._model)
+    return max_width, {"active": T.px(72), "downloading": T.px(82)}.get(status, T.px(68))
 
-  label = {"downloading": "Cancel", "on_device": "Use", "download": "Download", "unavailable": "Not available"}
-  button = Button(lambda: label.get(models.status(model), ""), action)
-  button.set_visible(lambda: models.status(model) != "active")
-  button.set_enabled(lambda: models.status(model) != "unavailable" and (models.status(model) != "on_device" or not models.use_recommended))
-  badge = Badge("ACTIVE", Tone.SUCCESS)
-  badge.set_visible(lambda: models.status(model) == "active")
-  return DownloadRow(SettingRow(model.name, subtitle, Pair(badge, button), height=T.px(66)),
-                     lambda: download_fraction(models.source.progress()) if models.status(model) == "downloading" else None)
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    for w in (self._badge, self._use, self._action):
+      w.set_parent_rect(parent_rect)
+
+  def set_touch_valid_callback(self, touch_callback) -> None:
+    super().set_touch_valid_callback(touch_callback)
+    for w in (self._badge, self._use, self._action):
+      w.set_touch_valid_callback(touch_callback)
+
+  def _render(self, rect: rl.Rectangle):
+    status = self._models.status(self._model)
+    if status == "active":
+      draw.fill(rect, T.ACCENT_SELECTED)
+    body = inset(rect, left=T.px(20), right=T.px(16))
+    top = rl.Rectangle(body.x, body.y, body.width, T.px(68) if status != "active" else body.height)
+    trailing = self._badge if status == "active" else (self._use if self._use.is_visible else self._action)
+    w, h = trailing.preferred_size(body.width / 2)
+    trailing.render(place(top, w, h, Align.END))
+    text = inset(top, right=w + T.px(14))
+    lines = [draw.line_height(T.font_px(18)), draw.line_height(T.SIZE_SUBTITLE)]
+    title, line = column(place(text, text.width, sum(lines) + T.px(3)), lines, T.px(3))
+    dim = status == "unavailable"
+    draw.text(title, self._model.name, T.font_px(18), T.TEXT_MUTED if dim else T.TEXT,
+              T.FONT_BOLD if status in ("active", "downloading") else T.FONT_SEMIBOLD)
+    usable = status == "on_device" and not self._models.use_recommended
+    ink = self.INK.get(status) if status != "on_device" or usable else None
+    draw.text(line, self.subtitle(), T.SIZE_SUBTITLE, T.TEXT_MUTED if dim else (ink or T.TEXT_TERTIARY))
+    if status == "downloading":
+      bar = rl.Rectangle(body.x, rect.y + rect.height - T.px(16), body.width, T.px(6))
+      draw.fill(bar, T.TRACK, T.px(3))
+      fraction = download_fraction(self._models.source.progress())
+      if fraction > 0:
+        draw.fill(rl.Rectangle(bar.x, bar.y, max(bar.height, bar.width * fraction), bar.height), T.ACCENT, T.px(3))
 
 
 def download_fraction(progress: str) -> float:
   """0.45 from "45% · about 3 min left"; 0 before the first percent arrives."""
   match = re.match(r"\s*(\d+(?:\.\d+)?)%", progress or "")
   return min(1.0, float(match.group(1)) / 100) if match else 0.0
-
-
-class DownloadRow(Component):
-  """A row with a thin progress bar under it while its download runs."""
-  grow_touch_target = False
-
-  def __init__(self, content: SettingRow, fraction: Callable[[], float | None]):
-    super().__init__()
-    self._content = self._child(content)
-    self._fraction = fraction
-
-  def preferred_size(self, max_width: float) -> tuple[float, float]:
-    _, h = size_of(self._content, max_width)
-    return max_width, h + (T.px(14) if self._fraction() is not None else 0)
-
-  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
-    super().set_parent_rect(parent_rect)
-    self._content.set_parent_rect(parent_rect)
-
-  def set_touch_valid_callback(self, touch_callback) -> None:
-    super().set_touch_valid_callback(touch_callback)
-    self._content.set_touch_valid_callback(touch_callback)
-
-  def _render(self, rect: rl.Rectangle):
-    fraction = self._fraction()
-    _, h = size_of(self._content, rect.width)
-    self._content.render(rl.Rectangle(rect.x, rect.y, rect.width, h))
-    if fraction is not None:
-      bar = rl.Rectangle(rect.x + T.px(20), rect.y + h - T.px(4), rect.width - T.px(36), T.px(6))
-      draw.fill(bar, T.TRACK, T.px(3))
-      if fraction > 0:
-        draw.fill(rl.Rectangle(bar.x, bar.y, max(bar.height, bar.width * fraction), bar.height), T.ACCENT, T.px(3))
 
 
 class Pair(Component):
@@ -274,32 +293,36 @@ def model_page(models: Models, open_catalog: Callable[[], None]) -> Widget:
 
 
 class CatalogPage(Component):
-  """Tabs of models on the left; storage and notes on the right."""
+  """The title and tabs above; the models on the left; storage and notes on two cards at the right."""
   grow_touch_target = False
-  TABS = ["All models", "Community picks", "On device"]
+  TABS = ["All models", "Community picks", "On device"]   # the mock's "For your car": StarPilot lists every model for every car
 
   def __init__(self, models: Models):
     super().__init__()
     self._models = models
     self._tab = 0
-    tabs = Segmented(self.TABS, lambda: self._tab, self._select)
+    self._tabs = self._child(Segmented(self.TABS, lambda: self._tab, self._select, height=T.px(52), font_size=T.font_px(16)))
     self._list = self._child(Rebuilding(
       lambda: (self._tab, tuple((m.key, m.installed) for m in models.tab(self._tab))),
-      lambda: ListPanel([model_row(models, m) for m in models.tab(self._tab)] or [Text("No models here yet.")],
-                        title="Driving models", header_control=tabs),
+      lambda: ListPanel([model_row(models, m) for m in models.tab(self._tab)] or [Text("No models here yet.")]),
       models.source.tick))
-    self._side = self._child(Stack([   # two cards, as in the mock
-      ListPanel([
-        SectionHeader("STORAGE"),
-        SettingRow(models.source.free_space, None),
-        SettingRow("Remove unused models", lambda: f"{len(models.unused())} can be removed",
-                   Button("Remove", models.remove_unused, ButtonStyle.DANGER_OUTLINE)),
-      ], dividers=False),
-      ListPanel([
-        SectionHeader("GOOD TO KNOW"),
-        Text("One download at a time. Downloads pause while driving and resume when parked."),
-        Text("A new model takes effect the next time you start the car."),
-      ], dividers=False),
+    remove = Button(lambda: f"Remove unused models ({len(models.unused())})" if models.unused() else "Remove unused models",
+                    models.remove_unused, height=T.px(46), font_size=T.font_px(15))
+    remove.set_enabled(lambda: bool(models.unused()))
+    note = lambda text: Text(text, T.SIZE_SUBTITLE, T.TEXT_SECONDARY, padding=(0, 0))  # noqa: E731
+    self._side = self._child(Stack([
+      Card([
+        Label("STORAGE", caption=True),
+        Label(models.source.free_space, T.font_px(18)),
+        DiskBar(models.source.disk_used),
+        remove,
+      ], gap=T.px(10), padding=(T.px(18), T.px(16)), background=T.SURFACE_2),
+      Card([
+        Label("GOOD TO KNOW", caption=True),
+        note("One download at a time. Downloads pause while driving and resume when parked."),
+        note("A new model takes effect the next time you start the car."),
+        SPACER,
+      ], gap=T.px(10), padding=(T.px(18), T.px(16)), background=T.SURFACE_2),
     ], gap=T.px(14), grow=1))
 
   def _select(self, index: int) -> None:
@@ -307,9 +330,36 @@ class CatalogPage(Component):
 
   def _render(self, rect: rl.Rectangle):
     from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
-    left, right = row(body_rect(rect), [FILL, T.px(380)], T.PANEL_GAP)
+    body = inset(body_rect(rect), top=T.px(2))
+    header, content = column(body, [T.px(56), FILL], T.px(14))
+    w, h = self._tabs.preferred_size(header.width / 2)
+    self._tabs.render(place(header, w, h, Align.END))
+    draw.text(inset(header, left=T.px(6), right=w + T.px(14)), "Driving models", T.font_px(26), T.TEXT, T.FONT_EXTRABOLD)
+    left, right = row(content, [FILL, T.px(280)], T.px(14))
     self._list.render(left)
     self._side.render(right)
+
+
+class DiskBar(Component):
+  """How full the device's storage is."""
+  grow_touch_target = False
+
+  def __init__(self, used: Callable[[], float | None]):
+    super().__init__()
+    self._used = used
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(10) if self._used() is not None else 0
+
+  def _render(self, rect: rl.Rectangle):
+    used = self._used()
+    if used is None:
+      return
+    draw.fill(rect, T.TRACK, T.px(5))
+    draw.fill(rl.Rectangle(rect.x, rect.y, max(rect.height, rect.width * min(1.0, used)), rect.height), STORAGE_INK, T.px(5))
+
+
+STORAGE_INK = rl.Color(0x3B, 0x56, 0x77, 255)
 
 
 class UpstreamModels:
@@ -356,6 +406,14 @@ class UpstreamModels:
       return f"{shutil.disk_usage(self._layout._model_dir).free / 1e9:.1f} GB free"
     except OSError:
       return "Free space unknown"
+
+  def disk_used(self) -> float | None:
+    import shutil
+    try:
+      usage = shutil.disk_usage(self._layout._model_dir)
+      return usage.used / usage.total if usage.total else None
+    except OSError:
+      return None
 
   def use(self, key: str) -> None:
     self._layout.select_model(key)
