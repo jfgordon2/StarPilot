@@ -15,7 +15,7 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import Card, Columns, Label
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonRow, ButtonStyle
-from openpilot.selfdrive.ui.tandem.layout import Align, place
+from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 
 
@@ -41,6 +41,10 @@ class Device(Protocol):
   def recalibrate(self) -> None: ...
   def review_guide(self) -> None: ...
   def remote_access(self) -> None: ...
+  def remote_access_link(self) -> str: ...   # the Galaxy link once set up, else ""
+  def remote_access_qr(self) -> rl.Texture | None: ...
+  def set_up_remote_access(self) -> None: ...
+  def unpair_remote_access(self) -> None: ...
   def reset_driver_monitoring(self) -> None: ...
   def change_language(self) -> None: ...
   def regulatory(self) -> None: ...
@@ -49,8 +53,8 @@ class Device(Protocol):
 
 
 class ThisDevicePanel(ListPanel):
-  def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None):
-    """open_pairing shows the pairing page; without it, Pair falls back to upstream's dialog."""
+  def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None):
+    """open_pairing and open_remote_access show our pages; without them, the buttons fall back to upstream's dialogs."""
     self._device = device
 
     def action(label: str, on_click, style: ButtonStyle = ButtonStyle.SECONDARY, offroad_only: bool = False) -> Button:
@@ -74,7 +78,7 @@ class ThisDevicePanel(ListPanel):
       SettingRow("How It Works", "Rules, features and limits", action("Review", device.review_guide, offroad_only=True)),
       SectionHeader("MORE"),
       SettingRow("Remote Access", "Reach this device from the Galaxy web app",
-                 Button(device.remote_access_label, device.remote_access)),
+                 Button(device.remote_access_label, open_remote_access or device.remote_access)),
       SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on",
                  action("Reset", device.reset_driver_monitoring, offroad_only=True)),
       SettingRow("Language", None, action("Change", device.change_language)),
@@ -93,65 +97,115 @@ PAIRING_STEPS = [
   ("Tap Add new device", "Sign in first if it asks"),
   ("Scan the code", "The Phone App row shows Paired when it's done"),
 ]
+REMOTE_STEPS = [
+  ("Choose a password", "At least 6 characters. Galaxy asks for it when you sign in"),
+  ("Scan the code", "It opens this device's page in Galaxy"),
+  ("Bookmark the page", "The link stays the same until you unpair"),
+]
 
 
-class PairingSteps(Component):
-  """Numbered steps: a blue number in a round well, a title and a line."""
+class StepList(Component):
+  """Numbered steps: a blue number in a round well (a green check once done), a title and a line."""
   grow_touch_target = False
-  ROW = T.px(46)   # a title and a line
+  ROW, GAP = T.px(46), T.px(22)   # a title and a line, then the gap
+
+  def __init__(self, steps: list[tuple[str, str]], done: Callable[[int], bool] = lambda i: False):
+    super().__init__()
+    self._steps = steps
+    self._done = done
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, len(PAIRING_STEPS) * self.ROW + (len(PAIRING_STEPS) - 1) * T.px(22)
+    return max_width, len(self._steps) * self.ROW + (len(self._steps) - 1) * self.GAP
 
   def _render(self, rect: rl.Rectangle):
     y = rect.y
-    for i, (title, line) in enumerate(PAIRING_STEPS):
+    for i, (title, line) in enumerate(self._steps):
       well = rl.Rectangle(rect.x, y, T.px(40), T.px(40))
-      draw.fill(well, T.ACCENT_SURFACE, well.width / 2)
-      draw.text(well, str(i + 1), T.font_px(19), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER)
+      if self._done(i):
+        draw.fill(well, T.SUCCESS_SURFACE, well.width / 2)
+        draw.icon(well, "check", T.SUCCESS_TEXT, T.px(20))
+      else:
+        draw.fill(well, T.ACCENT_SURFACE, well.width / 2)
+        draw.text(well, str(i + 1), T.font_px(19), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER)
       x = rect.x + T.px(56)
       title_h, line_h = draw.line_height(T.font_px(20)), draw.line_height(T.font_px(15))
       draw.text(rl.Rectangle(x, y, rect.width - T.px(56), title_h), title, T.font_px(20), T.TEXT, T.FONT_BOLD)
       draw.text(rl.Rectangle(x, y + title_h + T.px(3), rect.width - T.px(56), line_h), line, T.font_px(15), T.TEXT_TERTIARY)
-      y += self.ROW + T.px(22)
+      y += self.ROW + self.GAP
 
 
-class PairingCode(Component):
-  """The QR code on a white tile, so it scans in any theme, with a line under it; centered in its card."""
+class CodeTile(Component):
+  """A QR code on a white tile, so it scans in any theme, with a line under it; centered in its card. Without a
+  code, a dashed outline holds the empty text."""
   grow_touch_target = False
   TILE, PAD = T.px(268), T.px(16)
 
-  def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, self.TILE + T.px(14) + draw.line_height(T.font_px(14))
-
-  def __init__(self, device: Device):
+  def __init__(self, code: Callable[[], rl.Texture | None], caption: Callable[[], tuple[str, rl.Color, object]], empty: str):
     super().__init__()
-    self._device = device
+    self._code, self._caption, self._empty = code, caption, empty
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, self.TILE + T.px(14) + draw.line_height(T.font_px(15))
 
   def _render(self, rect: rl.Rectangle):
-    line_h = draw.line_height(T.font_px(14))
+    line_h = draw.line_height(T.font_px(15))
     group = place(rect, self.TILE, self.TILE + T.px(14) + line_h)
     tile = rl.Rectangle(group.x, group.y, self.TILE, self.TILE)
-    draw.fill(tile, rl.WHITE, T.px(18))
-    code = self._device.pairing_qr()
+    code = self._code()
     inner = rl.Rectangle(tile.x + self.PAD, tile.y + self.PAD, tile.width - self.PAD * 2, tile.height - self.PAD * 2)
     if code is not None and code.id != 0:
+      draw.fill(tile, rl.WHITE, T.px(18))
       rl.draw_texture_pro(code, rl.Rectangle(0, 0, code.width, code.height), inner, rl.Vector2(0, 0), 0, rl.WHITE)
     else:
-      draw.text(inner, "Getting a code…", T.font_px(16), T.TEXT_MUTED, T.FONT_SEMIBOLD, Align.CENTER)
-    below = rl.Rectangle(group.x - T.px(40), tile.y + tile.height + T.px(14), self.TILE + T.px(80), line_h)
-    if self._device.is_paired():
-      draw.text(below, "Paired", T.font_px(14), T.SUCCESS_TEXT, T.FONT_BOLD, Align.CENTER)
-    else:
-      draw.text(below, "A new code every 5 minutes", T.font_px(14), T.TEXT_MUTED, T.FONT, Align.CENTER)
+      draw.stroke(tile, T.SWITCH_TRACK_OFF, T.px(18), T.px(2))
+      body = inset(tile, T.px(28))
+      lines = draw.paragraph_lines(self._empty, T.font_px(16), T.FONT_SEMIBOLD, body.width)
+      step = draw.line_height(T.font_px(16)) * 1.2
+      y = body.y + (body.height - step * len(lines)) / 2
+      for line in lines:
+        draw.text(rl.Rectangle(body.x, y, body.width, step), line, T.font_px(16), T.TEXT_MUTED, T.FONT_SEMIBOLD, Align.CENTER)
+        y += step
+    text, color, weight = self._caption()
+    draw.text(rl.Rectangle(group.x - T.px(60), tile.y + tile.height + T.px(14), self.TILE + T.px(120), line_h), text, T.font_px(15),
+              color, weight, Align.CENTER)
 
 
 def pairing_page(device: Device):
   """Pair the phone app: the steps on the left, the code on the right (design/pairing.html)."""
   from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
-  steps = Card([Label("ON YOUR PHONE", color=T.ACCENT_TEXT, caption=True), PairingSteps()], gap=T.px(22))
-  code = Card([PairingCode(device)], padding=(T.px(22), T.px(20)), grow=0)
+  steps = Card([Label("ON YOUR PHONE", color=T.ACCENT_TEXT, caption=True), StepList(PAIRING_STEPS)], gap=T.px(22))
+  caption = lambda: ("Paired", T.SUCCESS_TEXT, T.FONT_BOLD) if device.is_paired() else ("A new code every 5 minutes", T.TEXT_MUTED, T.FONT)  # noqa: E731
+  code = Card([CodeTile(lambda: device.pairing_qr(), caption, "Getting a code…")], grow=0)
   return TitledPage("Pair the phone app", "Change settings and see drives from your phone", Columns([steps, code], [1.25, 1]))
+
+
+def remote_access_page(device: Device, window):
+  """Remote Access (Galaxy): set a password to create the link, then its code; Unpair asks first
+  (design/remoteaccess.html, remoteaccessqr.html)."""
+  from openpilot.selfdrive.ui.tandem.blocks import SPACER
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import confirm
+  from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
+  ready = lambda: bool(device.remote_access_link())  # noqa: E731
+  set_up = Button("Set up", device.set_up_remote_access, ButtonStyle.PRIMARY, height=T.px(58), font_size=T.font_px(18),
+                  weight=T.FONT_EXTRABOLD)
+  set_up.set_visible(lambda: not ready())
+  unpair = Button("Unpair", lambda: confirm(window, "Unpair from Galaxy?", "The link stops working. Setting up again makes a new one.",
+                                            "Unpair", device.unpair_remote_access), ButtonStyle.DANGER_SOFT, height=T.px(52),
+                  font_size=T.font_px(17))
+  unpair.set_visible(ready)
+  status = Label(lambda: "Set up · protected by your password" if ready() else "Not set up", T.font_px(15),
+                 lambda: T.SUCCESS_TEXT if ready() else T.TEXT_TERTIARY, T.FONT_SEMIBOLD, h=Align.END)
+  header = Columns([Label("GALAXY", color=T.ACCENT_TEXT, caption=True), status], [1, 3])
+  steps = Card([header, StepList(REMOTE_STEPS, lambda i: i == 0 and ready()),
+                SPACER, set_up, unpair], gap=T.px(22))
+
+  def caption():
+    link = device.remote_access_link()
+    if link:
+      return link.split("://", 1)[-1], T.ACCENT_TEXT, T.FONT_SEMIBOLD
+    return "Choosing a password creates this device's link", T.TEXT_MUTED, T.FONT
+  code = Card([CodeTile(lambda: device.remote_access_qr(), caption, "Your code appears here once you choose a password")], grow=0)
+  return TitledPage("Remote Access", "Reach this device from the Galaxy web app", Columns([steps, code], [1.25, 1]))
 
 
 class UpstreamDevice:
@@ -168,6 +222,7 @@ class UpstreamDevice:
     self._calibration = Calibration.UNKNOWN
     self._ids = ""
     self._pairing = None   # upstream PairingDialog, made on first use
+    self._galaxy_qr = None   # (link, upstream GalaxyQRDialog) for the current link
     self.refresh()
 
   def refresh(self) -> None:
@@ -230,6 +285,49 @@ class UpstreamDevice:
 
   def remote_access(self) -> None:
     self._layout._pair_galaxy()
+
+  def remote_access_link(self) -> str:
+    slug = self._layout._get_galaxy_slug() if self._layout._is_galaxy_paired() else ""
+    return f"https://galaxy.firestar.link/{slug}" if slug else ""
+
+  def remote_access_qr(self) -> rl.Texture | None:
+    """Upstream's Galaxy dialog makes the code for the link; we only draw it."""
+    link = self.remote_access_link()
+    if not link:
+      return None
+    if self._galaxy_qr is None or self._galaxy_qr[0] != link:
+      from openpilot.selfdrive.ui.layouts.settings.device import GalaxyQRDialog
+      self._galaxy_qr = (link, GalaxyQRDialog(link))
+    return self._galaxy_qr[1]._qr_texture
+
+  def set_up_remote_access(self) -> None:
+    """Upstream's Galaxy keyboard (password, at least 6 characters), then the same files upstream writes. Upstream's own
+    handler would end on its QR dialog; our page shows the code instead."""
+    import hashlib
+    import secrets
+    from openpilot.selfdrive.ui.layouts.settings import device as upstream
+    from openpilot.system.ui.lib.application import gui_app
+    from openpilot.system.ui.widgets import DialogResult
+    layout, keyboard = self._layout, self._layout._galaxy_keyboard
+
+    def done(result: int) -> None:
+      password = keyboard.text.strip()
+      keyboard.clear()
+      if result != DialogResult.CONFIRM or len(password) < 6:
+        return
+      layout._galaxy_dir.mkdir(parents=True, exist_ok=True)
+      layout._galaxy_auth_path.write_text(hashlib.sha256(password.encode("utf-8")).hexdigest(), encoding="utf-8")
+      layout._galaxy_session_path.write_text(secrets.token_hex(32), encoding="utf-8")
+      layout._galaxy_slug_path.write_text("".join(secrets.choice(upstream.GALAXY_SLUG_CHARS) for _ in range(16)), encoding="utf-8")
+
+    keyboard.clear()
+    keyboard.set_title("Choose a Galaxy password", "At least 6 characters. Galaxy asks for it when you sign in.")
+    keyboard.set_callback(done)
+    gui_app.push_widget(keyboard)
+
+  def unpair_remote_access(self) -> None:
+    from openpilot.system.ui.widgets import DialogResult
+    self._layout._unpair_galaxy(DialogResult.CONFIRM)   # our page has already asked
 
   def reset_driver_monitoring(self) -> None:
     self._layout._reset_driver_monitoring_prompt()

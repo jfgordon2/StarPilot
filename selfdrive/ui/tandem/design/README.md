@@ -37,6 +37,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Status chips | [statuschips.html](statuschips.html) |
 | Device tab | [devicetab.html](devicetab.html) |
 | Pair the phone app | [pairing.html](pairing.html) |
+| Remote Access (Galaxy) | [remoteaccess.html](remoteaccess.html), set up: [remoteaccessqr.html](remoteaccessqr.html) |
 | Network tab | [networktab.html](networktab.html) |
 | Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |
 | Software tab | [softwaretab.html](softwaretab.html) |
@@ -166,7 +167,7 @@ Rules:
 The bottom bar has five tabs: Driving, Device, Network, Bluetooth and Software. The current tab is highlighted.
 
 - **Device** has a sidebar: This Device, General, Backups, Storage & Data, Report a Problem. Everything about the hardware and its data lives here.
-  - This Device: Phone App pairing (Pair opens [pairing.html](pairing.html): three steps for comma connect beside the QR code, on a white tile so it scans; the Galaxy web app is Remote Access, under More), driver camera preview, camera recalibration, and "How It Works" (the training guide).
+  - This Device: Phone App pairing (Pair opens [pairing.html](pairing.html): three steps for comma connect beside the QR code, on a white tile so it scans; the Galaxy web app is Remote Access, under More, which opens [remoteaccess.html](remoteaccess.html): choose a password to create the link, then its code and Unpair), driver camera preview, camera recalibration, and "How It Works" (the training guide).
   - Restart and Power Off.
   - Serial, device ID and driver monitoring reset move to Developer View.
 - **Network:**

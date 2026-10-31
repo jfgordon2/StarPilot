@@ -86,7 +86,7 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 | | Vehicle and the car picker | `vehicle.py` | Fingerprint catalog, button actions |
 | | Offline Maps and the region picker | `maps.py` | Maps screen controller; removal is StarPilot's (parked, not mid-download), confirmed in our dialog |
 | | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
-| Device | This Device, and the pairing page | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh), drawn on our page |
+| Device | This Device, the pairing page and Remote Access | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh). Remote Access uses upstream's Galaxy keyboard, files, link and `GalaxyQRDialog` code, and its unpair; the password setup writes the same three files upstream's handler does, without its QR dialog |
 | | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps and the model catalog; offline maps and unused models can also be removed here |
 | Network | Wi-Fi, Cellular, and Roaming, APN and IP address | `network_tab.py` | `WifiManager` |
 | Bluetooth | Wheel Buttons, car audio, nearby devices | `bluetooth_tab.py` | Wheel controls service, `BluetoothManager` |

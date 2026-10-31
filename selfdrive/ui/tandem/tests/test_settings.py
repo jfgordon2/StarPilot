@@ -961,3 +961,34 @@ def test_pair_opens_the_pairing_page_when_given():
   assert len(opened) == 1 and "pair" not in device.calls
   _rows(ThisDevicePanel(device))["Phone App"]._control._click_callback()
   assert device.calls == ["pair"]   # without a page, upstream's dialog
+
+
+def test_remote_access_page_sets_up_and_unpairs():
+  from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, remote_access_page
+
+  class Window:
+    def __init__(self):
+      self.presented = None
+
+    def present(self, dialog):
+      self.presented = dialog
+
+    def dismiss(self):
+      pass
+
+  device, window, pages = FakeDevice(), Window(), []
+  panel = ThisDevicePanel(device, None, lambda: pages.append(remote_access_page(device, window)))
+  _rows(panel)["Remote Access"]._control._click_callback()
+  page = pages[0]
+  steps = page._body._items[0]
+  set_up, unpair = steps._items[3], steps._items[4]
+  assert set_up.is_visible and not unpair.is_visible
+  set_up._click_callback()
+  assert device.calls[-1] == "set_up_remote_access"
+  device.remote_access_link = lambda: "https://galaxy.firestar.link/abc"
+  assert unpair.is_visible and not set_up.is_visible
+  unpair._click_callback()
+  assert "unpair_remote_access" not in device.calls   # it asks first
+  from openpilot.system.ui.widgets import DialogResult
+  window.presented._on_result(DialogResult.CONFIRM)
+  assert device.calls[-1] == "unpair_remote_access"
