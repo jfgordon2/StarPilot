@@ -122,16 +122,21 @@ def confirm(window, title: str, message: str, label: str, action: Callable[[], N
                         glyph=lambda r, c, s: draw.icon(r, icon, c, s)))
 
 
+def open_language(data: DeviceData, window) -> None:
+  """The language sheet, from General and from This Device."""
+  languages = data.languages()
+
+  def pick(index: int):
+    data.set_language(languages[index][1])
+    window.dismiss()
+  window.present(Sheet("Language", OptionList([name for name, _ in languages],
+                                              lambda: next((i for i, (_, c) in enumerate(languages) if c == data.language()), 0),
+                                              pick, weight=T.FONT_UNIFONT), subtitle="For menus and alerts", on_dismiss=window.dismiss))
+
+
 def general_panel(model: General, window) -> ListPanel:
   def language_sheet():
-    languages = model.data.languages()
-
-    def pick(index: int):
-      model.data.set_language(languages[index][1])
-      window.dismiss()
-    window.present(Sheet("Language", OptionList([name for name, _ in languages],
-                                                lambda: next((i for i, (_, c) in enumerate(languages) if c == model.data.language()), 0),
-                                                pick, weight=T.FONT_UNIFONT), subtitle="For menus and alerts", on_dismiss=window.dismiss))
+    open_language(model.data, window)
 
   return ListPanel([
     SettingRow("Units", "Speed and distance everywhere", Segmented(["mph", "km/h"], lambda: model.metric, model.set_metric)),

@@ -19,8 +19,8 @@ from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, Upstr
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
 from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
-from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel, report_panel,
-                                                                    storage_panel)
+from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel, open_language,
+                                                                    report_panel, storage_panel)
 from openpilot.selfdrive.ui.tandem.settings.model import Models
 from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, NetworkPage, advanced_panel
 from openpilot.selfdrive.ui.tandem.settings.software_tab import Software, SoftwarePage
@@ -273,7 +273,9 @@ class SettingsWindow(Widget):
 
   def _this_device(self) -> Widget:
     device = self.device()
-    return ThisDevicePanel(device, lambda: self.push(pairing_page(device)), lambda: self.push(remote_access_page(device, self)))
+    return ThisDevicePanel(device, lambda: self.push(pairing_page(device)), lambda: self.push(remote_access_page(device, self)),
+                           lambda title, message, label, action, danger, icon: confirm(self, title, message, label, action, danger, icon),
+                           lambda: open_language(self.device_data(), self))
 
   def _device(self) -> Widget:
     data = self.device_data()

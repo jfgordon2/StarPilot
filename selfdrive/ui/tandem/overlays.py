@@ -87,11 +87,12 @@ class Sheet(Component):
 
 
 class Dialog(Component):
-  """A centered confirm card. tone=DANGER gives the red destructive button; ACCENT a blue one."""
+  """A centered confirm card. tone=DANGER gives the red destructive button; ACCENT a blue one. cancel_label=None leaves
+  only the confirm button (a notice, e.g. the Bluetooth sound test). The message may change while it shows."""
   grow_touch_target = False
 
-  def __init__(self, title: str, message: str, confirm_label: str, on_result: Callable[[DialogResult], None] | None = None,
-               cancel_label: str = "Cancel", tone: Tone = Tone.ACCENT, glyph: Glyph | None = None):
+  def __init__(self, title: str, message: Bindable[str], confirm_label: str, on_result: Callable[[DialogResult], None] | None = None,
+               cancel_label: str | None = "Cancel", tone: Tone = Tone.ACCENT, glyph: Glyph | None = None):
     super().__init__()
     self._title = title
     self._message = message
@@ -99,8 +100,9 @@ class Dialog(Component):
     self._glyph = glyph
     self._on_result = on_result
     confirm_style = ButtonStyle.DANGER if tone == Tone.DANGER else ButtonStyle.PRIMARY
-    self._cancel = self._child(Button(cancel_label, lambda: self._finish(DialogResult.CANCEL), height=T.px(64), font_size=T.font_px(19),
-                                      radius=T.px(16), weight=T.FONT_BOLD))
+    self._cancel = self._child(Button(cancel_label or "", lambda: self._finish(DialogResult.CANCEL), height=T.px(64),
+                                      font_size=T.font_px(19), radius=T.px(16), weight=T.FONT_BOLD))
+    self._cancel.set_visible(cancel_label is not None)
     self._confirm = self._child(Button(confirm_label, lambda: self._finish(DialogResult.CONFIRM), confirm_style, height=T.px(64),
                                        font_size=T.font_px(19), radius=T.px(16), weight=T.FONT_EXTRABOLD))
     self.result: DialogResult = DialogResult.NO_ACTION
@@ -114,7 +116,7 @@ class Dialog(Component):
     inner = width - T.px(56)
     well = T.px(60) + T.px(12) if self._glyph else 0
     return T.px(28) * 2 + well + T.px(6) + draw.line_height(T.font_px(26)) + T.px(8) + \
-      draw.paragraph_height(self._message, T.font_px(17), T.FONT, inner, 1.4) + T.px(24) + T.px(64)
+      draw.paragraph_height(resolve(self._message), T.font_px(17), T.FONT, inner, 1.4) + T.px(24) + T.px(64)
 
   def _render(self, rect: rl.Rectangle):
     draw.fill(rect, draw.alpha(T.SCRIM, 0.85))
@@ -131,7 +133,10 @@ class Dialog(Component):
       self._glyph(well, T.DANGER_TEXT if danger else T.ACCENT_TEXT, T.px(28))
     title_rect, text_rect, _, buttons = column(body, [draw.line_height(T.font_px(26)), FILL, T.px(16), T.px(64)], T.px(12))
     draw.text(title_rect, self._title, T.font_px(26), T.TEXT, T.FONT_EXTRABOLD)
-    draw.paragraph(text_rect, self._message, T.font_px(17), T.TEXT_SECONDARY, spacing=1.4)
+    draw.paragraph(text_rect, resolve(self._message), T.font_px(17), T.TEXT_SECONDARY, spacing=1.4)
+    if not self._cancel.is_visible:
+      self._confirm.render(buttons)
+      return
     cancel_rect, confirm_rect = row(buttons, [FILL, FILL], T.px(12))
     self._cancel.render(cancel_rect)
     self._confirm.render(confirm_rect)

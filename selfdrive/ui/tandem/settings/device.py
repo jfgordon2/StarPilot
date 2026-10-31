@@ -30,6 +30,7 @@ class Device(Protocol):
 
   def is_paired(self) -> bool: ...
   def is_offroad(self) -> bool: ...
+  def engaged(self) -> bool: ...
   def calibration(self) -> str: ...
   def remote_access_label(self) -> str: ...
   def ids(self) -> str: ...
@@ -53,9 +54,16 @@ class Device(Protocol):
 
 
 class ThisDevicePanel(ListPanel):
-  def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None):
-    """open_pairing and open_remote_access show our pages; without them, the buttons fall back to upstream's dialogs."""
+  def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None,
+               ask: Callable | None = None, open_language: Callable[[], None] | None = None):
+    """open_pairing, open_remote_access and open_language show our pages and sheet. ask(title, message, label, action, danger,
+    icon) shows our confirm dialog before Restart, Power Off, Recalibrate and the driver monitoring reset; the device then
+    runs upstream's action without its own dialog."""
     self._device = device
+    ask = ask or (lambda title, message, label, action, danger, icon: action())
+
+    def asking(title: str, message: str, label: str, action: Callable[[], None], danger: bool = False, icon: str = "restart"):
+      return lambda: ask(title, message, label, action, danger, icon)
 
     def action(label: str, on_click, style: ButtonStyle = ButtonStyle.SECONDARY, offroad_only: bool = False) -> Button:
       button = Button(label, on_click, style)
@@ -65,8 +73,16 @@ class ThisDevicePanel(ListPanel):
 
     pair = action("Pair", open_pairing or device.pair, ButtonStyle.PRIMARY)
     pair.set_visible(lambda: not device.is_paired())
-    power_off = Button("Power Off", device.power_off, ButtonStyle.DANGER_SOFT, height=T.px(52))
+    power_off = Button("Power Off", asking("Power off?", "The device stays off until the car starts again.", "Power Off", device.power_off,
+                                           True, "power"), ButtonStyle.DANGER_SOFT, height=T.px(52))
     power_off.set_visible(device.is_offroad)
+    restart = Button("Restart", asking("Restart the device?", "openpilot shuts down and starts again. This takes about a minute.",
+                                       "Restart", device.restart), height=T.px(52), weight=T.FONT_BOLD)
+    recalibrate = action("Recalibrate", asking("Recalibrate the camera?", "Calibration starts over. openpilot relearns how the device is " +
+                                               "mounted over your next few minutes of driving.", "Recalibrate", device.recalibrate))
+    recalibrate.set_enabled(lambda: not device.engaged())   # upstream refuses while engaged
+    reset_dm = action("Reset", asking("Reset driver monitoring?", "It forgets which side of the car the driver sits on and learns it " +
+                                      "again on the next drive.", "Reset", device.reset_driver_monitoring), offroad_only=True)
 
     super().__init__([
       # The two ways to reach the car from elsewhere sit together, each naming its service.
@@ -77,16 +93,15 @@ class ThisDevicePanel(ListPanel):
                  subtitle_color=lambda: T.SUCCESS_TEXT if device.remote_access_link() else T.TEXT_TERTIARY),
       SettingRow("Driver Camera", "Check that it can see your face. The car must be off.",
                  action("Preview", device.driver_camera, offroad_only=True)),
-      SettingRow("Camera Calibration", device.calibration, action("Recalibrate", device.recalibrate),
+      SettingRow("Camera Calibration", device.calibration, recalibrate,
                  subtitle_color=lambda: T.SUCCESS_TEXT if device.calibration() == Calibration.CALIBRATED else T.TEXT_TERTIARY),
       SettingRow("How It Works", "Rules, features and limits", action("Review", device.review_guide, offroad_only=True)),
       SectionHeader("MORE"),
-      SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on",
-                 action("Reset", device.reset_driver_monitoring, offroad_only=True)),
-      SettingRow("Language", None, action("Change", device.change_language)),
+      SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on", reset_dm),
+      SettingRow("Language", None, action("Change", open_language or device.change_language)),
       regulatory := SettingRow("Regulatory", None, action("View", device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
-    ], title="This Device", footer=ButtonRow([Button("Restart", device.restart, height=T.px(52), weight=T.FONT_BOLD), power_off]))
+    ], title="This Device", footer=ButtonRow([restart, power_off]))
     regulatory.set_visible(device.show_regulatory)
 
   def show_event(self):
@@ -210,6 +225,24 @@ def remote_access_page(device: Device, window):
   return TitledPage("Remote Access", "Reach this device from the Galaxy web app", Columns([steps, code], [1.25, 1]))
 
 
+def _confirmed(prompt: Callable[[], None]) -> None:
+  """Runs an upstream prompt as if its confirm dialog were answered yes: our dialog has already asked. The prompt's
+  dialog is caught instead of shown, and its callback runs upstream's own action (and its checks, e.g. engaged)."""
+  from openpilot.system.ui.lib.application import gui_app
+  from openpilot.system.ui.widgets import DialogResult
+  caught: list = []
+  push = gui_app.push_widget
+  gui_app.push_widget = caught.append
+  try:
+    prompt()
+  finally:
+    gui_app.push_widget = push
+  for dialog in caught:
+    callback = getattr(dialog, "_callback", None)
+    if callback is not None:
+      callback(DialogResult.CONFIRM)
+
+
 class UpstreamDevice:
   """Device backed by upstream's DeviceLayout and ui_state. Imported only on the device."""
 
@@ -280,7 +313,7 @@ class UpstreamDevice:
     self._layout._show_driver_camera()
 
   def recalibrate(self) -> None:
-    self._layout._reset_calibration_prompt()
+    _confirmed(self._layout._reset_calibration_prompt)
 
   def review_guide(self) -> None:
     self._layout._on_review_training_guide()
@@ -334,7 +367,7 @@ class UpstreamDevice:
     self._layout._unpair_galaxy(DialogResult.CONFIRM)   # our page has already asked
 
   def reset_driver_monitoring(self) -> None:
-    self._layout._reset_driver_monitoring_prompt()
+    _confirmed(self._layout._reset_driver_monitoring_prompt)
 
   def change_language(self) -> None:
     self._layout._show_language_dialog()
@@ -343,7 +376,12 @@ class UpstreamDevice:
     self._layout._on_regulatory()
 
   def restart(self) -> None:
-    self._layout._reboot_prompt()
+    from openpilot.system.ui.widgets import DialogResult
+    self._layout._perform_reboot(DialogResult.CONFIRM)
 
   def power_off(self) -> None:
-    self._layout._power_off_prompt()
+    from openpilot.system.ui.widgets import DialogResult
+    self._layout._perform_power_off(DialogResult.CONFIRM)   # upstream checks engaged again
+
+  def engaged(self) -> bool:
+    return bool(self._ui_state.engaged)

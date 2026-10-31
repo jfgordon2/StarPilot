@@ -280,6 +280,9 @@ class FakeDevice:
   def is_offroad(self):
     return self.offroad
 
+  def engaged(self):
+    return False
+
   def calibration(self):
     return self.cal
 
@@ -992,3 +995,19 @@ def test_remote_access_page_sets_up_and_unpairs():
   from openpilot.system.ui.widgets import DialogResult
   window.presented._on_result(DialogResult.CONFIRM)
   assert device.calls[-1] == "unpair_remote_access"
+
+
+def test_device_actions_ask_first_with_our_dialog():
+  from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel
+  device, asked = FakeDevice(), []
+  panel = ThisDevicePanel(device, ask=lambda title, message, label, action, danger, icon: asked.append((label, action, danger)))
+  restart, power_off = panel._footer._buttons
+  restart._click_callback()
+  power_off._click_callback()
+  _rows(panel)["Camera Calibration"]._control._click_callback()
+  _rows(panel)["Driver Monitoring"]._control._click_callback()
+  assert [(label, danger) for label, _, danger in asked] == [("Restart", False), ("Power Off", True), ("Recalibrate", False), ("Reset", False)]
+  assert device.calls == []                       # nothing runs until the dialog says yes
+  for _, action, _ in asked:
+    action()
+  assert device.calls == ["restart", "power_off", "recalibrate", "reset_driver_monitoring"]
