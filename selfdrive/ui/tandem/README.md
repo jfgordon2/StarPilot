@@ -13,6 +13,7 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | `controls.py` | `Button` (primary, secondary, ghost, danger, danger outline, danger soft, nav), `ButtonRow`, `ValueButton`, `ToggleButton`, `Switch`, `Segmented`, `ChoiceCards`, `Stepper`, `Slider`, `Badge`, `Chip`, `ProgressBar` |
 | `rows.py` | `SettingRow`, `SectionHeader`, `Text`, `Banner`, `OptionList` (pick one from a list), `Padded`, and `ListPanel`, which stacks rows with dividers, scrolls when they overflow, and can pin a footer |
 | `chrome.py` | `BottomNav`, `Sidebar`, `PageHeader`, `HubTile`, `HubGrid`, and `SettingsPage`, which assembles a full screen |
+| `assets/` | `boot_logo.jpg`, Tandem's boot logo (2160×1080, from `boot_logo.html`). Choosing it copies the file into StarPilot's boot logos folder, where StarPilot's theme manager installs it like any other logo; the Essentials defaults choose it. |
 | `blocks.py` | Layout blocks for the mocks' card layouts: `Stack` (with `SPACER`s or a growing item), `Card`, `Columns`, `Grid`, `Label`, `ValueLine`, `IconTitle`, `InfoCard`, `Field`, `Icon`, `Inline`, `Sized`, `Surface` |
 | `overlays.py` | `Sheet` (slides up), `Dialog` (confirm; `Tone.DANGER` gives a destructive button), `Toast` |
 

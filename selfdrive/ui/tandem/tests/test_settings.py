@@ -839,12 +839,41 @@ def test_boot_logo_picker_lists_built_ins_then_downloads():
   store, cache = _store()
   logos = FakeBootLogos()
   display, window = Display(store, lambda: logos), Window()
-  assert display.boot_logo_name() == "Default"
-  assert display.boot_logo_options() == [("starpilot", "StarPilot"), ("stock", "comma"), ("aurora_logo", "Aurora Logo"),
+  assert display.boot_logo_name() == "StarPilot"   # StarPilot's own default until Essentials is applied
+  assert display.boot_logo_options() == [("tandem", "Tandem"), ("starpilot", "StarPilot"), ("stock", "comma"), ("aurora_logo", "Aurora Logo"),
                                          ("pixel_logo", "Pixel Logo")]   # a downloaded "stock" doesn't repeat comma's
   boot_logo_sheet(display, window)
+  window.overlay._body._on_change(0)
+  assert cache.values["BootLogo"] == "tandem" and logos.installs == 1 and display.boot_logo_name() == "Default"
+  boot_logo_sheet(display, window)
   assert isinstance(window.overlay, Sheet)
-  window.overlay._body._on_change(2)
+  window.overlay._body._on_change(3)
   assert cache.values["BootLogo"] == "aurora_logo" and display.boot_logo_name() == "Aurora Logo" and window.overlay is None
   boot_logo_sheet(display, window)
   assert [a._label for a in window.overlay._actions] == ["Done"]   # nothing to download
+
+
+def test_essentials_choose_and_install_the_tandem_boot_logo():
+  from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
+  from openpilot.selfdrive.ui.tandem.settings.display import TANDEM_LOGO_FILE
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBootLogos
+  store, cache = _store({"BootLogo": "starpilot"})
+  logos = FakeBootLogos()
+  apply_essentials(store, lambda: logos)
+  assert cache.values["BootLogo"] == "tandem" and logos.installs == 1
+  from PIL import Image
+  with Image.open(TANDEM_LOGO_FILE) as image:
+    assert image.size == (2160, 1080)   # StarPilot's boot logo size
+
+
+def test_upstream_boot_logos_install_tandem_once(tmp_path):
+  from openpilot.selfdrive.ui.tandem.settings.display import TANDEM_LOGO_FILE, UpstreamBootLogos
+  logos = UpstreamBootLogos.__new__(UpstreamBootLogos)   # skip the StarPilot import; point it at a temp folder
+  logos._folder = tmp_path / "bootlogos"
+  logos.install_tandem()
+  installed = logos._folder / "tandem.jpg"
+  assert installed.read_bytes() == TANDEM_LOGO_FILE.read_bytes()
+  mtime = installed.stat().st_mtime_ns
+  logos.install_tandem()
+  assert installed.stat().st_mtime_ns == mtime   # already there: not copied again
+

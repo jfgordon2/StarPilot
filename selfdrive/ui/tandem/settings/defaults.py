@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES
-from openpilot.selfdrive.ui.tandem.settings.display import Display
+from openpilot.selfdrive.ui.tandem.settings.display import TANDEM_LOGO, Display
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering, Weather
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
@@ -11,13 +11,16 @@ from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
 SPEED_LIMIT_OFFSET = 3
 
 
-def apply_essentials(store: SettingsStore) -> None:
-  """Vehicle choices (profile, car, buttons) and device choices (units, Wi-Fi, pairing) are left alone."""
+def apply_essentials(store: SettingsStore, boot_logos=None) -> None:
+  """Vehicle choices (profile, car, buttons) and device choices (units, Wi-Fi, pairing) are left alone.
+
+  boot_logos makes the boot logo source that installs Tandem's logo; without it only the param is set.
+  """
   with store.batch():
-    _apply(store)
+    _apply(store, boot_logos)
 
 
-def _apply(store: SettingsStore) -> None:
+def _apply(store: SettingsStore, boot_logos=None) -> None:
   speed = SpeedSteering(store)
   speed.set_style(1)                      # Standard
   speed.set_speed_limits(2)               # Match
@@ -28,12 +31,13 @@ def _apply(store: SettingsStore) -> None:
   speed.set_always_on_steering(True)
   Weather(store).set_mode(0)              # Auto
 
-  display = Display(store)
+  display = Display(store, boot_logos)
   display.set_path_style(0)               # Standard
   display.set_clean_screen(True)
   display.set_blind_spot(True)
   display.set_signal(1)                   # Sequential
   display.set_camera_view(1)              # Standard
+  display.set_boot_logo(TANDEM_LOGO)
 
   alerts = Alerts(store)
   alerts.set_preset(0)                    # Auto

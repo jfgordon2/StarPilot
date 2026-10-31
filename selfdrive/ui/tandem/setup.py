@@ -47,9 +47,11 @@ QUESTIONS = [
 
 
 class Setup:
-  def __init__(self, store: SettingsStore, done: Callable[[], None]):
+  def __init__(self, store: SettingsStore, done: Callable[[], None], boot_logos=None):
+    """boot_logos makes the source that installs Tandem's boot logo (the device's; none in tests)."""
     self._store = store
     self._done = done
+    self._boot_logos = boot_logos
     self.step = 0
     self.answers = [q.default for q in QUESTIONS]
 
@@ -73,7 +75,7 @@ class Setup:
     from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
     from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering
     with self._store.batch():
-      apply_essentials(self._store)
+      apply_essentials(self._store, self._boot_logos)
       if use_answers:
         speed = SpeedSteering(self._store)
         speed.set_style(self.answers[0])
@@ -143,5 +145,6 @@ def maybe_show_setup() -> bool:
     marker.touch()
     gui_app.pop_widget()
 
-  gui_app.push_widget(SetupWindow(Setup(SettingsStore(), done)))
+  from openpilot.selfdrive.ui.tandem.settings.display import UpstreamBootLogos
+  gui_app.push_widget(SetupWindow(Setup(SettingsStore(), done, UpstreamBootLogos)))
   return True

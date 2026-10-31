@@ -291,6 +291,6 @@ class SettingsWindow(Widget):
     return BluetoothPage(WheelButtons(self.wheel()), self.bluetooth(), self)
 
   def _software(self) -> Widget:
-    model = Software(self.store, self.updates(), lambda: apply_essentials(self.store))
+    model = Software(self.store, self.updates(), lambda: apply_essentials(self.store, self.boot_logos))
     return SoftwarePage(model, lambda title, message, label, action: confirm(self, title, message, label, action, icon="restart"))
 

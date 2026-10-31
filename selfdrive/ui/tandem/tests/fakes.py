@@ -328,6 +328,12 @@ class FakeMaps:
 
 
 class FakeBootLogos:
+  def __init__(self):
+    self.installs = 0
+
+  def install_tandem(self):
+    self.installs += 1
+
   def installed(self):
     return [("aurora_logo", "Aurora Logo"), ("pixel_logo", "Pixel Logo"), ("stock", "Stock")]
 

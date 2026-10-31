@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Protocol
 
 import pyray as rl
@@ -32,11 +33,15 @@ CLEAN_SCREEN = ["HideChangingLanesBanner", "HideTurningBanner", "HideDistancePro
 
 # CameraView values: 0 Auto, 1 Driver, 2 Standard, 3 Wide. Driver is left to upstream's developer screens.
 CAMERA_VIEWS = [("Auto", 0), ("Standard", 2), ("Wide", 3)]
-BUILT_IN_LOGOS = [("starpilot", "StarPilot"), ("stock", "comma")]   # (BootLogo slug, name); StarPilot's is the default
+# (BootLogo slug, name). Tandem's is the Essentials default; StarPilot installs it from its boot logos folder like any other.
+TANDEM_LOGO = "tandem"
+BUILT_IN_LOGOS = [(TANDEM_LOGO, "Tandem"), ("starpilot", "StarPilot"), ("stock", "comma")]
+TANDEM_LOGO_FILE = Path(__file__).resolve().parents[1] / "assets" / "boot_logo.jpg"
 
 
 class BootLogoSource(Protocol):
   def installed(self) -> list[tuple[str, str]]: ...   # (slug, name) of each boot logo StarPilot downloaded to the device
+  def install_tandem(self) -> None: ...                 # puts Tandem's logo where StarPilot looks for boot logos
 STARTUP_TOP = "StartupMessageTop"
 STARTUP_BOTTOM = "StartupMessageBottom"
 STARTUP_DEFAULTS = ("Be ready to take over at any time", "Always keep hands on wheel and eyes on road")
@@ -133,11 +138,14 @@ class Display:
 
   def boot_logo_name(self) -> str:
     slug = self.boot_logo
-    if slug == BUILT_IN_LOGOS[0][0]:
+    if slug == TANDEM_LOGO:
       return "Default"
     return dict(self.boot_logo_options()).get(slug) or slug.replace("_", " ").replace("-", " ").title()
 
   def set_boot_logo(self, slug: str) -> None:
+    """For Tandem's, the file goes in place first: StarPilot applies the logo as soon as the param changes."""
+    if slug == TANDEM_LOGO and self.boot_logos is not None:
+      self.boot_logos.install_tandem()
     self._store.write({"BootLogo": slug})
 
   def startup_message(self) -> tuple[str, str]:
@@ -418,3 +426,13 @@ class UpstreamBootLogos:
     if not self._folder.is_dir():
       return []
     return [(f.stem, _theme_display_name(f.stem)) for f in sorted(self._folder.iterdir()) if f.is_file()]
+
+  def install_tandem(self) -> None:
+    import shutil
+    target = self._folder / f"{TANDEM_LOGO}.jpg"
+    try:
+      if not target.is_file() or target.read_bytes() != TANDEM_LOGO_FILE.read_bytes():
+        self._folder.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(TANDEM_LOGO_FILE, target)
+    except OSError:
+      pass   # StarPilot keeps its own logo if the copy fails
