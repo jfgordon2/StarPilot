@@ -32,6 +32,12 @@ class Sheet(Component):
     self._subtitle = subtitle
     self._body = self._child(body)
     self._actions = [self._child(a) for a in actions or []]
+    # The mocks' header buttons: one main action (Done) is 60 tall; a pair (Cancel, Save) is 56.
+    for a in self._actions:
+      if len(self._actions) == 1:
+        a.restyle(T.PRIMARY_BUTTON_HEIGHT, T.font_px(18), T.px(30), T.px(16))
+      else:
+        a.restyle(T.px(56), T.font_px(17), T.px(28) if a is self._actions[-1] else T.px(22), T.px(16))
     self._height = height
     self._shown_at: float | None = None
 

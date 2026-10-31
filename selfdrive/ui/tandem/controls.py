@@ -81,10 +81,20 @@ class Button(Component):
     self._width = width
     self._font_size = font_size
     self._radius = radius
+    self._padding = T.px(18)
+    self._weight_override = None
     self.set_click_callback(on_click)
+
+  def restyle(self, height: float, font_size: int, padding: float, radius: float) -> None:
+    """Resize in place, e.g. a sheet giving its header actions the mock's size. The main action goes extra bold, as there."""
+    self._height, self._font_size, self._padding, self._radius = height, font_size, padding, radius
+    if self._style == ButtonStyle.PRIMARY:
+      self._weight_override = T.FONT_EXTRABOLD
 
   @property
   def _weight(self):
+    if self._weight_override is not None:
+      return self._weight_override
     return T.FONT_BOLD if self._style in (ButtonStyle.PRIMARY, ButtonStyle.DANGER, ButtonStyle.DANGER_SOFT) else T.FONT_SEMIBOLD
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
@@ -93,8 +103,7 @@ class Button(Component):
     label = resolve(self._label)
     if not label:
       return self._height, self._height
-    pad = T.px(18)
-    width = draw.text_width(label, self._font_size, self._weight) + pad * 2
+    width = draw.text_width(label, self._font_size, self._weight) + self._padding * 2
     width += (self._height * 0.45 + T.px(10)) if self._glyph else 0
     width += (self._height * 0.35 + T.px(8)) if self._accessory else 0
     return min(max_width, width), self._height
