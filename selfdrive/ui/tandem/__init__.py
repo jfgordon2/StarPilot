@@ -9,7 +9,7 @@ Screens are composed from these components instead of drawing with raylib direct
                  Segmented(["Relaxed", "Standard", "Sport"], selected=get_style, on_change=set_style)),
       SettingRow("Smart Slowdowns", "Slows for curves and stop lights", Switch(get_smart, set_smart)),
     ], title="Everyday"),
-    nav=BottomNav(["StarPilot", "Device", "Network", "Bluetooth", "Software"], selected=0, on_select=open_tab),
+    nav=BottomNav(["Driving", "Device", "Network", "Bluetooth", "Software"], selected=0, on_select=open_tab),
   )
 
 Values can be plain or callables (read every frame), so rows can bind straight to Params.

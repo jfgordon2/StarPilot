@@ -125,7 +125,7 @@ def test_sidebar_selects_only_a_different_visible_item():
 
 def test_bottom_nav_selects_the_tab_that_was_pressed_and_released():
   picked = []
-  nav = BottomNav(["StarPilot", "Device", "Network"], selected=0, on_select=picked.append)
+  nav = BottomNav(["Driving", "Device", "Network"], selected=0, on_select=picked.append)
   nav.set_rect(rl.Rectangle(0, 0, 2160, T.NAV_HEIGHT))
   tabs = nav.tab_rects()
   inside = MousePos(tabs[2].x + 10, tabs[2].y + 10)

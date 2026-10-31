@@ -34,7 +34,7 @@ page = SettingsPage(
     SettingRow("Smart Slowdowns", "Slows for curves and stop lights", Switch(lambda: params.get_bool("SmartSlowdowns"),
                                                                              lambda on: params.put_bool("SmartSlowdowns", on))),
   ], title="Everyday"),
-  nav=BottomNav(["StarPilot", "Device", "Network", "Bluetooth", "Software"], selected=0, on_select=open_tab),
+  nav=BottomNav(["Driving", "Device", "Network", "Bluetooth", "Software"], selected=0, on_select=open_tab),
 )
 ```
 
@@ -55,13 +55,14 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 - **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, and every existing test.
 - **New needs go in this package**, not in shared modules. For example, extra font faces live in `fonts.py` rather than in `FontWeight`.
 
-## Taking over the StarPilot screens
+## Taking over the settings window
 
-StarPilot's settings panels are built on `aethergrid.py` and `aether_style.py`. Those files are upstream, so we don't edit or delete them.
+The settings window and its panels come from upstream: StarPilot's own panel is built on `aethergrid.py` and `aether_style.py`, and Device, Network, Bluetooth, Toggles, Software and Developer come from openpilot. We don't edit or delete any of them.
 
 - Build each replacement screen in this package.
-- When the screens are ready, switch at the single place the settings window builds its StarPilot panel. That's a one-line upstream edit, made next to the `FontWeight` one.
-- The Aethergrid code then stays in the tree unused. It costs nothing at runtime, because it isn't imported, and it never conflicts on a rebase.
+- Tandem's own settings window replaces the whole upstream window. It goes in with one line in `selfdrive/ui/layouts/main.py`, where the window is created. That's the second and last upstream edit.
+- Tabs that haven't been rebuilt yet host their upstream panel inside our window.
+- The replaced upstream code then stays in the tree unused. It costs nothing at runtime, because it isn't imported, and it never conflicts on a rebase.
 
 ## Third-party
 

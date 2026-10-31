@@ -1,6 +1,6 @@
 # Essentials: Tandem's design language
 
-An opinionated take on the StarPilot 3X settings UI. Instead of exposing a control for every param, StarPilot ships good defaults and offers a small number of controls. Each control writes several existing params at once. Detail that most drivers never need sits behind one-switch bundles.
+Essentials is Tandem's design language: an opinionated take on the StarPilot 3X settings UI. Instead of exposing a control for every param, Tandem ships good defaults and offers a small number of controls. Each control writes several existing params at once. Detail that most drivers never need sits behind one-switch bundles.
 
 This builds on the visual direction in *StarPilot 3X UI Directions*, pages 6–9: the hub, the sidebar panel, the option sheet and the onroad bar. The look stays the same. The number of choices goes down.
 
@@ -46,9 +46,9 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Display › Theme & Startup | [displaytheme.html](displaytheme.html) |
 | Display › Map | [displaymap.html](displaymap.html) |
 | Path Style picker | [pathstylepicker.html](pathstylepicker.html) |
-| System › Backups | [systembackups.html](systembackups.html) |
-| System › Storage & Data | [systemstorage.html](systemstorage.html) |
-| System › Report a Problem | [systemreport.html](systemreport.html) |
+| Device › Backups | [systembackups.html](systembackups.html) |
+| Device › Storage & Data | [systemstorage.html](systemstorage.html) |
+| Device › Report a Problem | [systemreport.html](systemreport.html) |
 | Tuner › Gas & Brake | [tunergas.html](tunergas.html) |
 | Tuner › Following & Stops | [tunerfollowing.html](tunerfollowing.html) |
 | Tuner › Bundle Overrides | [tunerbundles.html](tunerbundles.html) |
@@ -108,8 +108,9 @@ Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel *
 
 ## Navigation changes
 
-- The bottom bar drops the **Toggles** and **Developer** tabs. Metric units and language move to System. SSH, ADB and joystick move under Tuner Mode.
-- The hub has six tiles: Driving, Display, Alerts, Driving Model, Vehicle, System. A "Power user" strip below them holds the three bundle switches.
+- The bottom bar has five tabs: **Driving**, Device, Network, Bluetooth, Software. The **Toggles** and **Developer** tabs are gone. Metric units and language move to Device › General. SSH, ADB and joystick move under Tuner Mode.
+- The Driving tab opens on a hub with five tiles: Speed & Steering, Display, Alerts, Driving Model, Vehicle. A "Power user" strip below them holds the three bundle switches.
+- **Labels describe what things do** rather than naming the product: "Reset Settings", "How It Works", "Phone App", "Version [version]".
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
 - **The onroad bar is a scrim, not a solid panel.** It fades from clear at the top to 55% dark at the bottom, so the camera view stays visible underneath. The controls have 80%-opaque backgrounds to stay readable over bright scenes such as snow or low sun. Avoid a live blur behind the bar: blurring the camera image every frame costs GPU time on the device.
 - **The onroad bar holds four things:** menu, MAX −/+, the current street name, and the engage button.
@@ -132,7 +133,7 @@ Open: the 60% and 85% thresholds, and whether the preview should use the model's
 
 ## Status chips
 
-The top-right corner of the onroad view answers "why is the car doing that?". A chip shows only while StarPilot changes speed or steering on its own. When the corner is empty, nothing unusual is happening.
+The top-right corner of the onroad view answers "why is the car doing that?". A chip shows only while the car changes speed or steering on its own. When the corner is empty, nothing unusual is happening.
 
 | Chip | Icon | Color | Triggered by |
 | --- | --- | --- | --- |
@@ -160,11 +161,10 @@ Rules:
 
 ## Device, Network, Bluetooth and Software tabs
 
-The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software. The current tab is highlighted.
+The bottom bar has five tabs: Driving, Device, Network, Bluetooth and Software. The current tab is highlighted.
 
-- **Device:**
-  - Galaxy pairing with a QR code.
-  - Driver camera preview, camera recalibration, and "How StarPilot Works" (the training guide).
+- **Device** has a sidebar: This Device, General, Backups, Storage & Data, Report a Problem. Everything about the hardware and its data lives here.
+  - This Device: Phone App pairing (Pair shows the QR code; this is the Galaxy app), driver camera preview, camera recalibration, and "How It Works" (the training guide).
   - Restart and Power Off.
   - Serial, device ID and driver monitoring reset move to Developer View.
 - **Network:**
@@ -183,12 +183,12 @@ The bottom bar has five tabs: StarPilot, Device, Network, Bluetooth and Software
   - Version and update status, with Check now and What's new.
   - Automatic Updates, on by default: they download while parked and install when the car turns off.
   - Release Channel shows Stable. Other branches, Fast Update and the error log are in Tuner Mode.
-  - Reset StarPilot Settings restores the Essentials defaults and keeps backups.
+  - Reset Settings restores the Essentials defaults and keeps backups.
   - Uninstall sits at the bottom. Factory reset moves to Tuner Mode.
 
 ## Settings sub-screens
 
-Every sidebar item in the StarPilot settings has its own screen. Sidebar items link to each other, so the mocks can be clicked through.
+Every sidebar item has its own screen. Sidebar items link to each other, so the mocks can be clicked through.
 
 - **Driving › Vehicle Profile:** four cards: Car, EV, Truck and Towing (`EVTuning`, `TruckTuning`). Trailer Load (Light / Medium / Heavy) is only available with Towing. Those three trailer presets are a proposal; `TrailerLoad` takes a number today.
 - **Driving › Weather:** Auto or Off (`WeatherPresets`), plus plain-language cards for fog, rain, storms and snow (`LowVisibility`, `Rain`, `RainStorm`, `Snow`). The exact amounts and the weather API key are in Tuner Mode.
@@ -201,9 +201,9 @@ Every sidebar item in the StarPilot settings has its own screen. Sidebar items l
   - Speed limit sign style: Auto / US / Vienna (`UseVienna`; Auto follows your region).
   - A link to Offline Maps.
 - **Path Style picker:** a sheet with live previews of Standard, Thin, Rainbow and Acceleration.
-- **System › Backups:** Back up now; Automatic Off / Weekly / Monthly, which also saves before every update; the saved list with Restore and Delete.
-- **System › Storage & Data:** a storage bar (drives, maps, models); Delete all drives; Record Driver Camera and Record Microphone, both off by default.
-- **System › Report a Problem:** six plain-language categories, optional details, "Attach last drive" (logs only), an optional Discord name, and Send.
+- **Device › Backups:** Back up now; Automatic Off / Weekly / Monthly, which also saves before every update; the saved list with Restore and Delete.
+- **Device › Storage & Data:** a storage bar (drives, maps, models); Delete all drives; Record Driver Camera and Record Microphone, both off by default.
+- **Device › Report a Problem:** six plain-language categories, optional details, "Attach last drive" (logs only), an optional Discord name, and Send.
 - **Tuner › Gas & Brake:**
   - Each value shows where it comes from: FROM STYLE, DEFAULT or OVERRIDE.
   - Acceleration and Braking profile, Maximum Acceleration, Start and Stop Acceleration, Stopping Rate, Actuator Delay.
@@ -262,7 +262,7 @@ Values in square brackets are placeholders, not proposed defaults.
 - **Parked home** shows readiness and the current setup, plus Where to? and update status. Detailed device stats move to Developer View.
 - **First-run setup** asks three questions: driving style, then speed limits, then lane changes. "Use defaults" skips all three.
 - **Driving Model** defaults to the recommended model for the car, which updates automatically. Picking another model means turning Use recommended off. The randomizer and blacklist move to Tuner Mode.
-- **System** keeps units, language, brightness (Dimmer / Auto / Brighter), Standby, uploads and weekly backups.
+- **Device › General** keeps units, language, brightness (Dimmer / Auto / Brighter), Standby, uploads and weekly backups.
 - **Vehicle** shows the detected car with a "Wrong car?" link, which covers `CarMake`, `CarModel` and `ForceFingerprint`. Steering wheel buttons come preset for each car, and Auto-Lock Doors is a single switch.
 
 ## Open questions
