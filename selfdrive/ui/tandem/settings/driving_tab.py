@@ -13,6 +13,7 @@ from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
 from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner, tuner_page
+from openpilot.selfdrive.ui.tandem.settings.maps import Maps, MapsPage, RegionsPage
 from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
 from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_panel
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
@@ -58,6 +59,15 @@ def driving_hub(window) -> Widget:
   # Model and car data come from StarPilot's own screens, built the first time they're needed.
   models = Lazy(lambda: Models(store, window.model_source()))
   vehicle = Lazy(lambda: Vehicle(store, window.car_catalog()))
+  maps = Lazy(lambda: Maps(store, window.maps_source()))
+
+  def open_maps() -> None:
+    def open_regions() -> None:
+      def download() -> None:
+        maps.get().source.download()
+        window.pop()
+      window.push(RegionsPage(maps.get(), download))
+    window.push(MapsPage(maps.get(), open_regions))
 
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
@@ -83,7 +93,7 @@ def driving_hub(window) -> Widget:
       Section("Everyday", lambda: everyday_panel(speed)),
       Section("Vehicle Profile", lambda: vehicle_profile_panel(profile), value=profile.summary),
       Section("Weather", lambda: weather_panel(weather), value=weather.summary),
-      Section("Navigation", lambda: navigation_panel(navigation, opener(starpilot("NAVIGATION")), opener(starpilot("MAPS")))),
+      Section("Navigation", lambda: navigation_panel(navigation, opener(starpilot("NAVIGATION")), open_maps)),
       Section("Assistance", lambda: assistance_panel(assistance)),
     ], footer=[tuner_button])
 
@@ -91,7 +101,7 @@ def driving_hub(window) -> Widget:
     return SectionPage("DISPLAY", [
       Section("Driving Screen", lambda: driving_screen_panel(screen, window)),
       Section("Theme & Startup", lambda: theme_panel(screen, lambda: edit_startup_message(screen))),
-      Section("Map", lambda: map_panel(screen, opener(starpilot("MAPS")))),
+      Section("Map", lambda: map_panel(screen, open_maps)),
     ])
 
   def car() -> str:

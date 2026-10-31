@@ -131,33 +131,3 @@ class StarPilotPage(Hosted):
 def developer() -> Hosted:
   from openpilot.selfdrive.ui.layouts.settings.developer import DeveloperLayout
   return Hosted(DeveloperLayout)
-
-
-def toggles() -> Hosted:
-  from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
-  return Hosted(TogglesLayout)
-
-
-def software() -> Hosted:
-  from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
-  return Hosted(SoftwareLayout)
-
-
-def network() -> Hosted:
-  def make():
-    from openpilot.system.ui.lib.wifi_manager import WifiManager
-    from openpilot.system.ui.widgets.network import NetworkUI
-    wifi_manager = WifiManager()
-    wifi_manager.set_active(False)
-    return NetworkUI(wifi_manager)
-  return Hosted(make)
-
-
-def bluetooth() -> Hosted:
-  def make():
-    from openpilot.system.ui.lib.bluetooth_manager import BluetoothManager
-    from openpilot.system.ui.widgets.bluetooth import BluetoothManagerUI
-    bluetooth_manager = BluetoothManager()
-    bluetooth_manager.set_active(False)
-    return BluetoothManagerUI(bluetooth_manager)
-  return Hosted(make)

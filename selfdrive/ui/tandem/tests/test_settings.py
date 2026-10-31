@@ -766,3 +766,22 @@ def test_reset_settings_applies_essentials_with_one_signal():
   speed = SpeedSteering(store)
   assert speed.style == 1 and speed.matching and speed.offset == 3 and speed.higher_limits == 1 and speed.lane_changes == 1
   assert not DEVELOPER_VIEW.is_on(store) and cache.values["GreenLightAlert"] and not cache.values["HolidayThemes"]
+
+
+def test_maps_download_waits_for_parked_online_and_a_selection():
+  from openpilot.selfdrive.ui.tandem.settings.maps import Maps
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeMaps
+  store, cache = _store({"PreferredSchedule": 2})
+  source = FakeMaps()
+  maps = Maps(store, source)
+  assert maps.ready() and maps.schedule == 2
+  source.online = False
+  assert not maps.ready() and maps.blocked_reason() == "Waiting: online"
+  source.online = True
+  source.set_selected("pkg:west", False)
+  assert maps.blocked_reason() == "Choose at least one region"
+  source.set_selected("s:CA", True)
+  source.download()
+  assert not maps.ready() and maps.status() == "Downloading California · 42%"
+  maps.set_schedule(0)
+  assert cache.values["PreferredSchedule"] == 0

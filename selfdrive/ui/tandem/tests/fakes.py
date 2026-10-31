@@ -262,3 +262,62 @@ class FakeUpdates:
 
   def __getattr__(self, name):
     return lambda: self.calls.append(name)
+
+
+class FakeMaps:
+  def __init__(self):
+    from openpilot.selfdrive.ui.tandem.settings.maps import Progress, Region
+    self._Progress = Progress
+    self._regions = [[Region("c:US", "Whole U.S.", "Every state and territory"), Region("pkg:west", "U.S. West Region (13 States)", "AK, AZ, CA")],
+                     [Region("s:CA", "California"), Region("s:OR", "Oregon")], [Region("c:CA", "Canada")]]
+    self.picked = {"pkg:west"}
+    self.state = Progress(False, 0, 0, "")
+    self.parked = True
+    self.online = True
+    self.calls = []
+
+  def tick(self):
+    pass
+
+  def refresh(self):
+    pass
+
+  def regions(self, tab):
+    return self._regions[tab]
+
+  def selected(self, token):
+    return token in self.picked
+
+  def set_selected(self, token, on):
+    (self.picked.add if on else self.picked.discard)(token)
+
+  def selection_summary(self):
+    return f"{len(self.picked)} region{'s' if len(self.picked) != 1 else ''} selected" if self.picked else "No regions selected"
+
+  def has_selection(self):
+    return bool(self.picked)
+
+  def downloaded(self):
+    return True
+
+  def storage(self):
+    return "2.1 GB"
+
+  def progress(self):
+    return self.state
+
+  def cancelling(self):
+    return False
+
+  def checks(self):
+    return [("Parked", self.parked), ("Online", self.online)]
+
+  def download(self):
+    self.calls.append("download")
+    self.state = self._Progress(True, 21, 50, "California")
+
+  def cancel(self):
+    self.calls.append("cancel")
+
+  def remove(self):
+    self.calls.append("remove")

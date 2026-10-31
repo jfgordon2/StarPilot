@@ -86,6 +86,11 @@ def _upstream_updates():
   return UpstreamUpdates()
 
 
+def _upstream_maps():
+  from openpilot.selfdrive.ui.tandem.settings.maps import UpstreamMaps
+  return UpstreamMaps()
+
+
 def _upstream_cars():
   from openpilot.selfdrive.ui.tandem.settings.vehicle import UpstreamCars
   return UpstreamCars()
@@ -93,7 +98,7 @@ def _upstream_cars():
 
 class SettingsWindow(Widget):
   def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None, device_data=None,
-               device=None, wifi=None, wheel=None, bluetooth=None, updates=None):
+               device=None, wifi=None, wheel=None, bluetooth=None, updates=None, maps_source=None):
     """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
@@ -106,6 +111,7 @@ class SettingsWindow(Widget):
     self.wheel = wheel or _upstream_wheel
     self.bluetooth = bluetooth or _upstream_bluetooth
     self.updates = updates or _upstream_updates
+    self.maps_source = maps_source or _upstream_maps
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._network, self._bluetooth, self._software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]

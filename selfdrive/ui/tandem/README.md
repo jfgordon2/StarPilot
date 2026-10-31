@@ -9,12 +9,14 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | `layout.py` | Rectangle math: `row`, `column`, `grid` (fixed sizes plus `FILL`), `inset`, `place`, `grow`. It doesn't draw. |
 | `draw.py` | Rounded fills, single-line text (aligned and elided), captions, wrapped paragraphs, stroke glyphs (chevron, cross, plus, minus, check) and tinted PNG icons. |
 | `base.py` | `Component`: a `Widget` with `preferred_size()`, plus a touch area grown to `MIN_TOUCH`. `resolve()` for values that may be getters. |
-| `controls.py` | `Button` (primary, secondary, ghost, danger, danger outline, nav), `ValueButton`, `Switch`, `Segmented`, `Stepper`, `Slider`, `Badge`, `Chip`, `ProgressBar` |
-| `rows.py` | `SettingRow`, `SectionHeader`, `Text`, `Banner`, and `ListPanel`, which stacks rows with dividers and scrolls when they overflow |
+| `controls.py` | `Button` (primary, secondary, ghost, danger, danger outline, danger soft, nav), `ButtonRow`, `ValueButton`, `ToggleButton`, `Switch`, `Segmented`, `ChoiceCards`, `Stepper`, `Slider`, `Badge`, `Chip`, `ProgressBar` |
+| `rows.py` | `SettingRow`, `SectionHeader`, `Text`, `Banner`, `OptionList` (pick one from a list), `Padded`, and `ListPanel`, which stacks rows with dividers, scrolls when they overflow, and can pin a footer |
 | `chrome.py` | `BottomNav`, `Sidebar`, `PageHeader`, `HubTile`, `HubGrid`, and `SettingsPage`, which assembles a full screen |
 | `overlays.py` | `Sheet` (slides up), `Dialog` (confirm; `Tone.DANGER` gives a destructive button), `Toast` |
 
 ## Building a screen
+
+The param names below are made up to keep the example short; `settings/` has the real screens.
 
 ```python
 from openpilot.selfdrive.ui.tandem import (BottomNav, ListPanel, Segmented, SettingRow, SettingsPage, Sidebar, SidebarItem, Stepper,
@@ -51,24 +53,61 @@ page = SettingsPage(
 This fork is rebased onto StarPilot, and everything outside this package belongs to StarPilot or to openpilot underneath it. Our work therefore lives in new files and edits upstream files only when there is no other way.
 
 - **Ours:** everything in `selfdrive/ui/tandem/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
-- **The only upstream edit** is the file names in `FontWeight` (`system/ui/lib/application.py`), which switches the whole UI to Figtree. If a rebase conflicts there, keep upstream's version and change the file names again.
-- **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, and every existing test.
+- **Two upstream edits:**
+  - The file names in `FontWeight` (`system/ui/lib/application.py`), which switch the whole UI to Figtree.
+  - In `selfdrive/ui/layouts/main.py`, one import plus the call that creates the settings window.
+
+  If a rebase conflicts in either file, keep upstream's version and make the edit again.
+- **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, the upstream settings panels, and every existing test.
 - **New needs go in this package**, not in shared modules. For example, extra font faces live in `fonts.py` rather than in `FontWeight`.
 
 ## The settings window
 
 `settings/` is the Essentials settings window. `selfdrive/ui/layouts/main.py` creates it through `settings_window()` instead of upstream's `SettingsLayout`; that's the second and last upstream edit. Set `TANDEM_SETTINGS=0` to get the upstream window back.
 
-| File | What it holds |
-| --- | --- |
-| `settings/window.py` | `SettingsWindow`: five tabs, each with its own page stack, and the close/back button. Also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. |
-| `settings/pages.py` | `HubPage` (title and tiles) and `SectionPage` (sidebar of sections, each built when first chosen). |
-| `settings/speed_steering.py` | The Everyday choices. Each one writes several params together, e.g. Driving Style sets personality, acceleration and braking. |
-| `settings/device.py` | This Device. Its buttons call upstream `DeviceLayout`'s own handlers, so pairing, calibration reset and power off keep upstream's checks and dialogs. |
-| `settings/store.py` | Reads through the shared param cache; each write signals the driving processes once. |
-| `settings/upstream.py` | Upstream panels hosted in the window until native screens replace them. `StarPilotPage` opens one StarPilot panel directly, skipping StarPilot's hub. |
+### How it's built
 
-Built natively so far: the Driving hub, Speed & Steering's Everyday section, and This Device. Everything else is an upstream panel inside our window: Display, Alerts, Driving Model, Vehicle, Driver Assistance (openpilot's toggles), Navigation, Gas & Brake and Steering on the Driving tab; General and Developer on the Device tab; and the Network, Bluetooth and Software tabs. Replace them one at a time. Upstream code that ends up unused stays in the tree; it is not imported, and it never conflicts on a rebase.
+- **Window:** `window.py` has five tabs, each with its own page stack, and the close/back button. It also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. Sheets and dialogs are drawn over the page by the window itself (`present`/`dismiss`), because the app draws only the top widget of its own stack.
+- **Models and panels:** each screen is a small model class that reads and writes params through `SettingsStore`, plus a function that builds its panel. One control usually writes several params, and the model owns that mapping. Tests drive the models with a fake param cache.
+- **Upstream logic:** anything with real logic behind it goes through an adapter class named `Upstream…` that calls upstream code. That covers downloads, Wi-Fi, Bluetooth, wheel remotes, the updater, the car list, and calibration and power. Upstream keeps its checks, threads and confirmations, and we only draw. The window takes each adapter as a constructor argument, so tests and headless renders pass fakes (`tests/fakes.py`).
+- **Signalling:** `SettingsStore.write` signals the driving processes once per call. `SettingsStore.batch()` groups many writes into one signal; Reset Settings uses it.
+
+| Tab | Screens | Files | Upstream code it drives |
+| --- | --- | --- | --- |
+| Driving | Hub with the power-user switches | `driving_tab.py`, `bundles.py` | |
+| | Speed & Steering: Everyday, Vehicle Profile, Weather, Navigation, Assistance | `speed_steering.py` | |
+| | Display: Driving Screen, Theme & Startup, Map | `display.py` | |
+| | Alerts, with the volume sheet | `alerts.py` | Sounds screen's sample player |
+| | Driving Model and its catalog | `model.py` | Driving model screen controller |
+| | Vehicle and the car picker | `vehicle.py` | Fingerprint catalog, button actions |
+| | Offline Maps and the region picker | `maps.py` | Maps screen controller |
+| | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
+| Device | This Device | `device.py` | `DeviceLayout` handlers |
+| | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen |
+| Network | Wi-Fi, Cellular, and Roaming, APN and IP address | `network_tab.py` | `WifiManager` |
+| Bluetooth | Wheel Buttons, car audio, nearby devices | `bluetooth_tab.py` | Wheel controls service, `BluetoothManager` |
+| Software | Updates, release channel, Reset Settings, Uninstall | `software_tab.py`, `defaults.py` | `SoftwareLayout` actions |
+
+### Upstream screens still shown, one tap away
+
+These are reached from a row or button, never as a tab:
+
+- **Destination search**, from Navigation's Set or Change. In the mocks it belongs on the parked home screen, which isn't built yet.
+- **"More for your car"** under Vehicle. It holds car-specific toggles (Toyota, Subaru, Bolt, Jeep) and panda flashing.
+- **openpilot's Developer panel**, under Device, only while Tuner Mode is on.
+
+`upstream.py` hosts them. `StarPilotPage` opens one StarPilot panel directly, without going through StarPilot's own hub.
+
+### Where the code differs from the mocks
+
+- **Alerts:** the volume preset adds **Auto**, upstream's default, where the level follows cabin noise.
+- **Uploads:** offers Off, **Parked** and Always. Upstream can hold uploads while driving, but it has no Wi-Fi-only switch.
+- **Things upstream has no support for:**
+  - Automatic weekly backups.
+  - "Attach last drive" in Report a Problem.
+  - Automatic matching of the speed limit sign style to your region, so the choice is US or Vienna.
+- **Wheel remotes** don't come with four preset buttons. A button has to be pressed before it can be mapped.
+- **openpilot's core switches** live in Speed & Steering › Assistance. Upstream's "Experimental mode" switch is gone; Smart Slowdowns switches modes automatically.
 
 ## Third-party
 
