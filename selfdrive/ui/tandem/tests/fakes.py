@@ -325,3 +325,15 @@ class FakeMaps:
 
   def remove(self):
     self.calls.append("remove")
+
+
+class FakeBootLogos:
+  def __init__(self):
+    self.managed = 0
+
+  def installed(self):
+    return [("aurora_logo", "Aurora Logo"), ("pixel_logo", "Pixel Logo"), ("stock", "Stock")]
+
+  def manage(self):
+    self.managed += 1
+

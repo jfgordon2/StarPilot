@@ -46,7 +46,7 @@ def driving_hub(window) -> Widget:
   weather = Weather(store)
   navigation = Navigation(store)
   assistance = Assistance(store, live)
-  screen = Display(store)
+  screen = Display(store, window.boot_logos)
   alerts = Alerts(store, sound_player())
   # Model and car data come from StarPilot's own screens, built the first time they're needed.
   models = Lazy(lambda: Models(store, window.model_source()))
@@ -92,7 +92,7 @@ def driving_hub(window) -> Widget:
   def display() -> Widget:
     return SectionPage("DISPLAY", [
       Section("Driving Screen", lambda: driving_screen_panel(screen, window)),
-      Section("Theme & Startup", lambda: theme_panel(screen, lambda: edit_startup_message(screen))),
+      Section("Theme & Startup", lambda: theme_panel(screen, lambda: edit_startup_message(screen), window)),
       Section("Map", lambda: map_panel(screen, open_maps)),
     ])
 

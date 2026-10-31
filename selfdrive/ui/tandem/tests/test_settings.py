@@ -820,3 +820,32 @@ def test_download_fraction_reads_the_percent():
   from openpilot.selfdrive.ui.tandem.settings.model import download_fraction
   assert download_fraction("45% · about 3 min left") == 0.45
   assert download_fraction("starting") == 0.0 and download_fraction("") == 0.0
+
+
+def test_boot_logo_picker_lists_built_ins_then_downloads():
+  from openpilot.selfdrive.ui.tandem.overlays import Sheet
+  from openpilot.selfdrive.ui.tandem.settings.display import Display, boot_logo_sheet
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBootLogos
+
+  class Window:
+    overlay = None
+
+    def present(self, overlay):
+      self.overlay = overlay
+
+    def dismiss(self):
+      self.overlay = None
+
+  store, cache = _store()
+  logos = FakeBootLogos()
+  display, window = Display(store, lambda: logos), Window()
+  assert display.boot_logo_name() == "Default"
+  assert display.boot_logo_options() == [("starpilot", "StarPilot"), ("stock", "comma"), ("aurora_logo", "Aurora Logo"),
+                                         ("pixel_logo", "Pixel Logo")]   # a downloaded "stock" doesn't repeat comma's
+  boot_logo_sheet(display, window)
+  assert isinstance(window.overlay, Sheet)
+  window.overlay._body._on_change(2)
+  assert cache.values["BootLogo"] == "aurora_logo" and display.boot_logo_name() == "Aurora Logo" and window.overlay is None
+  boot_logo_sheet(display, window)
+  window.overlay._actions[0]._click_callback()   # Get more
+  assert logos.managed == 1 and window.overlay is None
