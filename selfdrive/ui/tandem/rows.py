@@ -7,9 +7,9 @@ import pyray as rl
 
 from openpilot.system.ui.lib.scroll_panel2 import GuiScrollPanel2
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.essentials import draw, tokens as T
-from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.essentials.layout import Align, column, inset, place
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.tandem.layout import Align, column, inset, place
 
 
 class Text(Component):

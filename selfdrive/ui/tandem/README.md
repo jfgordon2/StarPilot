@@ -1,6 +1,6 @@
-# Essentials components
+# Tandem
 
-The component library for the Essentials design (mocks, screenshots and tokens in [`design/`](design/)). It's built on raylib and the existing `Widget` base class. Screens are put together from these pieces instead of drawing with raylib directly.
+Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer choices and better defaults, with the car explaining what it's doing. This package holds the Essentials component library. The mocks, screenshots and tokens are in [`design/`](design/). It's built on raylib and the existing `Widget` base class. Screens are put together from these pieces instead of drawing with raylib directly.
 
 | Module | Contents |
 | --- | --- |
@@ -17,7 +17,7 @@ The component library for the Essentials design (mocks, screenshots and tokens i
 ## Building a screen
 
 ```python
-from openpilot.selfdrive.ui.essentials import (BottomNav, ListPanel, Segmented, SettingRow, SettingsPage, Sidebar, SidebarItem, Stepper,
+from openpilot.selfdrive.ui.tandem import (BottomNav, ListPanel, Segmented, SettingRow, SettingsPage, Sidebar, SidebarItem, Stepper,
                                                Switch)
 
 params = Params()
@@ -50,7 +50,7 @@ page = SettingsPage(
 
 This fork is rebased onto StarPilot, and everything outside this package belongs to StarPilot or to openpilot underneath it. Our work therefore lives in new files and edits upstream files only when there is no other way.
 
-- **Ours:** everything in `selfdrive/ui/essentials/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
+- **Ours:** everything in `selfdrive/ui/tandem/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
 - **The only upstream edit** is the file names in `FontWeight` (`system/ui/lib/application.py`), which switches the whole UI to Figtree. If a rebase conflicts there, keep upstream's version and change the file names again.
 - **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, and every existing test.
 - **New needs go in this package**, not in shared modules. For example, extra font faces live in `fonts.py` rather than in `FontWeight`.
@@ -67,4 +67,4 @@ StarPilot's settings panels are built on `aethergrid.py` and `aether_style.py`. 
 
 Figtree is © 2022 The Figtree Project Authors (<https://github.com/erikdkennedy/figtree>), used under the SIL Open Font License 1.1. The license text is in `selfdrive/assets/fonts/Figtree-OFL.txt`. The `.ttf` files are unmodified; the `.fnt`/`.png` atlases are generated from them by `tools/build_figtree_fonts.py`.
 
-Tests: `tests/test_essentials.py`.
+Tests: `tests/test_tandem.py`.

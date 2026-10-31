@@ -10,7 +10,7 @@ The mocks use Figtree, JetBrains Mono for numbers, and the colors and sizes belo
 
 ## Fonts
 
-The app UI draws in Figtree: the `FontWeight` members in `system/ui/lib/application.py` now name Figtree files instead of Inter. That is the only upstream change. Inter stays in the repo for the installer and tools that load it directly. ExtraBold and JetBrains Mono come from `selfdrive/ui/essentials/fonts.py` (`ExtraFont`), which loads them the first time a component draws with them.
+The app UI draws in Figtree: the `FontWeight` members in `system/ui/lib/application.py` now name Figtree files instead of Inter. That is the only upstream change. Inter stays in the repo for the installer and tools that load it directly. ExtraBold and JetBrains Mono come from `selfdrive/ui/tandem/fonts.py` (`ExtraFont`), which loads them the first time a component draws with them.
 
 | Weight | Token | Used for |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ The app UI draws in Figtree: the `FontWeight` members in `system/ui/lib/applicat
 | 800 ExtraBold | `FONT_EXTRABOLD` | Screen titles, the speed, big values |
 | JetBrains Mono Medium | `FONT_MONO` | Numbers in Developer View and Tuner Mode |
 
-- The `.ttf` files are in `selfdrive/assets/fonts`. The Figtree bitmap fonts (`.fnt`/`.png`) are built by `selfdrive/ui/essentials/tools/build_figtree_fonts.py`. It runs the unchanged upstream `process.py` with `·`, `…`, `−` and `›` added to its character set, which already covers ASCII, `EXTRA_CHARS` and every non-CJK translation. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont. If you rerun `process.py` directly, it rebuilds Figtree without those four characters, so run the StarPilot script afterwards.
+- The `.ttf` files are in `selfdrive/assets/fonts`. The Figtree bitmap fonts (`.fnt`/`.png`) are built by `selfdrive/ui/tandem/tools/build_figtree_fonts.py`. It runs the unchanged upstream `process.py` with `·`, `…`, `−` and `›` added to its character set, which already covers ASCII, `EXTRA_CHARS` and every non-CJK translation. Chinese, Japanese, Korean, Arabic and Thai still fall back to unifont. If you rerun `process.py` directly, it rebuilds Figtree without those four characters, so run the StarPilot script afterwards.
 - The mocks show JetBrains Mono at 700 in a few places, but only Medium ships. Medium is used for all mono text.
 - **Startup.** Every distinct `FontWeight` file loads one 2048×2048 atlas at startup. That is still six: four Figtree weights, unifont and the brand font, exactly where Inter's four used to be. Inter no longer loads. ExtraBold and mono each add one atlas, the first time they are drawn.
 - The mono atlas is upstream's, without the four extra characters. That's fine for numbers.

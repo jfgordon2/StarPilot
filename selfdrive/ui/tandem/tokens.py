@@ -9,7 +9,7 @@ FONT_SCALE, so they are divided by it here to land on the size drawn in the mock
 import pyray as rl
 
 from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight
-from openpilot.selfdrive.ui.essentials.fonts import ExtraFont
+from openpilot.selfdrive.ui.tandem.fonts import ExtraFont
 
 SCALE = 2160 / 1125
 

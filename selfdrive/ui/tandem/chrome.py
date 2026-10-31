@@ -8,10 +8,10 @@ import pyray as rl
 
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.essentials import draw, tokens as T
-from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.essentials.controls import Button, ButtonStyle, Glyph, Tone, back_glyph
-from openpilot.selfdrive.ui.essentials.layout import FILL, Align, column, grid, inset, place, row
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Glyph, Tone, back_glyph
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, grid, inset, place, row
 
 
 def close_glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:

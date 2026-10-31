@@ -6,9 +6,9 @@ import pyray as rl
 from openpilot.system.ui.lib.application import FONT_SCALE, gui_app
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wrap_text import wrap_text
-from openpilot.selfdrive.ui.essentials import tokens as T
-from openpilot.selfdrive.ui.essentials.fonts import Face, font
-from openpilot.selfdrive.ui.essentials.layout import Align, place
+from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem.fonts import Face, font
+from openpilot.selfdrive.ui.tandem.layout import Align, place
 
 SEGMENTS = 16
 ELLIPSIS = "…"

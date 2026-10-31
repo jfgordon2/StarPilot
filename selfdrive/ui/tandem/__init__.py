@@ -1,4 +1,4 @@
-"""Essentials: the component library for StarPilot's settings and onroad screens.
+"""Tandem: this fork's UI, built on StarPilot. Essentials is its design language; this package is the component library.
 
 Screens are composed from these components instead of drawing with raylib directly:
 
@@ -15,13 +15,13 @@ Screens are composed from these components instead of drawing with raylib direct
 Values can be plain or callables (read every frame), so rows can bind straight to Params.
 Tokens and drawing helpers are in `tokens` and `draw`; see design/tokens.md.
 """
-from openpilot.selfdrive.ui.essentials import draw, layout, tokens
-from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.essentials.chrome import BottomNav, HubGrid, HubTile, PageHeader, SettingsPage, Sidebar, SidebarItem, close_glyph
-from openpilot.selfdrive.ui.essentials.controls import (Badge, Button, ButtonStyle, Chip, ProgressBar, Segmented, Slider, Stepper, Switch,
+from openpilot.selfdrive.ui.tandem import draw, layout, tokens
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.tandem.chrome import BottomNav, HubGrid, HubTile, PageHeader, SettingsPage, Sidebar, SidebarItem, close_glyph
+from openpilot.selfdrive.ui.tandem.controls import (Badge, Button, ButtonStyle, Chip, ProgressBar, Segmented, Slider, Stepper, Switch,
                                                         Tone, ValueButton, back_glyph)
-from openpilot.selfdrive.ui.essentials.overlays import Dialog, Sheet, Toast
-from openpilot.selfdrive.ui.essentials.rows import Banner, ListPanel, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet, Toast
+from openpilot.selfdrive.ui.tandem.rows import Banner, ListPanel, SectionHeader, SettingRow, Text
 
 __all__ = [
   "draw", "layout", "tokens",

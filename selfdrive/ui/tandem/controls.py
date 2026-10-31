@@ -7,9 +7,9 @@ from enum import Enum
 import pyray as rl
 
 from openpilot.system.ui.lib.application import MousePos
-from openpilot.selfdrive.ui.essentials import draw, tokens as T
-from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve
-from openpilot.selfdrive.ui.essentials.layout import Align, inset, place, row
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve
+from openpilot.selfdrive.ui.tandem.layout import Align, inset, place, row
 
 
 class Tone(Enum):

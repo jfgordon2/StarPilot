@@ -6,10 +6,10 @@ from collections.abc import Callable
 import pyray as rl
 
 from openpilot.system.ui.widgets import DialogResult, Widget
-from openpilot.selfdrive.ui.essentials import draw, tokens as T
-from openpilot.selfdrive.ui.essentials.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.essentials.controls import Button, ButtonStyle, Glyph, Tone
-from openpilot.selfdrive.ui.essentials.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Glyph, Tone
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 
 
 def _ease_out(t: float) -> float:

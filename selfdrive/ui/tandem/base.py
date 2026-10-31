@@ -6,8 +6,8 @@ from typing import TypeVar
 import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.essentials import tokens as T
-from openpilot.selfdrive.ui.essentials.layout import grow
+from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem.layout import grow
 
 V = TypeVar("V")
 Bindable = V | Callable[[], V]

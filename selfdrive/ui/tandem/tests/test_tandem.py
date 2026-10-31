@@ -3,9 +3,9 @@ import pytest
 
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.system.ui.widgets import DialogResult
-from openpilot.selfdrive.ui.essentials import (BottomNav, Component, Dialog, Segmented, Sidebar, SidebarItem, Slider, Stepper, Switch, resolve,
+from openpilot.selfdrive.ui.tandem import (BottomNav, Component, Dialog, Segmented, Sidebar, SidebarItem, Slider, Stepper, Switch, resolve,
                                                tokens as T)
-from openpilot.selfdrive.ui.essentials.layout import FILL, Align, Fill, column, grid, grow, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, Fill, column, grid, grow, inset, place, row
 
 
 def _r(rect: rl.Rectangle) -> tuple[float, float, float, float]:
@@ -161,7 +161,7 @@ def _ui_strings() -> list[tuple[str, str]]:
       if isinstance(node, ast.Call) and getattr(node.func, "id", None) in ("tr", "tr_noop") and node.args \
          and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
         found.append((path.name, node.args[0].value))
-  for path in (root / "essentials").glob("*.py"):
+  for path in (root / "tandem").glob("*.py"):
     tree = ast.parse(path.read_text())
     docstrings = {id(n.value) for n in ast.walk(tree) if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)}
     found += [(path.name, n.value) for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docstrings]
@@ -171,5 +171,8 @@ def _ui_strings() -> list[tuple[str, str]]:
 def test_figtree_atlas_can_draw_every_ui_string():
   """The atlases are pre-baked; a missing glyph renders as '?' on the device."""
   glyphs = _figtree_codepoints()
-  missing = {(name, ch) for name, value in _ui_strings() for ch in value if ord(ch) > 127 and ch.isprintable() and ord(ch) not in glyphs}
+  strings = _ui_strings()
+  scanned = {name for name, _ in strings}
+  assert {"controls.py", "lateral.py"} <= scanned, "string scan found nothing; check the paths"
+  missing = {(name, ch) for name, value in strings for ch in value if ord(ch) > 127 and ch.isprintable() and ord(ch) not in glyphs}
   assert not missing, sorted(missing)
