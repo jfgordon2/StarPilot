@@ -69,16 +69,18 @@ class ThisDevicePanel(ListPanel):
     power_off.set_visible(device.is_offroad)
 
     super().__init__([
-      SettingRow("Phone App", lambda: "Paired" if device.is_paired() else "Change settings and see drives from your phone", pair,
-                 subtitle_color=lambda: T.SUCCESS_TEXT if device.is_paired() else T.TEXT_TERTIARY),
+      # The two ways to reach the car from elsewhere sit together, each naming its service.
+      SettingRow("Phone App", lambda: "comma connect · Paired" if device.is_paired() else "comma connect · see drives and change settings on your phone",
+                 pair, subtitle_color=lambda: T.SUCCESS_TEXT if device.is_paired() else T.TEXT_TERTIARY),
+      SettingRow("Remote Access", lambda: "Galaxy · Set up" if device.remote_access_link() else "Galaxy · reach this device from a web browser",
+                 Button(device.remote_access_label, open_remote_access or device.remote_access),
+                 subtitle_color=lambda: T.SUCCESS_TEXT if device.remote_access_link() else T.TEXT_TERTIARY),
       SettingRow("Driver Camera", "Check that it can see your face. The car must be off.",
                  action("Preview", device.driver_camera, offroad_only=True)),
       SettingRow("Camera Calibration", device.calibration, action("Recalibrate", device.recalibrate),
                  subtitle_color=lambda: T.SUCCESS_TEXT if device.calibration() == Calibration.CALIBRATED else T.TEXT_TERTIARY),
       SettingRow("How It Works", "Rules, features and limits", action("Review", device.review_guide, offroad_only=True)),
       SectionHeader("MORE"),
-      SettingRow("Remote Access", "Reach this device from the Galaxy web app",
-                 Button(device.remote_access_label, open_remote_access or device.remote_access)),
       SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on",
                  action("Reset", device.reset_driver_monitoring, offroad_only=True)),
       SettingRow("Language", None, action("Change", device.change_language)),
