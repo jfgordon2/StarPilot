@@ -1,0 +1,40 @@
+"""Reads and writes settings the same way StarPilot's own screens do."""
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Any
+
+
+class SettingsStore:
+  """Reads through the shared per-frame param cache; every write signals the driving processes once."""
+
+  def __init__(self, cache: Any | None = None, notify: Callable[[], None] | None = None):
+    if cache is None:
+      from openpilot.selfdrive.ui.lib.ui_param_cache import shared_ui_params
+      cache = shared_ui_params()
+    if notify is None:
+      from openpilot.starpilot.common.starpilot_variables import update_starpilot_toggles
+      notify = update_starpilot_toggles
+    self._cache = cache
+    self._notify = notify
+
+  def get_bool(self, key: str) -> bool:
+    return bool(self._cache.get_bool(key))
+
+  def get_int(self, key: str) -> int:
+    return int(self._cache.get_int(key, return_default=True))
+
+  def get_float(self, key: str) -> float:
+    return float(self._cache.get_float(key, return_default=True))
+
+  def write(self, values: dict[str, bool | int | float]) -> None:
+    """Write several params, then notify once. The type of each value picks the put method."""
+    for key, value in values.items():
+      if isinstance(value, bool):
+        self._cache.put_bool(key, value)
+      elif isinstance(value, int):
+        self._cache.put_int(key, value)
+      else:
+        self._cache.put_float(key, float(value))
+    self._cache.invalidate()
+    self._notify()

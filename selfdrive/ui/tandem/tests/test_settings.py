@@ -1,0 +1,261 @@
+from enum import IntEnum
+
+from openpilot.system.ui.widgets import Widget
+from openpilot.selfdrive.ui.tandem.settings import upstream
+from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage
+from openpilot.selfdrive.ui.tandem.settings.speed_steering import OFFSET_KEYS, SpeedSteering
+from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+from openpilot.selfdrive.ui.tandem.settings.window import SettingsWindow, Tab
+
+DEFAULTS = {"LongitudinalPersonality": 1, "ShowSpeedLimits": True, "SetSpeedLimit": False, "Offset1": 5.0,
+            "ConditionalExperimental": True, "CurveSpeedController": True, "MinimumLaneChangeSpeed": 20.0}
+
+
+class FakeCache:
+  def __init__(self, values=None):
+    self.values = dict(DEFAULTS, **(values or {}))
+    self.invalidations = 0
+
+  def get_bool(self, key):
+    return bool(self.values.get(key, False))
+
+  def get_int(self, key, return_default=False):
+    return int(self.values.get(key, 0))
+
+  def get_float(self, key, return_default=False):
+    return float(self.values.get(key, 0.0))
+
+  def put_bool(self, key, value):
+    self.values[key] = value
+
+  put_int = put_float = put_bool
+
+  def invalidate(self):
+    self.invalidations += 1
+
+
+def _model(values=None):
+  cache = FakeCache(values)
+  notified = []
+  return SpeedSteering(SettingsStore(cache, lambda: notified.append(1))), cache, notified
+
+
+class Page(Widget):
+  def __init__(self, name, events, inner_depth=0):
+    super().__init__()
+    self.name = name
+    self.events = events
+    self.inner_depth = inner_depth
+
+  def can_go_back(self):
+    return self.inner_depth > 0
+
+  def go_back(self):
+    self.inner_depth -= 1
+
+  def show_event(self):
+    self.events.append(("show", self.name))
+
+  def hide_event(self):
+    self.events.append(("hide", self.name))
+
+  def _render(self, rect):
+    pass
+
+
+def _window():
+  events = []
+  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None))
+  window._roots = [lambda n=n: Page(n, events) for n in ("driving", "device", "network", "bluetooth", "software")]
+  closed = []
+  window.set_callbacks(on_close=lambda: closed.append(1))
+  return window, events, closed
+
+
+# ── store and Speed & Steering ──
+
+def test_store_writes_typed_values_then_notifies_once():
+  cache = FakeCache()
+  notified = []
+  SettingsStore(cache, lambda: notified.append(1)).write({"A": True, "B": 2, "C": 1.5})
+  assert (cache.values["A"], cache.values["B"], cache.values["C"]) == (True, 2, 1.5)
+  assert type(cache.values["C"]) is float
+  assert notified == [1] and cache.invalidations == 1
+
+
+def test_driving_style_sets_gap_acceleration_and_braking_together():
+  model, cache, notified = _model()
+  assert model.style == 1
+  model.set_style(2)
+  assert (cache.values["LongitudinalPersonality"], cache.values["AccelerationProfile"], cache.values["DecelerationProfile"]) == (0, 2, 2)
+  assert model.style == 2
+  model.set_style(0)
+  assert (cache.values["LongitudinalPersonality"], cache.values["AccelerationProfile"], cache.values["DecelerationProfile"]) == (2, 1, 1)
+  assert model.style == 0 and len(notified) == 2
+
+
+def test_speed_limits_off_show_match():
+  model, cache, _ = _model()
+  assert model.speed_limits == 1 and not model.matching
+  model.set_speed_limits(2)
+  assert cache.values["ShowSpeedLimits"] and cache.values["SetSpeedLimit"] and model.matching
+  model.set_speed_limits(0)
+  assert not cache.values["ShowSpeedLimits"] and not cache.values["SetSpeedLimit"] and model.speed_limits == 0
+
+
+def test_offset_applies_to_every_speed_range():
+  model, cache, notified = _model()
+  model.set_offset(7)
+  assert [cache.values[k] for k in OFFSET_KEYS] == [7.0] * 7
+  assert model.offset == 7 and len(notified) == 1
+
+
+def test_tap_to_confirm_asks_only_for_higher_limits():
+  model, cache, _ = _model()
+  model.set_higher_limits(1)
+  assert cache.values["SLCConfirmation"] and cache.values["SLCConfirmationHigher"] and not cache.values["SLCConfirmationLower"]
+  model.set_higher_limits(0)
+  assert not cache.values["SLCConfirmation"] and model.higher_limits == 0
+
+
+def test_grouped_switches_and_summaries():
+  model, cache, _ = _model({"IsMetric": True})
+  assert model.smart_slowdowns
+  model.set_smart_slowdowns(False)
+  assert not cache.values["ConditionalExperimental"] and not cache.values["CurveSpeedController"]
+  model.set_lane_changes(1)
+  assert model.summary() == "Standard · Auto lane change"
+  assert model.unit == "km/h" and model.lane_change_speed == 20
+
+
+# ── window navigation ──
+
+def test_back_steps_out_of_inner_pages_then_pops_then_closes():
+  window, _, closed = _window()
+  window.push(Page("detail", [], inner_depth=1))
+  assert window.can_go_back()
+  window.back()
+  assert window.depth == 2 and window.can_go_back()
+  window.back()
+  assert window.depth == 1 and not window.can_go_back() and not closed
+  window.back()
+  assert closed == [1]
+
+
+def test_tabs_keep_their_own_stacks():
+  window, _, _ = _window()
+  window.push(Page("detail", []))
+  window.select_tab(Tab.NETWORK)
+  assert window.depth == 1 and window.top.name == "network"
+  window.select_tab(Tab.DRIVING)
+  assert window.depth == 2 and window.top.name == "detail"
+
+
+def test_only_the_visible_page_gets_show_and_hide():
+  window, events, _ = _window()
+  window.show_event()
+  window.push(Page("detail", events))
+  window.select_tab(Tab.DEVICE)
+  window.hide_event()
+  assert events == [("show", "driving"), ("hide", "driving"), ("show", "detail"), ("hide", "detail"), ("show", "device"),
+                    ("hide", "device")]
+
+
+def test_opening_at_an_upstream_panel_starts_that_tab_from_its_first_page():
+  PanelType = IntEnum("PanelType", "STARPILOT DEVICE NETWORK BLUETOOTH TOGGLES SOFTWARE DEVELOPER")
+  window, _, _ = _window()
+  window.push(Page("detail", []))
+  window.set_current_panel(PanelType.SOFTWARE)
+  assert window.tab == Tab.SOFTWARE
+  window.set_current_panel(PanelType.TOGGLES)
+  assert window.tab == Tab.DRIVING and window.depth == 1
+
+
+def test_developer_opens_the_device_tab_on_its_developer_section():
+  PanelType = IntEnum("PanelType", "DEVELOPER")
+  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None))
+  events = []
+  window._roots[Tab.DEVICE] = lambda: SectionPage("DEVICE", [Section(n, lambda n=n: Page(n, events)) for n in ("a", "b", "dev")])
+  window.set_current_panel(PanelType.DEVELOPER)
+  assert window.tab == Tab.DEVICE and window.top.current.name == "dev"
+
+
+def test_section_page_builds_sections_when_chosen_and_forwards_events():
+  events, built = [], []
+
+  def make(name):
+    built.append(name)
+    return Page(name, events, inner_depth=1)
+
+  page = SectionPage("X", [Section("A", lambda: make("a")), Section("B", lambda: make("b"))])
+  page.show_event()
+  page.select(1)
+  assert built == ["a", "b"]
+  assert events == [("show", "a"), ("hide", "a"), ("show", "b")]
+  assert page.can_go_back()
+  page.go_back()
+  assert not page.can_go_back()
+
+
+# ── hosted StarPilot panels ──
+
+class FakeStarPilot(Widget):
+  CATEGORIES = [{"title": "Sounds", "panel": "SOUNDS"},
+                {"title": "Controls", "children": [{"title": "Maps", "children": [{"title": "Map Data", "panel": "MAPS"}]}]}]
+
+  def __init__(self):
+    super().__init__()
+    self._selected_leaf = None
+    self._callback = None
+    self.depth = 0
+
+  def set_depth_callback(self, callback):
+    self._callback = callback
+
+  def _set_depth(self, depth):
+    self.depth = depth
+    self._callback(depth)
+
+  def reset_to_root(self):
+    self._selected_leaf = None
+    self._set_depth(0)
+
+  def _open_leaf(self, leaf):
+    self._selected_leaf = leaf
+    self._set_depth(1)
+
+  def navigate_back(self):
+    if self.depth == 1:
+      self._selected_leaf = None
+    self._set_depth(self.depth - 1)
+
+  def _render(self, rect):
+    pass
+
+
+def test_find_leaf_searches_nested_folders():
+  assert upstream.find_leaf(FakeStarPilot.CATEGORIES, "MAPS")["title"] == "Map Data"
+
+
+def test_starpilot_page_opens_its_panel_and_pops_when_starpilot_leaves_it():
+  layout = FakeStarPilot()
+  exits = []
+  page = upstream.StarPilotPage("MAPS", on_exit=lambda: exits.append(1), layout=lambda: layout)
+  page.show_event()
+  assert layout._selected_leaf["panel"] == "MAPS" and not exits
+  layout._set_depth(2)
+  assert page.can_go_back()
+  page.go_back()
+  assert not page.can_go_back()
+  layout.navigate_back()      # StarPilot's own back button
+  page._update_state()
+  assert exits == [1]
+
+
+def test_starpilot_section_reopens_instead_of_showing_the_starpilot_hub():
+  layout = FakeStarPilot()
+  page = upstream.StarPilotPage("SOUNDS", layout=lambda: layout)
+  page.show_event()
+  layout.navigate_back()
+  page._update_state()
+  assert layout._selected_leaf["panel"] == "SOUNDS" and layout.depth == 1

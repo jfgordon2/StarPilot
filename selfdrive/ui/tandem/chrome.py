@@ -23,14 +23,19 @@ class BottomNav(Component):
   grow_touch_target = False
 
   def __init__(self, tabs: list[str], selected: Bindable[int], on_select: Callable[[int], None],
-               on_leading: Callable[[], None] | None = None, leading: str = "back"):
+               on_leading: Callable[[], None] | None = None, leading: Bindable[str] = "back"):
+    """leading is "back" or "close"; pass a getter to switch as the user moves deeper."""
     super().__init__()
     self._tabs = tabs
     self._selected = selected
     self._on_select = on_select
+    self._leading_kind = leading
     self._leading = self._child(Button(on_click=on_leading, style=ButtonStyle.NAV, height=T.NAV_BUTTON, width=T.NAV_BUTTON,
-                                       radius=T.RADIUS_CARD, glyph=back_glyph if leading == "back" else close_glyph))
+                                       radius=T.RADIUS_CARD, glyph=self._leading_glyph))
     self._pressed_tab: int | None = None
+
+  def _leading_glyph(self, rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+    (back_glyph if resolve(self._leading_kind) == "back" else close_glyph)(rect, color, size)
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     return max_width, T.NAV_HEIGHT

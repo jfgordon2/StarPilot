@@ -55,17 +55,22 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 - **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, and every existing test.
 - **New needs go in this package**, not in shared modules. For example, extra font faces live in `fonts.py` rather than in `FontWeight`.
 
-## Taking over the settings window
+## The settings window
 
-The settings window and its panels come from upstream: StarPilot's own panel is built on `aethergrid.py` and `aether_style.py`, and Device, Network, Bluetooth, Toggles, Software and Developer come from openpilot. We don't edit or delete any of them.
+`settings/` is the Essentials settings window. `selfdrive/ui/layouts/main.py` creates it through `settings_window()` instead of upstream's `SettingsLayout`; that's the second and last upstream edit. Set `TANDEM_SETTINGS=0` to get the upstream window back.
 
-- Build each replacement screen in this package.
-- Tandem's own settings window replaces the whole upstream window. It goes in with one line in `selfdrive/ui/layouts/main.py`, where the window is created. That's the second and last upstream edit.
-- Tabs that haven't been rebuilt yet host their upstream panel inside our window.
-- The replaced upstream code then stays in the tree unused. It costs nothing at runtime, because it isn't imported, and it never conflicts on a rebase.
+| File | What it holds |
+| --- | --- |
+| `settings/window.py` | `SettingsWindow`: five tabs, each with its own page stack, and the close/back button. Also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. |
+| `settings/pages.py` | `HubPage` (title and tiles) and `SectionPage` (sidebar of sections, each built when first chosen). |
+| `settings/speed_steering.py` | The Everyday choices. Each one writes several params together, e.g. Driving Style sets personality, acceleration and braking. |
+| `settings/store.py` | Reads through the shared param cache; each write signals the driving processes once. |
+| `settings/upstream.py` | Upstream panels hosted in the window until native screens replace them. `StarPilotPage` opens one StarPilot panel directly, skipping StarPilot's hub. |
+
+Built natively so far: the Driving hub and Speed & Steering's Everyday section. Everything else is an upstream panel inside our window: Display, Alerts, Driving Model, Vehicle, Driver Assistance (openpilot's toggles), Navigation, Gas & Brake and Steering on the Driving tab; This Device, General and Developer on the Device tab; and the Network, Bluetooth and Software tabs. Replace them one at a time. Upstream code that ends up unused stays in the tree; it is not imported, and it never conflicts on a rebase.
 
 ## Third-party
 
 Figtree is © 2022 The Figtree Project Authors (<https://github.com/erikdkennedy/figtree>), used under the SIL Open Font License 1.1. The license text is in `selfdrive/assets/fonts/Figtree-OFL.txt`. The `.ttf` files are unmodified; the `.fnt`/`.png` atlases are generated from them by `tools/build_figtree_fonts.py`.
 
-Tests: `tests/test_tandem.py`.
+Tests: `tests/test_tandem.py` (components) and `tests/test_settings.py` (window navigation and param mapping).
