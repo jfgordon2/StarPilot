@@ -611,6 +611,34 @@ def test_reset_all_restores_defaults_and_bundle_values():
   assert cache.values["SteerKP"] == 1.1 and cache.values["RelaxedFollow"] == GAPS[0][2] and cache.values["ShowGPU"]
 
 
+def test_reset_all_tuning_asks_first():
+  from openpilot.system.ui.widgets import DialogResult
+  from openpilot.selfdrive.ui.tandem.overlays import Dialog
+  from openpilot.selfdrive.ui.tandem.settings.tuner import STEERING, Tuner, tuner_page
+
+  class Window:
+    overlay = None
+
+    def present(self, overlay):
+      self.overlay = overlay
+
+    def dismiss(self):
+      self.overlay = None
+
+  store, cache = _store({"SteerKPStock": 1.1})
+  tuner, window = Tuner(store), Window()
+  tuner.set_value(STEERING[3], 2.0)
+  reset = tuner_page(tuner, window)._sidebar._footer[0]
+  assert reset._label == "Reset all tuning"
+  reset._click_callback()
+  assert isinstance(window.overlay, Dialog) and cache.values["SteerKP"] == 2.0   # nothing changes until confirmed
+  window.overlay._finish(DialogResult.CANCEL)
+  assert window.overlay is None and cache.values["SteerKP"] == 2.0
+  reset._click_callback()
+  window.overlay._finish(DialogResult.CONFIRM)
+  assert cache.values["SteerKP"] == 1.1
+
+
 # ── Device sections ──
 
 def _general(values=None, engaged=False):

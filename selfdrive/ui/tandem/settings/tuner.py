@@ -376,8 +376,16 @@ class BundleOverrides(Component):
               T.TEXT_TERTIARY)
 
 
+RESET_TUNING_MESSAGE = "Every Tuner Mode change goes back to its default, in every section and bundle. Your other settings stay as they are."
+
+
 def tuner_page(tuner: Tuner, window):
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import confirm
   from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage
+
+  def reset_all() -> None:
+    confirm(window, "Reset all tuning?", RESET_TUNING_MESSAGE, "Reset", tuner.reset_all, icon="restart")
+
   return SectionPage("TUNER MODE", [
     Section("Steering", lambda: steering_panel(tuner, window), lambda: _changed_label(tuner.changed(STEERING)), value_tone=Tone.WARNING),
     Section("Gas & Brake", lambda: gas_brake_panel(tuner, window), lambda: _changed_label(tuner.gas_brake_changes()),
@@ -386,4 +394,4 @@ def tuner_page(tuner: Tuner, window):
             value_tone=Tone.WARNING),
     Section("Bundle Overrides", lambda: BundleOverrides(tuner),
             lambda: _changed_label(sum(tuner.bundle_changes(b) for b in OVERRIDE_BUNDLES)), value_tone=Tone.WARNING),
-  ], tone=Tone.WARNING, footer=[Button("Reset all to defaults", tuner.reset_all, ButtonStyle.DANGER_OUTLINE, width=T.SIDEBAR_WIDTH)])
+  ], tone=Tone.WARNING, footer=[Button("Reset all tuning", reset_all, ButtonStyle.DANGER_OUTLINE, width=T.SIDEBAR_WIDTH)])
