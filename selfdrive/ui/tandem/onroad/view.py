@@ -6,7 +6,7 @@ It subclasses StarPilotOnroadView and overrides only the parts Essentials replac
 - the paused and weather badges beside the driver monitor become status chips;
 - the current speed, the speed limit sign and the turn card are drawn in the Essentials style, with StarPilot still
   deciding when each shows; the speed pill carries Essentials' turn signal in place of StarPilot's animations;
-- the driving personality button, the experimental-mode wheel and the favorites menu are removed;
+- the driving personality button, the experimental-mode wheel, the favorites menu and the side-camera bubble are removed;
 - the bottom widgets (the driver monitor icon) sit above the bar.
 Everything else, from the camera and path to alerts, is upstream's.
 """
@@ -116,6 +116,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._hud_renderer._navigation_card = self._turn_card
     self._hud_renderer._draw_current_speed = self._draw_current_speed
     self._favorite_radial_menu = _NoFavorites()
+    self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._sign_right = False
     self._layers_visible = False
     self._nav_sm = None
