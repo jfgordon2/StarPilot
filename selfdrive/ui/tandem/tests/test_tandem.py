@@ -178,3 +178,9 @@ def test_figtree_atlas_can_draw_every_ui_string():
   assert {"controls.py", "lateral.py"} <= scanned, "string scan found nothing; check the paths"
   missing = {(name, ch) for name, value in strings for ch in value if ord(ch) > 127 and ch.isprintable() and ord(ch) not in glyphs}
   assert not missing, sorted(missing)
+
+
+def test_slider_merges_marks_at_the_same_value():
+  from openpilot.selfdrive.ui.tandem.controls import Slider
+  slider = Slider(100, lambda v: None, 0, 100, marks=[(80, "Quiet"), (100, "Normal"), (100, "Loud")])
+  assert slider.merged_marks() == [(80, "Quiet"), (100, "Normal · Loud")]

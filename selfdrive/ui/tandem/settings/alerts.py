@@ -113,9 +113,11 @@ class VolumeEditor(Component):
     super().__init__()
     self._model = model
     self._group = group
-    self._play = self._child(Button("Play sample", lambda: model.play(group)))
+    self._play = self._child(Button("Play sample", lambda: model.play(group), height=T.px(64), font_size=T.font_px(17),
+                                    glyph=lambda r, c, s: draw.icon(r, "play", T.ACCENT_TEXT, T.px(20))))
     self._slider = self._child(Slider(lambda: self._value(), lambda v: model.set_level(group, v), 0, 100, step=5,
-                                      default=group.levels[1], floor=SAFETY_FLOOR if group.safety else None,
+                                      floor=SAFETY_FLOOR if group.safety else None, height=T.px(64),
+                                      floor_label=f"Minimum {SAFETY_FLOOR}% for safety alerts" if group.safety else None,
                                       marks=[(group.levels[0], "Quiet"), (group.levels[1], "Normal"), (group.levels[2], "Loud")]))
     self._reset = self._child(Button("Reset to Normal", lambda: model.set_level(group, group.levels[1]), ButtonStyle.GHOST))
 
@@ -124,20 +126,26 @@ class VolumeEditor(Component):
     return self._group.levels[1] if level == AUTO else level
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(96) + self._slider.preferred_height(max_width) + T.px(110)
+    return max_width, T.px(92) + self._slider.preferred_height(max_width) + T.px(60) + T.px(32)
 
   def _render(self, rect: rl.Rectangle):
-    top, slider, notes = column(rect, [T.px(96), self._slider.preferred_height(rect.width), FILL], T.px(16))
-    value, play = row(top, [FILL, self._play.preferred_size(rect.width)[0]])
-    label = self._model.level_label(self._group)
-    draw.text(value, label, T.font_px(56), T.TEXT, T.FONT_EXTRABOLD)
-    self._play.render(rl.Rectangle(play.x, play.y + (play.height - T.BUTTON_HEIGHT) / 2, play.width, T.BUTTON_HEIGHT))
+    """The value with Play sample and a note beside it, the slider, then a note and Reset to Normal on one row."""
+    top, slider, notes = column(rect, [T.px(92), self._slider.preferred_height(rect.width), T.px(48)], T.px(16))
+    value, play, note = row(top, [T.px(200), self._play.preferred_size(rect.width)[0], FILL], T.px(28))
+    level = self._model.level(self._group)
+    number, unit = ("Auto", "") if level == AUTO else (f"{level}", "%")
+    w = draw.text(value, number, T.font_px(72), T.TEXT, T.FONT_EXTRABOLD)
+    if unit:
+      big, small = draw.line_height(T.font_px(72)), draw.line_height(T.font_px(26))
+      unit_rect = rl.Rectangle(value.x + w + T.px(6), value.y + (value.height + big) / 2 - small - T.px(8), T.px(40), small)
+      draw.text(unit_rect, unit, T.font_px(26), T.TEXT_SECONDARY, T.FONT_BOLD)
+    self._play.render(rl.Rectangle(play.x, play.y + (play.height - T.px(64)) / 2, play.width, T.px(64)))
+    draw.text(note, "Plays through your car speakers if they're connected.", T.font_px(15), T.TEXT_TERTIARY)
     self._slider.render(slider)
-    note = ("Minimum 25% for safety alerts. " if self._group.safety else "") + "Changing a level sets the preset to Custom."
-    line, button = column(notes, [draw.line_height(T.SIZE_SUBTITLE), T.BUTTON_HEIGHT], T.px(10))
-    draw.text(line, note, T.SIZE_SUBTITLE, T.TEXT_MUTED)
-    w, _ = self._reset.preferred_size(rect.width)
-    self._reset.render(rl.Rectangle(button.x, button.y, w, button.height))
+    reset_w, _ = self._reset.preferred_size(rect.width)
+    text, reset = row(notes, [FILL, reset_w], T.px(10))
+    draw.text(text, "Changing a level sets the Alert Volume preset to Custom.", T.SIZE_SUBTITLE, T.TEXT_MUTED)
+    self._reset.render(rl.Rectangle(reset.x, reset.y + (reset.height - T.px(44)) / 2, reset.width, T.px(44)))
 
 
 def alerts_page(model: Alerts, window) -> Widget:

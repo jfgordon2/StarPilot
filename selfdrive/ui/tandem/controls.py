@@ -448,12 +448,17 @@ class Stepper(Component):
 # ── Slider ──
 
 class Slider(Component):
-  """A track with a draggable thumb. `floor` blocks values below it (drawn hatched), e.g. the 25% minimum for safety alerts."""
+  """A track with a draggable thumb. `floor` blocks values below it (drawn hatched), e.g. the 25% minimum for safety alerts.
+
+  floor_label names that zone above it. Marks at the same value share one label ("Normal · Loud"), and the end labels stay
+  inside the slider.
+  """
 
   def __init__(self, value: Bindable[float], on_change: Callable[[float], None], minimum: float, maximum: float, step: float = 1,
                default: float | None = None, floor: float | None = None, marks: list[tuple[float, str]] | None = None,
-               height: float = T.px(66)):
+               height: float = T.px(66), floor_label: str | None = None):
     super().__init__()
+    self._floor_label = floor_label
     self._value = value
     self._on_change = on_change
     self._min, self._max, self._step = minimum, maximum, step
@@ -469,9 +474,15 @@ class Slider(Component):
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     return max_width, self._height + (T.px(28) if self._marks else 0)
 
+  def merged_marks(self) -> list[tuple[float, str]]:
+    merged: dict[float, list[str]] = {}
+    for value, label in self._marks:
+      merged.setdefault(value, []).append(label)
+    return [(value, " · ".join(labels)) for value, labels in merged.items()]
+
   def _track(self) -> rl.Rectangle:
-    thumb = T.px(28)
-    return rl.Rectangle(self._rect.x + thumb / 2, self._rect.y + T.px(26), self._rect.width - thumb, T.px(10))
+    thumb = T.px(32)
+    return rl.Rectangle(self._rect.x + thumb / 2, self._rect.y + T.px(28), self._rect.width - thumb, T.px(14))
 
   def x_for(self, value: float) -> float:
     track = self._track()
@@ -506,15 +517,18 @@ class Slider(Component):
     draw.fill(rl.Rectangle(start, track.y, max(0.0, thumb_x - start), track.height), T.ACCENT if self.enabled else T.TEXT_MUTED,
               track.height / 2)
 
-    if self._default is not None:
+    if self._floor_label and self._floor is not None:
+      draw.text(rl.Rectangle(track.x, rect.y, rect.width, T.px(18)), self._floor_label, T.SIZE_CAPTION, T.DANGER_TEXT, T.FONT_SEMIBOLD)
+    elif self._default is not None:
       draw.caption(rl.Rectangle(self.x_for(self._default) - T.px(60), rect.y, T.px(120), T.px(14)), "Default", h=Align.CENTER)
-    for value, label in self._marks:
+    for value, label in self.merged_marks():
       x = self.x_for(value)
       rl.draw_rectangle_rec(rl.Rectangle(x - 1, track.y + track.height + T.px(6), 2, T.px(8)), T.TEXT_MUTED)
-      draw.text(rl.Rectangle(x - T.px(60), track.y + track.height + T.px(16), T.px(120), T.px(16)), label, T.SIZE_SUBTITLE,
-                T.TEXT_MUTED, h=Align.CENTER)
+      w = draw.text_width(label, T.SIZE_CAPTION, T.FONT) + T.px(4)
+      lx = min(max(x - w / 2, rect.x), rect.x + rect.width - w)   # keep "Quiet" and "Loud" inside at the ends
+      draw.text(rl.Rectangle(lx, track.y + track.height + T.px(16), w, T.px(16)), label, T.SIZE_CAPTION, T.TEXT_MUTED, h=Align.CENTER)
 
-    r = T.px(14)
+    r = T.px(16)
     rl.draw_circle_v(rl.Vector2(thumb_x, track.y + track.height / 2), r, T.ACCENT)
     rl.draw_circle_v(rl.Vector2(thumb_x, track.y + track.height / 2), r - T.px(4), T.TEXT)
 
