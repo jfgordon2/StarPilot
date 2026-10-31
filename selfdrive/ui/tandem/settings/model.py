@@ -15,7 +15,7 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component, size_of
-from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Surface
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch, Tone
 from openpilot.selfdrive.ui.tandem.layout import FILL, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
@@ -288,15 +288,19 @@ class CatalogPage(Component):
       lambda: ListPanel([model_row(models, m) for m in models.tab(self._tab)] or [Text("No models here yet.")],
                         title="Driving models", header_control=tabs),
       models.source.tick))
-    self._side = self._child(ListPanel([
-      SectionHeader("STORAGE"),
-      SettingRow(models.source.free_space, None),
-      SettingRow("Remove unused models", lambda: f"{len(models.unused())} can be removed",
-                 Button("Remove", models.remove_unused, ButtonStyle.DANGER_OUTLINE)),
-      SectionHeader("GOOD TO KNOW"),
-      Text("One download at a time. Downloads pause while driving and resume when parked."),
-      Text("A new model takes effect the next time you start the car."),
-    ]))
+    self._side = self._child(Stack([   # two cards, as in the mock
+      ListPanel([
+        SectionHeader("STORAGE"),
+        SettingRow(models.source.free_space, None),
+        SettingRow("Remove unused models", lambda: f"{len(models.unused())} can be removed",
+                   Button("Remove", models.remove_unused, ButtonStyle.DANGER_OUTLINE)),
+      ], dividers=False),
+      ListPanel([
+        SectionHeader("GOOD TO KNOW"),
+        Text("One download at a time. Downloads pause while driving and resume when parked."),
+        Text("A new model takes effect the next time you start the car."),
+      ], dividers=False),
+    ], gap=T.px(14), grow=1))
 
   def _select(self, index: int) -> None:
     self._tab = index

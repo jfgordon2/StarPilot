@@ -240,8 +240,8 @@ def storage_panel(model: General, window) -> ListPanel:
                       ButtonStyle.DANGER_OUTLINE)),
     driver,
     audio,
-    Text("Upload settings are in General. High-quality recording, logging and error logs are in Tuner Mode.", T.SIZE_SUBTITLE),
-  ], title="Storage & Data")
+  ], title="Storage & Data", header_divider=False, end_divider=True,   # the usage bar belongs to the header, as in the mock
+     footnote="Upload settings are in General. High-quality recording, logging and error logs are in Tuner Mode.")
 
 
 class Report:

@@ -12,7 +12,9 @@ from typing import Protocol
 import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import Label, Stack
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, Fill, column, grid, inset, place, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
@@ -353,16 +355,18 @@ def devices_panel(bt: BluetoothDevices) -> Component:
     action.set_enabled(lambda: bt.status().offroad)
     return SettingRow(device.name, lambda: "Paired" if device.paired else None, action)
 
-  def build() -> ListPanel:
+  def build() -> Widget:
+    """Car audio on its own card; nearby devices on a card below it, as in the mock."""
     status = bt.status()
     audio = [d for d in status.devices if d.audio and d.paired]
     nearby = [d for d in status.devices if not (d.audio and d.paired) and not d.controller]
-    return ListPanel([
-      SectionHeader("CAR AUDIO"),
-      *([audio_row(d) for d in audio] or [Text("No car audio paired.")]),
-      SectionHeader("NEARBY", trailing=None),
-      *([nearby_row(d) for d in nearby] or [Text("Scanning…" if status.discovering else "No devices found.")]),
-    ], footnote="Pairing waits until you're parked.")
+    scanning = Label(lambda: "Scanning…" if bt.status().discovering else "", T.SIZE_SUBTITLE, T.ACCENT_TEXT, T.FONT, fit=True)
+    return Stack([
+      ListPanel([SectionHeader("CAR AUDIO"), *([audio_row(d) for d in audio] or [Text("No car audio paired.")])]),
+      ListPanel([SectionHeader("NEARBY", trailing=scanning, divider=True),
+                 *([nearby_row(d) for d in nearby] or [Text("No devices found yet.")])],
+                footnote="Pairing waits until you're parked."),
+    ], gap=T.px(14), grow=1)
 
   def key():
     status = bt.status()

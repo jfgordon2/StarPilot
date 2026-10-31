@@ -69,8 +69,8 @@ class Card(Stack):
   """A rounded surface holding a stack. tone="accent" is the selected/active card (accent fill and edge)."""
 
   def __init__(self, items: list[Widget | None], gap: float = T.px(12), padding: tuple[float, float] = (T.px(22), T.px(20)),
-               tone: str = "plain", background: rl.Color | None = None):
-    super().__init__(items, gap)
+               tone: str = "plain", background: rl.Color | None = None, grow: int | None = None):
+    super().__init__(items, gap, grow)
     self._padding = padding
     self._tone = tone
     self._background = background
@@ -113,13 +113,18 @@ class Label(Component):
   grow_touch_target = False
 
   def __init__(self, text: Bindable[str], size: int = T.SIZE_PANEL_TITLE, color: Bindable[rl.Color] = T.TEXT, weight=T.FONT_BOLD,
-               caption: bool = False, h: Align = Align.START, icon: Bindable[str | None] = None, icon_color: Bindable[rl.Color] | None = None):
+               caption: bool = False, h: Align = Align.START, icon: Bindable[str | None] = None, icon_color: Bindable[rl.Color] | None = None,
+               fit: bool = False):
+    """fit: as wide as the text, e.g. "7 settings" beside a panel title."""
     super().__init__()
+    self._fit = fit
     self._text, self._size, self._color, self._weight, self._caption, self._h = text, size, color, weight, caption, h
     self._icon, self._icon_color = icon, icon_color
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, draw.line_height(T.SIZE_CAPTION if self._caption else self._size)
+    size = T.SIZE_CAPTION if self._caption else self._size
+    width = draw.text_width(resolve(self._text), size, self._weight) + T.px(2) if self._fit else max_width
+    return min(width, max_width), draw.line_height(size)
 
   def _render(self, rect: rl.Rectangle):
     name = resolve(self._icon)
@@ -344,3 +349,18 @@ class Icon(Component):
 
   def _render(self, rect: rl.Rectangle):
     draw.icon(rect, self._name, self._color if self.enabled else T.TEXT_MUTED, self._size)
+
+
+class Rule(Component):
+  """A divider line across a stack, as between Vehicle Profile's cards and Trailer Load. dim fades it with a disabled row."""
+  grow_touch_target = False
+
+  def __init__(self, dim: Bindable[bool] = False):
+    super().__init__()
+    self._dim = dim
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.DIVIDER
+
+  def _render(self, rect: rl.Rectangle):
+    draw.hline(rect.x, rect.y, rect.width, draw.alpha(T.CONTROL, 0.4) if resolve(self._dim) else T.CONTROL)

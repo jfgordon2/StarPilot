@@ -166,7 +166,7 @@ def wifi_panel(model: Network) -> Component:
   def build() -> ListPanel:
     networks = model.networks()
     rows = [network_row(n) for n in networks] or [Text("Scanning for networks…")]
-    return ListPanel([*rows, SettingRow("Join a hidden network", None, on_click=model.join_hidden)], title="Wi-Fi")
+    return ListPanel(rows, title="Wi-Fi", bottom=SettingRow("Join a hidden network", None, on_click=model.join_hidden))
 
   return Rebuilding(lambda: tuple(n.ssid for n in model.networks()), build, model.tick)
 
@@ -175,8 +175,7 @@ def cellular_panel(model: Network, open_advanced: Callable[[], None]) -> ListPan
   return ListPanel([
     SettingRow("Hotspot", "Share this device's connection", Switch(lambda: model.hotspot, model.set_hotspot)),
     SettingRow("Save Data", "No large uploads on cellular or phone hotspots", Switch(lambda: model.save_data, model.set_save_data)),
-    SettingRow("Roaming, APN and IP address", None, on_click=open_advanced),
-  ], title="Cellular")
+  ], title="Cellular", end_divider=True, bottom=SettingRow("Roaming, APN and IP address", None, on_click=open_advanced))
 
 
 def advanced_panel(model: Network) -> ListPanel:

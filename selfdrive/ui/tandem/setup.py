@@ -13,7 +13,7 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ChoiceCards
+from openpilot.selfdrive.ui.tandem.controls import SETUP_CARDS, Button, ButtonStyle, ChoiceCards
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
@@ -88,7 +88,7 @@ class SetupWindow(Component):
   def __init__(self, setup: Setup):
     super().__init__()
     self._setup = setup
-    self._cards = [self._child(ChoiceCards(q.options, lambda i=i: setup.answers[i], setup.pick, columns=3, large=True))
+    self._cards = [self._child(ChoiceCards(q.options, lambda i=i: setup.answers[i], setup.pick, columns=3, large=SETUP_CARDS))
                    for i, q in enumerate(QUESTIONS)]
     self._defaults = self._child(Button("Use defaults", lambda: setup.finish(use_answers=False), ButtonStyle.GHOST))
     self._back = self._child(Button("Back", setup.back, ButtonStyle.SECONDARY))

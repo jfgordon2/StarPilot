@@ -10,7 +10,7 @@ from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ChoiceCards, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
@@ -185,7 +185,7 @@ def theme_panel(model: Display, edit_startup_message: Callable[[], None]) -> Lis
                Segmented([name for name, _ in BOOT_LOGOS], lambda: model.boot_logo, model.set_boot_logo)),
     SettingRow("Startup Message", lambda: "The banner when you start the car" if model.startup_is_default() else model.startup_message()[0],
                ValueButton(lambda: "Default" if model.startup_is_default() else "Custom", edit_startup_message)),
-  ], title="Theme & Startup")
+  ], title="Theme & Startup", end_divider=True)
 
 
 def map_panel(model: Display, open_offline_maps: Callable[[], None]) -> ListPanel:
@@ -195,9 +195,8 @@ def map_panel(model: Display, open_offline_maps: Callable[[], None]) -> ListPane
     SettingRow("Speed Limit Sign", "US style, or the round Vienna style used in most other countries",
                SignPicker(lambda: model.vienna, model.set_vienna), height=T.px(96)),
     SettingRow("Offline Maps", "Speed limits and routing without a connection", on_click=open_offline_maps),
-    Text("The street name is always shown in the onroad bar. Speed limit sources and their order are in Tuner Mode.",
-         T.SIZE_SUBTITLE),
-  ], title="Map")
+  ], title="Map", end_divider=True,
+     footnote="The street name is always shown in the onroad bar. Speed limit sources and their order are in Tuner Mode.")
 
 
 def edit_startup_message(model: Display) -> None:

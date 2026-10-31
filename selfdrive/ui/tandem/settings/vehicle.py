@@ -189,8 +189,7 @@ def vehicle_page(vehicle: Vehicle, window, open_more: Callable[[], None]) -> Wid
   wheel = ListPanel([
     *buttons,
     SettingRow("More for your car", "Features specific to your make and model", on_click=open_more, height=T.px(64)),
-  ], title="Steering Wheel Buttons", subtitle="Preset for your car. Tap a button to change what it does.", title_size=T.font_px(20),
-     header_divider=False)
+  ], title="Steering Wheel Buttons", subtitle="Preset for your car. Tap a button to change what it does.", title_size=T.font_px(20))
   return FillPage(Columns([Stack([car, lock], gap=T.px(14), grow=0), wheel], [1, 1.35]))
 
 

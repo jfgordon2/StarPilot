@@ -38,8 +38,11 @@ class SectionHeader(Component):
   """POWER USER, RECENT, MY DEVICES ..."""
   grow_touch_target = False
 
-  def __init__(self, label: str, color: rl.Color = T.TEXT_MUTED, trailing: Widget | None = None, background: rl.Color | None = None):
+  def __init__(self, label: str, color: rl.Color = T.TEXT_MUTED, trailing: Widget | None = None, background: rl.Color | None = None,
+               divider: bool = False):
+    """divider: a line under the caption. The mocks leave it out, except over a card's own list (NEARBY)."""
     super().__init__()
+    self.divider = divider
     self._label = label
     self._color = color
     self._trailing = trailing
@@ -144,14 +147,19 @@ class SettingRow(Component):
 class ListPanel(Component):
   """A rounded panel: optional header and banner, then items separated by dividers. Scrolls when items overflow.
 
-  A footer (e.g. a ButtonRow) stays pinned at the bottom, above the footnote.
+  A footer (e.g. a ButtonRow) stays pinned at the bottom, above the footnote. A bottom row (e.g. "Join a hidden network")
+  is pinned there too, under a divider, as a full-width row.
+
+  Dividers follow the mocks: between rows, never under a section caption; under the title unless header_divider is off;
+  after the last row with end_divider (on by default when a footer follows); above the footnote with footnote_divider.
   """
   grow_touch_target = False
 
   def __init__(self, items: list[Widget], title: Bindable[str] | None = None, subtitle: Bindable[str] | None = None,
                header_control: Widget | None = None, banner: Widget | None = None, footnote: Bindable[str] | None = None,
                background: rl.Color = T.SURFACE_2, dividers: bool = True, footer: Widget | None = None,
-               title_size: int = T.SIZE_PANEL_TITLE, header_divider: bool = True):
+               title_size: int = T.SIZE_PANEL_TITLE, header_divider: bool = True, end_divider: bool | None = None,
+               footnote_divider: bool = False, bottom: Widget | None = None):
     super().__init__()
     self._items = items
     self._title = title
@@ -162,10 +170,13 @@ class ListPanel(Component):
     self._footer = footer
     self._title_size = title_size
     self._header_divider = header_divider
+    self._end_divider = footer is not None if end_divider is None else end_divider
+    self._footnote_divider = footnote_divider
+    self._bottom = bottom
     self._background = background
     self._dividers = dividers
     self._scroll = GuiScrollPanel2(horizontal=False)
-    for w in [*items, header_control, banner, footer, self._footnote]:
+    for w in [*items, header_control, banner, footer, bottom, self._footnote]:
       if w is not None:
         self._child(w)
         w.set_touch_valid_callback(self._scroll.is_touch_valid)
@@ -191,8 +202,15 @@ class ListPanel(Component):
     content = sum(self._height_of(w, max_width) for w in visible) + len(visible) * T.DIVIDER
     extra = self._header_height() + (self._height_of(self._banner, max_width) if self._banner else 0)
     extra += self._footnote.preferred_height(max_width) if self._footnote else 0
-    extra += self._footer_height(max_width)
+    extra += self._footer_height(max_width) + self._bottom_height(max_width)
     return max_width, content + extra
+
+  def _bottom_height(self, width: float) -> float:
+    return self._height_of(self._bottom, width) + T.DIVIDER if self._bottom is not None else 0
+
+  @staticmethod
+  def _divider_after(widget: Widget) -> bool:
+    return not isinstance(widget, SectionHeader) or widget.divider
 
   def _footer_height(self, width: float) -> float:
     if self._footer is None:
@@ -225,10 +243,12 @@ class ListPanel(Component):
 
     footnote_h = self._footnote.preferred_height(rect.width) if self._footnote else 0
     footer_h = self._footer_height(rect.width)
-    viewport = rl.Rectangle(rect.x, y, rect.width, rect.y + rect.height - y - footnote_h - footer_h)
+    bottom_h = self._bottom_height(rect.width)
+    viewport = rl.Rectangle(rect.x, y, rect.width, rect.y + rect.height - y - footnote_h - footer_h - bottom_h)
     visible = [w for w in self._items if w.is_visible]
     heights = [self._height_of(w, rect.width) for w in visible]
-    content = sum(heights) + T.DIVIDER * max(0, len(visible) - 1)
+    lines = [self._dividers and (i < len(visible) - 1 or self._end_divider) and self._divider_after(w) for i, w in enumerate(visible)]
+    content = sum(heights) + T.DIVIDER * sum(lines)
     offset = self._scroll.update(viewport, content) if content > viewport.height else 0.0
 
     rl.begin_scissor_mode(int(viewport.x), int(viewport.y), int(viewport.width), int(viewport.height))
@@ -237,15 +257,21 @@ class ListPanel(Component):
       w.set_parent_rect(viewport)
       w.render(rl.Rectangle(viewport.x, cy, viewport.width, h))
       cy += h
-      if self._dividers and i < len(visible) - 1:
+      if lines[i]:
         draw.hline(viewport.x, cy, viewport.width)
         cy += T.DIVIDER
     rl.end_scissor_mode()
 
+    if self._bottom is not None:
+      by = rect.y + rect.height - footnote_h - footer_h - bottom_h
+      draw.hline(rect.x, by, rect.width)
+      self._bottom.render(rl.Rectangle(rect.x, by + T.DIVIDER, rect.width, bottom_h - T.DIVIDER))
     if self._footer is not None:
       footer = rl.Rectangle(rect.x, rect.y + rect.height - footnote_h - footer_h, rect.width, footer_h)
       self._footer.render(inset(footer, x=T.px(14), y=T.px(12)))
     if self._footnote is not None:
+      if self._footnote_divider:
+        draw.hline(rect.x, rect.y + rect.height - footnote_h, rect.width)
       self._footnote.render(rl.Rectangle(rect.x, rect.y + rect.height - footnote_h, rect.width, footnote_h))
 
 

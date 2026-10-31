@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from openpilot.starpilot.common.accel_profile import ACCELERATION_PROFILES as ACCEL, DECELERATION_PROFILES as DECEL
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.blocks import Grid, Icon, InfoCard
-from openpilot.selfdrive.ui.tandem.controls import Button, ChoiceCards, Segmented, Stepper, Switch
+from openpilot.selfdrive.ui.tandem.blocks import Card, Grid, Icon, InfoCard, Label, Rule, Stack
+from openpilot.selfdrive.ui.tandem.controls import TILE_CARDS, Button, ChoiceCards, Segmented, Stepper, Switch
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, Padded, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
@@ -132,7 +133,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
   for row in (offset, higher):
     row.set_visible(lambda: model.matching)
 
-  return ListPanel([
+  rows = [
     style,
     SettingRow("Speed Limits", "Match sets cruise to the posted limit",
                Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits), height=row_height),
@@ -144,7 +145,9 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
                Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns), height=row_height),
     SettingRow("Always-On Steering", "Keeps steering with cruise off. Pauses while you brake.",
                Switch(lambda: model.always_on_steering, model.set_always_on_steering), height=row_height),
-  ], title="Everyday")
+  ]
+  return ListPanel(rows, title="Everyday", header_control=Label(lambda: f"{sum(r.is_visible for r in rows)} settings", T.SIZE_CAPTION,
+                                                                T.TEXT_MUTED, T.FONT, fit=True))
 
 
 # ── Vehicle Profile ──
@@ -186,14 +189,19 @@ class VehicleProfile:
     return PROFILES[self.profile][0]
 
 
-def vehicle_profile_panel(model: VehicleProfile) -> ListPanel:
+def vehicle_profile_panel(model: VehicleProfile) -> Widget:
+  """The profiles as tiles filling the panel, then Trailer Load. No line under the title, as in the mock."""
   load = SettingRow("Trailer Load", lambda: "Weight of a loaded trailer" if model.towing else "Available with Towing",
-                    Segmented(TRAILER_LOADS, lambda: model.trailer_load, model.set_trailer_load))
+                    Segmented(TRAILER_LOADS, lambda: model.trailer_load, model.set_trailer_load), height=T.px(64))
   load.set_enabled(lambda: model.towing)
-  return ListPanel([
-    Padded(ChoiceCards(PROFILES, lambda: model.profile, model.set_profile)),
+  return Card([
+    Padded(Stack([Label("Vehicle Profile", T.SIZE_PANEL_TITLE),
+                  Label("Adjusts acceleration and braking for what you drive", T.SIZE_SUBTITLE, T.TEXT_TERTIARY, T.FONT)], gap=T.px(3)),
+           x=T.px(22), y=0),
+    Padded(ChoiceCards(PROFILES, lambda: model.profile, model.set_profile, large=TILE_CARDS), x=T.px(18), y=0),
+    Rule(dim=lambda: not model.towing),
     load,
-  ], title="Vehicle Profile", subtitle="Adjusts acceleration and braking for what you drive")
+  ], gap=T.px(12), padding=(0, T.px(16)), background=T.SURFACE_2, grow=1)
 
 
 # ── Weather ──
@@ -238,7 +246,7 @@ def weather_panel(model: Weather) -> ListPanel:
   return ListPanel([SectionHeader("WHAT CHANGES"), Padded(Grid(cards), x=T.px(16), y=T.px(6))], title="Weather",
                    subtitle="Drives more cautiously in bad conditions, using local weather",
                    header_control=Segmented(WEATHER, lambda: model.mode, model.set_mode),
-                   footnote="Needs an internet connection. The status chip shows when it's active.")
+                   footnote="Needs an internet connection. The status chip shows when it's active.", footnote_divider=True)
 
 
 # ── Assistance: openpilot's own switches ──
