@@ -51,9 +51,10 @@ class Hero(Component):
     draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
     caption, headline, ink = readiness(self._state())
     body = inset(rect, x=T.px(28))
-    lines = [T.px(24), draw.line_height(T.font_px(38)), draw.line_height(T.font_px(18))]
+    lines = [draw.line_height(T.font_px(15)), draw.line_height(T.font_px(38)), draw.line_height(T.font_px(18))]
     cap, title, setup = column(place(body, body.width, sum(lines) + T.px(20)), lines, T.px(10))
-    draw.caption(cap, caption, ink)
+    # The mock's status label is a size up from other captions.
+    draw.text(cap, caption.upper(), T.font_px(15), ink, T.FONT_BOLD, tracking=T.CAPTION_TRACKING)
     draw.text(title, headline, T.font_px(38), T.TEXT, T.FONT_EXTRABOLD)
     draw.text(setup, self._state().setup, T.font_px(18), T.TEXT_TERTIARY)
 
