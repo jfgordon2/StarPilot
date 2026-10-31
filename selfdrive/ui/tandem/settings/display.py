@@ -36,8 +36,7 @@ BUILT_IN_LOGOS = [("starpilot", "StarPilot"), ("stock", "comma")]   # (BootLogo 
 
 
 class BootLogoSource(Protocol):
-  def installed(self) -> list[tuple[str, str]]: ...   # (slug, name) of each boot logo downloaded to the device
-  def manage(self) -> None: ...                       # StarPilot's screen to download and delete boot logos
+  def installed(self) -> list[tuple[str, str]]: ...   # (slug, name) of each boot logo StarPilot downloaded to the device
 STARTUP_TOP = "StartupMessageTop"
 STARTUP_BOTTOM = "StartupMessageBottom"
 STARTUP_DEFAULTS = ("Be ready to take over at any time", "Always keep hands on wheel and eyes on road")
@@ -200,22 +199,17 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
 
 
 def boot_logo_sheet(model: Display, window) -> None:
-  """Pick a boot logo; Get more opens StarPilot's screen to download others."""
+  """Pick a boot logo: the built-in ones, and any StarPilot already downloaded to the device."""
   options = model.boot_logo_options()
 
   def pick(index: int) -> None:
     model.set_boot_logo(options[index][0])
     window.dismiss()
 
-  def get_more() -> None:
-    window.dismiss()
-    if model.boot_logos is not None:
-      model.boot_logos.manage()
-
   window.present(Sheet("Boot Logo", OptionList([name for _, name in options],
                                                lambda: next((i for i, (s, _) in enumerate(options) if s == model.boot_logo), -1), pick),
                        subtitle="Shown while the device starts up",
-                       actions=[Button("Get more", get_more), Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
+                       actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
 
 def theme_panel(model: Display, edit_startup_message: Callable[[], None], window=None) -> ListPanel:
@@ -413,7 +407,7 @@ class PathStylePicker(Component):
 
 
 class UpstreamBootLogos:
-  """Boot logos as StarPilot keeps them: one file per logo in its themes folder, downloaded with its download manager."""
+  """Boot logos as StarPilot keeps them: one file per logo in its themes folder."""
 
   def __init__(self):
     from openpilot.starpilot.common.starpilot_variables import THEME_SAVE_PATH
@@ -424,21 +418,3 @@ class UpstreamBootLogos:
     if not self._folder.is_dir():
       return []
     return [(f.stem, _theme_display_name(f.stem)) for f in sorted(self._folder.iterdir()) if f.is_file()]
-
-  def manage(self) -> None:
-    """As StarPilot's Boot Logo row does: refresh the list of downloadable logos in the background, then open its manager."""
-    import threading
-    from openpilot.common.params import Params
-    from openpilot.system.ui.lib.application import gui_app
-    from openpilot.selfdrive.ui.layouts.settings.starpilot.simple_download_manager import SimpleDownloadManager
-    from openpilot.starpilot.assets.theme_manager import ThemeManager
-    from openpilot.starpilot.common.starpilot_variables import get_starpilot_toggles
-    params, memory = Params(), Params(memory=True)
-    refresh = threading.Thread(target=lambda: ThemeManager(params, memory).update_themes(get_starpilot_toggles(), update_assets=False),
-                               daemon=True)
-    refresh.start()
-    manager = SimpleDownloadManager(title="Boot Logo", asset_type="boot logo", directory=self._folder, asset_param="BootLogo",
-                                    download_param="BootLogoToDownload", downloadable_list_param="DownloadableBootLogos",
-                                    params=params, params_memory=memory, on_close=lambda *_: None)
-    manager.refresh_thread = refresh
-    gui_app.push_widget(manager)

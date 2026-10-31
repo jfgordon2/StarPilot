@@ -847,5 +847,4 @@ def test_boot_logo_picker_lists_built_ins_then_downloads():
   window.overlay._body._on_change(2)
   assert cache.values["BootLogo"] == "aurora_logo" and display.boot_logo_name() == "Aurora Logo" and window.overlay is None
   boot_logo_sheet(display, window)
-  window.overlay._actions[0]._click_callback()   # Get more
-  assert logos.managed == 1 and window.overlay is None
+  assert [a._label for a in window.overlay._actions] == ["Done"]   # nothing to download
