@@ -1,0 +1,394 @@
+"""Device tab sections besides This Device: General, Backups, Storage & Data, and Report a Problem.
+
+File work (settings snapshots, storage sizes, deleting drives) and sending a report go through DeviceData;
+UpstreamData does them the way StarPilot's System screen does, with the same paths.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Protocol
+
+import pyray as rl
+
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, Tone, ValueButton
+from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
+from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, Padded, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+from openpilot.system.ui.widgets import DialogResult
+
+
+@dataclass(frozen=True)
+class Backup:
+  name: str
+  when: str
+
+
+class DeviceData(Protocol):
+  def languages(self) -> list[tuple[str, str]]: ...      # (name, code)
+  def language(self) -> str: ...                        # current code
+  def set_language(self, code: str) -> None: ...
+  def backups(self) -> list[Backup]: ...
+  def create_backup(self) -> None: ...
+  def restore_backup(self, name: str) -> None: ...
+  def delete_backup(self, name: str) -> None: ...
+  def storage(self) -> dict[str, float]: ...             # bytes used by "Drives", "Maps", "Models", plus "Total" and "Free"
+  def delete_drives(self) -> None: ...
+  def send_report(self, issue: str, discord: str) -> None: ...
+
+
+BRIGHTNESS = [("Dimmer", 40, 30), ("Auto", 101, 101), ("Brighter", 100, 100)]   # name, parked, driving. 101 is Auto.
+UPLOADS = ["Off", "Parked", "Always"]
+REPORT_CATEGORIES = ["Acceleration felt harsh or jerky", "Braking was too sudden", "It disengaged when I didn't expect it",
+                     "It felt slow to respond", "An alert was unclear", "My steering wheel buttons aren't working", "Something else"]
+
+
+class General:
+  def __init__(self, store: SettingsStore, data: DeviceData, live):
+    self._store = store
+    self.data = data
+    self._live = live
+
+  @property
+  def metric(self) -> int:
+    return 1 if self._store.get_bool("IsMetric") else 0
+
+  def set_metric(self, index: int) -> None:
+    self._store.write({"IsMetric": index == 1})
+
+  def language_name(self) -> str:
+    code = self.data.language()
+    return next((name for name, c in self.data.languages() if c == code), code)
+
+  @property
+  def brightness(self) -> int:
+    parked = self._store.get_int("ScreenBrightness")
+    return next((i for i, (_, p, _) in enumerate(BRIGHTNESS) if p == parked), 1)
+
+  def set_brightness(self, index: int) -> None:
+    _, parked, driving = BRIGHTNESS[index]
+    self._store.write({"ScreenManagement": True, "ScreenBrightness": parked, "ScreenBrightnessOnroad": driving})
+
+  @property
+  def standby(self) -> bool:
+    return self._store.get_bool("StandbyMode")
+
+  def set_standby(self, on: bool) -> None:
+    self._store.write({"ScreenManagement": True, "StandbyMode": on})
+
+  @property
+  def uploads(self) -> int:
+    if self._store.get_bool("NoUploads"):
+      return 0
+    return 1 if self._store.get_bool("DisableOnroadUploads") else 2
+
+  def set_uploads(self, index: int) -> None:
+    self._store.write({"NoUploads": index == 0, "DisableOnroadUploads": index == 1})
+
+  # Storage & Data
+
+  @property
+  def record_driver(self) -> bool:
+    return self._store.get_bool("RecordFront")
+
+  def set_record_driver(self, on: bool) -> None:
+    self._store.write({"RecordFront": on})
+
+  @property
+  def record_audio(self) -> bool:
+    return self._store.get_bool("RecordAudio")
+
+  def set_record_audio(self, on: bool) -> None:
+    self._store.write({"RecordAudio": on})
+
+  def recording_locked(self) -> bool:
+    """Recording changes restart openpilot, so they wait until it's disengaged; RecordFrontLock pins the driver camera."""
+    return self._live.engaged() or self._store.get_bool("RecordFrontLock")
+
+
+def confirm(window, title: str, message: str, label: str, action: Callable[[], None], danger: bool = True) -> None:
+  def done(result: DialogResult) -> None:
+    window.dismiss()
+    if result == DialogResult.CONFIRM:
+      action()
+  window.present(Dialog(title, message, label, done, tone=Tone.DANGER if danger else Tone.ACCENT))
+
+
+def general_panel(model: General, window) -> ListPanel:
+  def language_sheet():
+    languages = model.data.languages()
+
+    def pick(index: int):
+      model.data.set_language(languages[index][1])
+      window.dismiss()
+    window.present(Sheet("Language", OptionList([name for name, _ in languages],
+                                                lambda: next((i for i, (_, c) in enumerate(languages) if c == model.data.language()), 0),
+                                                pick, weight=T.FONT_UNIFONT), subtitle="For menus and alerts", on_dismiss=window.dismiss))
+
+  return ListPanel([
+    SettingRow("Units", "Speed and distance everywhere", Segmented(["mph", "km/h"], lambda: model.metric, model.set_metric)),
+    SettingRow("Language", None, ValueButton(model.language_name, language_sheet)),
+    SettingRow("Screen Brightness", "Auto follows ambient light, day and night",
+               Segmented([name for name, _, _ in BRIGHTNESS], lambda: model.brightness, model.set_brightness)),
+    SettingRow("Standby", "Screen sleeps while driving, wakes for alerts", Switch(lambda: model.standby, model.set_standby)),
+    SettingRow("Uploads", "Drive logs and video for debugging", Segmented(UPLOADS, lambda: model.uploads, model.set_uploads)),
+  ], title="General")
+
+
+def backups_panel(model: General, window) -> Component:
+  from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
+
+  def row_for(backup: Backup) -> SettingRow:
+    restore = Button("Restore", lambda: confirm(window, "Restore this backup?", f"Your current settings are replaced with {backup.name}.",
+                                                "Restore", lambda: model.data.restore_backup(backup.name), danger=False))
+    delete = Button("Delete", lambda: confirm(window, "Delete this backup?", f"{backup.name} can't be recovered.", "Delete",
+                                              lambda: model.data.delete_backup(backup.name)), ButtonStyle.GHOST)
+    return SettingRow(backup.name, backup.when, ButtonPair(delete, restore))
+
+  def build() -> ListPanel:
+    backups = model.data.backups()
+    return ListPanel([
+      SectionHeader("SAVED"),
+      *([row_for(b) for b in backups] or [Text("No backups yet.")]),
+    ], title="Backups", subtitle="Snapshots of your settings. Drives aren't included.",
+       header_control=Button("Back up now", model.data.create_backup, ButtonStyle.PRIMARY))
+
+  return Rebuilding(lambda: tuple(b.name for b in model.data.backups()), build)
+
+
+class ButtonPair(Component):
+  grow_touch_target = False
+
+  def __init__(self, first: Button, second: Button):
+    super().__init__()
+    self._buttons = [self._child(first), self._child(second)]
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    widths = [b.preferred_size(max_width)[0] for b in self._buttons]
+    return sum(widths) + T.px(10), T.BUTTON_HEIGHT
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    for b in self._buttons:
+      b.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    widths = [b.preferred_size(rect.width)[0] for b in self._buttons]
+    for b, r in zip(self._buttons, row(rect, widths, T.px(10)), strict=True):
+      b.render(r)
+
+
+class StorageBar(Component):
+  """Used space split by kind, with a legend."""
+  grow_touch_target = False
+  KINDS = [("Drives", T.ACCENT), ("Maps", T.SUCCESS_BRIGHT), ("Models", T.WARNING)]
+
+  def __init__(self, sizes: Callable[[], dict[str, float]]):
+    super().__init__()
+    self._sizes = sizes
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(104)
+
+  def _render(self, rect: rl.Rectangle):
+    sizes = self._sizes()
+    total = sizes.get("Total") or 1.0
+    used = total - sizes.get("Free", 0.0)
+    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(12))
+    title, bar, legend = column(body, [draw.line_height(T.SIZE_ROW_TITLE), T.px(14), FILL], T.px(10))
+    draw.text(title, f"{_gb(used)} of {_gb(total)} used", T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
+    draw.fill(bar, T.TRACK, T.px(7))
+    x = bar.x
+    for kind, color in self.KINDS:
+      w = bar.width * sizes.get(kind, 0.0) / total
+      if w > 0:
+        draw.fill(rl.Rectangle(x, bar.y, max(w, T.px(4)), bar.height), color, T.px(7))
+        x += w
+    lx = legend.x
+    for kind, color in self.KINDS:
+      dot = rl.Rectangle(lx, legend.y + legend.height / 2 - T.px(5), T.px(10), T.px(10))
+      draw.fill(dot, color, T.px(5))
+      lx += T.px(18) + draw.text(rl.Rectangle(lx + T.px(18), legend.y, legend.width, legend.height),
+                                 f"{kind} {_gb(sizes.get(kind, 0.0))}", T.SIZE_SUBTITLE, T.TEXT_TERTIARY) + T.px(24)
+
+
+def _gb(size: float) -> str:
+  return f"{size / 1e9:.1f} GB" if size >= 1e8 else f"{size / 1e6:.0f} MB"
+
+
+DELETE_DRIVES_MESSAGE = "Every recorded drive and its video is removed. This can't be undone."
+
+
+def storage_panel(model: General, window) -> ListPanel:
+  driver = SettingRow("Record Driver Camera", "Saved and uploaded with your drives. Restarts openpilot if the car is on.",
+                      Switch(lambda: model.record_driver, model.set_record_driver))
+  audio = SettingRow("Record Microphone", "Cabin audio in your drive recordings. Restarts openpilot if the car is on.",
+                     Switch(lambda: model.record_audio, model.set_record_audio))
+  for r in (driver, audio):
+    r.set_enabled(lambda: not model.recording_locked())
+  return ListPanel([
+    StorageBar(model.data.storage),
+    SettingRow("Recorded Drives", "Oldest drives are removed when space runs low",
+               Button("Delete all", lambda: confirm(window, "Delete all drives?", DELETE_DRIVES_MESSAGE, "Delete", model.data.delete_drives),
+                      ButtonStyle.DANGER_OUTLINE)),
+    driver,
+    audio,
+    Text("Upload settings are in General. High-quality recording, logging and error logs are in Tuner Mode.", T.SIZE_SUBTITLE),
+  ], title="Storage & Data")
+
+
+class Report:
+  def __init__(self, data: DeviceData, store: SettingsStore):
+    self.data = data
+    self._store = store
+    self.category = -1
+    self.details = ""
+    self.discord = store.get_str("DiscordUsername")
+    self.sent = False
+
+  def ready(self) -> bool:
+    return self.category >= 0
+
+  def send(self) -> None:
+    if not self.ready():
+      return
+    issue = REPORT_CATEGORIES[self.category] + (f": {self.details}" if self.details else "")
+    self.data.send_report(issue, self.discord)
+    if self.discord:
+      self._store.write({"DiscordUsername": self.discord})
+    self.sent = True
+
+
+def report_panel(report: Report) -> ListPanel:
+  def edit(title: str, get: Callable[[], str], set_: Callable[[str], None]) -> Callable[[], None]:
+    def open_keyboard():
+      from openpilot.system.ui.lib.application import gui_app
+      from openpilot.system.ui.widgets.keyboard import Keyboard
+      keyboard = Keyboard(min_text_size=0)
+      keyboard.set_title(title, "Optional")
+      keyboard.set_text(get())
+      keyboard.set_callback(lambda result: set_(keyboard.text.strip()) if result == DialogResult.CONFIRM else None)
+      gui_app.push_widget(keyboard)
+    return open_keyboard
+
+  def pick(index: int) -> None:
+    report.category = index
+    report.sent = False
+
+  send = Button(lambda: "Sent. Thank you!" if report.sent else "Send report", report.send, ButtonStyle.PRIMARY)
+  send.set_enabled(lambda: report.ready() and not report.sent)
+  return ListPanel([
+    SectionHeader("WHAT HAPPENED?"),
+    Padded(OptionList(REPORT_CATEGORIES, lambda: report.category, pick, row_height=T.px(52)), y=T.px(6)),
+    SettingRow("Details", lambda: report.details or "Optional", ValueButton(lambda: "Edit" if report.details else "Add",
+                                                                           edit("Details", lambda: report.details,
+                                                                                lambda v: setattr(report, "details", v)))),
+    SettingRow("Discord name", lambda: report.discord or "Optional, so we can follow up",
+               ValueButton(lambda: "Edit" if report.discord else "Add",
+                           edit("Discord name", lambda: report.discord, lambda v: setattr(report, "discord", v)))),
+  ], title="Report a Problem", footer=send)
+
+
+class UpstreamData:
+  """DeviceData the way StarPilot's System screen does it: same folders, same params, same report message."""
+
+  def __init__(self):
+    from pathlib import Path
+    self._Path = Path
+    self._backups = Path("/data/toggle_backups")
+    self._sizes: dict[str, float] = {}
+    self._measuring = False
+
+  def languages(self) -> list[tuple[str, str]]:
+    from openpilot.system.ui.lib.multilang import multilang
+    return list(multilang.languages.items())
+
+  def language(self) -> str:
+    from openpilot.system.ui.lib.multilang import multilang
+    return multilang.language
+
+  def set_language(self, code: str) -> None:
+    from openpilot.system.ui.lib.multilang import multilang
+    multilang.change_language(code)
+
+  def backups(self) -> list[Backup]:
+    import datetime
+    if not self._backups.exists():
+      return []
+    entries = sorted((d for d in self._backups.iterdir() if d.is_dir() and "in_progress" not in d.name),
+                     key=lambda d: d.stat().st_mtime, reverse=True)
+    return [Backup(d.name.replace("_", " "), datetime.datetime.fromtimestamp(d.stat().st_mtime).strftime("%b %-d, %Y %-I:%M %p"))
+            for d in entries]
+
+  def _dir(self, name: str):
+    return self._backups / name.replace(" ", "_")
+
+  def create_backup(self) -> None:
+    import datetime
+    import shutil
+    target = self._dir(datetime.datetime.now().strftime("Backup %Y-%m-%d %H%M"))
+    target.mkdir(parents=True, exist_ok=True)
+    shutil.copytree("/data/params/d", str(target), dirs_exist_ok=True)
+
+  def restore_backup(self, name: str) -> None:
+    import shutil
+    from openpilot.starpilot.common.starpilot_variables import LEGACY_STARPILOT_PARAM_RENAMES, update_starpilot_toggles
+    src, params_dir = self._dir(name), self._Path("/data/params/d")
+    for old_key, new_key in LEGACY_STARPILOT_PARAM_RENAMES.items():
+      if (src / old_key).exists():
+        (params_dir / new_key).unlink(missing_ok=True)
+    shutil.copytree(str(src), str(params_dir), dirs_exist_ok=True)
+    for old_key, new_key in LEGACY_STARPILOT_PARAM_RENAMES.items():
+      if (params_dir / old_key).exists():
+        (params_dir / old_key).replace(params_dir / new_key)
+    update_starpilot_toggles()
+
+  def delete_backup(self, name: str) -> None:
+    import shutil
+    shutil.rmtree(self._dir(name), ignore_errors=True)
+
+  def storage(self) -> dict[str, float]:
+    """Sizes are measured on a background thread; the first call returns zeros until it finishes."""
+    if not self._measuring and not self._sizes:
+      import threading
+      self._measuring = True
+      threading.Thread(target=self._measure, daemon=True).start()
+    return self._sizes
+
+  def _measure(self) -> None:
+    import shutil
+
+    def size(*paths: str) -> float:
+      total = 0
+      for p in paths:
+        path = self._Path(p)
+        if path.exists():
+          total += sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+      return float(total)
+
+    usage = shutil.disk_usage("/data")
+    self._sizes = {"Drives": size("/data/media/0/realdata", "/data/media/0/realdata_HD", "/data/media/0/realdata_konik"),
+                   "Maps": size("/data/media/0/osm/offline"), "Models": size("/data/models"),
+                   "Total": float(usage.total), "Free": float(usage.free)}
+    self._measuring = False
+
+  def delete_drives(self) -> None:
+    import shutil
+    import threading
+
+    def task():
+      for path in ("/data/media/0/realdata/", "/data/media/0/realdata_HD/", "/data/media/0/realdata_konik/"):
+        p = self._Path(path)
+        if p.exists():
+          for entry in p.iterdir():
+            if entry.is_dir():
+              shutil.rmtree(entry, ignore_errors=True)
+      self._sizes = {}
+    threading.Thread(target=task, daemon=True).start()
+
+  def send_report(self, issue: str, discord: str) -> None:
+    from openpilot.common.params import Params
+    Params(memory=True).put("IssueReported", {"DiscordUser": discord, "Issue": issue})

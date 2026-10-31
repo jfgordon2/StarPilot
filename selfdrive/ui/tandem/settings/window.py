@@ -16,6 +16,8 @@ from openpilot.selfdrive.ui.tandem.chrome import BottomNav
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice
+from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
+from openpilot.selfdrive.ui.tandem.settings.device_sections import General, Report, backups_panel, general_panel, report_panel, storage_panel
 from openpilot.selfdrive.ui.tandem.settings.driving_tab import driving_hub
 from openpilot.selfdrive.ui.tandem.settings.live import Live
 from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage, can_go_back, go_back
@@ -31,7 +33,7 @@ class Tab(IntEnum):
 
 
 TABS = ["Driving", "Device", "Network", "Bluetooth", "Software"]
-DEVELOPER_SECTION = 2
+DEVELOPER_SECTION = 5
 
 # Upstream PanelType names -> where they live here. Home and the sidebar open TOGGLES; it is part of Driving.
 PANEL_TABS = {
@@ -50,19 +52,31 @@ def _upstream_models():
   return UpstreamModels()
 
 
+def _upstream_data():
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import UpstreamData
+  return UpstreamData()
+
+
+def _upstream_device():
+  return UpstreamDevice()
+
+
 def _upstream_cars():
   from openpilot.selfdrive.ui.tandem.settings.vehicle import UpstreamCars
   return UpstreamCars()
 
 
 class SettingsWindow(Widget):
-  def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None):
+  def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None, device_data=None,
+               device=None):
     """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
     self._live = live
     self.model_source = model_source or _upstream_models
     self.car_catalog = car_catalog or _upstream_cars
+    self.device_data = device_data or _upstream_data
+    self.device = device or _upstream_device
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, upstream.network, upstream.bluetooth, upstream.software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]
@@ -216,8 +230,14 @@ class SettingsWindow(Widget):
     return driving_hub(self)
 
   def _device(self) -> Widget:
+    data = self.device_data()
+    general = General(self.store, data, self.live)
+    report = Report(data, self.store)
     return SectionPage("DEVICE", [
-      Section("This Device", lambda: ThisDevicePanel(UpstreamDevice())),
-      Section("General", lambda: upstream.StarPilotPage("SYSTEM")),
-      Section("Developer", upstream.developer),
+      Section("This Device", lambda: ThisDevicePanel(self.device())),
+      Section("General", lambda: general_panel(general, self)),
+      Section("Backups", lambda: backups_panel(general, self)),
+      Section("Storage & Data", lambda: storage_panel(general, self)),
+      Section("Report a Problem", lambda: report_panel(report)),
+      Section("Developer", upstream.developer, visible=lambda: TUNER_MODE.is_on(self.store)),
     ])

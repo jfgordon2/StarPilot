@@ -106,7 +106,8 @@ class Dialog(Component):
 
   def _card_height(self, width: float) -> float:
     inner = width - T.px(56)
-    return T.px(28) * 2 + T.px(60) + T.px(18) + draw.line_height(T.font_px(26)) + T.px(8) + \
+    well = T.px(60) + T.px(12) if self._glyph else 0
+    return T.px(28) * 2 + well + T.px(6) + draw.line_height(T.font_px(26)) + T.px(8) + \
       draw.paragraph_height(self._message, T.font_px(17), T.FONT, inner, 1.4) + T.px(24) + T.px(64)
 
   def _render(self, rect: rl.Rectangle):
@@ -116,13 +117,13 @@ class Dialog(Component):
     draw.fill(card, T.SURFACE_3, T.px(26))
     draw.stroke(card, T.TRACK, T.px(26))
     body = inset(card, T.px(28))
-    well_rect, title_rect, text_rect, _, buttons = column(
-      body, [T.px(60), draw.line_height(T.font_px(26)), FILL, T.px(16), T.px(64)], T.px(12))
-    well = place(well_rect, T.px(60), T.px(60), Align.START)
     danger = self._tone == Tone.DANGER
-    draw.fill(well, T.DANGER_SURFACE if danger else T.ACCENT_SURFACE, T.px(18))
     if self._glyph:
+      well_rect, body = column(body, [T.px(60), FILL], T.px(12))
+      well = place(well_rect, T.px(60), T.px(60), Align.START)
+      draw.fill(well, T.DANGER_SURFACE if danger else T.ACCENT_SURFACE, T.px(18))
       self._glyph(well, T.DANGER_TEXT if danger else T.ACCENT_TEXT, T.px(28))
+    title_rect, text_rect, _, buttons = column(body, [draw.line_height(T.font_px(26)), FILL, T.px(16), T.px(64)], T.px(12))
     draw.text(title_rect, self._title, T.font_px(26), T.TEXT, T.FONT_EXTRABOLD)
     draw.paragraph(text_rect, self._message, T.font_px(17), T.TEXT_SECONDARY, spacing=1.4)
     cancel_rect, confirm_rect = row(buttons, [FILL, FILL], T.px(12))

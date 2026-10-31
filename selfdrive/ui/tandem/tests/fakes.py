@@ -68,3 +68,44 @@ class FakeCars:
 
   def has_auto_lock(self):
     return True
+
+
+class FakeData:
+  def __init__(self):
+    from openpilot.selfdrive.ui.tandem.settings.device_sections import Backup
+    self._Backup = Backup
+    self.items = [Backup("Backup 2026-10-24 0910", "Oct 24, 2026 9:10 AM"), Backup("Before update", "Oct 2, 2026 6:00 PM")]
+    self.lang = "en"
+    self.reports = []
+    self.restored = []
+    self.drives_deleted = False
+
+  def languages(self):
+    return [("English", "en"), ("Español", "es"), ("Français", "fr")]
+
+  def language(self):
+    return self.lang
+
+  def set_language(self, code):
+    self.lang = code
+
+  def backups(self):
+    return self.items
+
+  def create_backup(self):
+    self.items = [self._Backup("Backup now", "Just now"), *self.items]
+
+  def restore_backup(self, name):
+    self.restored.append(name)
+
+  def delete_backup(self, name):
+    self.items = [b for b in self.items if b.name != name]
+
+  def storage(self):
+    return {"Drives": 21e9, "Maps": 4.2e9, "Models": 1.1e9, "Total": 64e9, "Free": 30e9}
+
+  def delete_drives(self):
+    self.drives_deleted = True
+
+  def send_report(self, issue, discord):
+    self.reports.append((issue, discord))

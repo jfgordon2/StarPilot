@@ -294,8 +294,9 @@ class OptionList(Component):
   grow_touch_target = False
 
   def __init__(self, options: list[str] | list[tuple[str, str]], selected: Bindable[int], on_change: Callable[[int], None],
-               row_height: float = T.px(60)):
+               row_height: float = T.px(60), weight=T.FONT_SEMIBOLD):
     super().__init__()
+    self._weight = weight
     self._options = [o if isinstance(o, tuple) else (o, "") for o in options]
     self._selected = selected
     self._on_change = on_change
@@ -323,9 +324,12 @@ class OptionList(Component):
 
   def _render(self, rect: rl.Rectangle):
     content = len(self._options) * self._row_height
-    self._offset = self._scroll.update(rect, content) if content > rect.height else 0.0
+    scrolls = content > rect.height + 0.5
+    self._offset = self._scroll.update(rect, content) if scrolls else 0.0
     selected = resolve(self._selected)
-    rl.begin_scissor_mode(int(rect.x), int(rect.y), int(rect.width), int(rect.height))
+    # Only clip when scrolling: raylib can't nest scissor regions, and a list inside a scrolling panel is already clipped.
+    if scrolls:
+      rl.begin_scissor_mode(int(rect.x), int(rect.y), int(rect.width), int(rect.height))
     for i, (title, subtitle) in enumerate(self._options):
       r = rl.Rectangle(rect.x, rect.y + self._offset + i * self._row_height, rect.width, self._row_height)
       chosen = i == selected
@@ -339,8 +343,9 @@ class OptionList(Component):
         draw.check(rl.Rectangle(body.x + body.width - size, body.y, size, body.height), T.ACCENT_TEXT, size)
       body = inset(body, right=size + T.px(12))
       if subtitle:
-        w = draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
+        w = draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, self._weight)
         draw.text(inset(body, left=w + T.px(14)), subtitle, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
       else:
-        draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
-    rl.end_scissor_mode()
+        draw.text(body, title, T.SIZE_ROW_TITLE, T.TEXT, self._weight)
+    if scrolls:
+      rl.end_scissor_mode()

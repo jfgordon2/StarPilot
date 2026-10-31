@@ -1,6 +1,6 @@
 from enum import IntEnum
 
-from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets import DialogResult, Widget
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import OFFSET_KEYS, SpeedSteering
@@ -179,7 +179,8 @@ def test_developer_opens_the_device_tab_on_its_developer_section():
   PanelType = IntEnum("PanelType", "DEVELOPER")
   window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None), live=FakeLive())
   events = []
-  window._roots[Tab.DEVICE] = lambda: SectionPage("DEVICE", [Section(n, lambda n=n: Page(n, events)) for n in ("a", "b", "dev")])
+  window._roots[Tab.DEVICE] = lambda: SectionPage("DEVICE", [Section(n, lambda n=n: Page(n, events)) for n in "abcde"] +
+                                                  [Section("dev", lambda: Page("dev", events))])
   window.set_current_panel(PanelType.DEVELOPER)
   assert window.tab == Tab.DEVICE and window.top.current.name == "dev"
 
@@ -608,3 +609,59 @@ def test_reset_all_restores_defaults_and_bundle_values():
   tuner.set_switch("ShowGPU", False)
   tuner.reset_all()
   assert cache.values["SteerKP"] == 1.1 and cache.values["RelaxedFollow"] == GAPS[0][2] and cache.values["ShowGPU"]
+
+
+# ── Device sections ──
+
+def _general(values=None, engaged=False):
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import General
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeData
+  store, cache = _store(values)
+  return General(store, FakeData(), FakeLive(engaged=engaged)), cache
+
+
+def test_general_brightness_uploads_and_language():
+  general, cache = _general({"ScreenBrightness": 101})
+  assert general.brightness == 1
+  general.set_brightness(0)
+  assert cache.values["ScreenBrightness"] == 40 and cache.values["ScreenBrightnessOnroad"] == 30 and general.brightness == 0
+  general.set_uploads(1)
+  assert not cache.values["NoUploads"] and cache.values["DisableOnroadUploads"] and general.uploads == 1
+  general.set_uploads(0)
+  assert cache.values["NoUploads"] and general.uploads == 0
+  general.data.set_language("es")
+  assert general.language_name() == "Español"
+
+
+def test_recording_switches_wait_until_disengaged():
+  general, _ = _general(engaged=True)
+  assert general.recording_locked()
+  general, cache = _general({"RecordFrontLock": True})
+  assert general.recording_locked()
+  general, _ = _general()
+  assert not general.recording_locked()
+
+
+def test_report_needs_a_category_and_includes_details():
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import REPORT_CATEGORIES, Report
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeData
+  store, cache = _store()
+  data = FakeData()
+  report = Report(data, store)
+  report.send()
+  assert not data.reports
+  report.category, report.details, report.discord = 1, "on the highway", "driver42"
+  report.send()
+  assert data.reports == [(f"{REPORT_CATEGORIES[1]}: on the highway", "driver42")] and cache.values["DiscordUsername"] == "driver42"
+
+
+def test_backup_restore_asks_first():
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import confirm
+  window, _, _ = _window()
+  done = []
+  confirm(window, "Restore?", "Replaces settings.", "Restore", lambda: done.append(1))
+  window.overlay._on_result(DialogResult.CANCEL)
+  assert not done and window.overlay is None
+  confirm(window, "Restore?", "Replaces settings.", "Restore", lambda: done.append(1))
+  window.overlay._on_result(DialogResult.CONFIRM)
+  assert done == [1]
