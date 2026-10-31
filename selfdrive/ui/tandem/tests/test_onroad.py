@@ -93,7 +93,7 @@ def test_setup_use_defaults():
   store = SettingsStore(FakeCache({"LongitudinalPersonality": 0}), lambda: None)
   Setup(store, lambda: None).finish(use_answers=False)
   speed = SpeedSteering(store)
-  assert (speed.style, speed.matching, speed.lane_changes) == (1, True, 1)
+  assert (speed.style, speed.matching, speed.lane_changes) == (1, True, 0)
 
 
 def test_sidebar_network_status():

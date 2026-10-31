@@ -859,7 +859,7 @@ def test_reset_settings_applies_essentials_with_one_signal():
   apply_essentials(store)
   assert notified == [1]
   speed = SpeedSteering(store)
-  assert speed.style == 1 and speed.matching and speed.offset == 3 and speed.higher_limits == 1 and speed.lane_changes == 1
+  assert speed.style == 1 and speed.matching and speed.offset == 3 and speed.higher_limits == 1 and speed.lane_changes == 0
   assert not DEVELOPER_VIEW.is_on(store) and cache.values["GreenLightAlert"] and not cache.values["HolidayThemes"]
 
 

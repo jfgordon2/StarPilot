@@ -40,9 +40,9 @@ QUESTIONS = [
     ("Match · recommended", "Sets cruise to the limit plus 3. Asks before speeding up."),
   ], 2),
   Question("lane changes", "How should lane changes start?", [
-    ("Nudge", "Signal, then nudge the wheel toward the lane."),
-    ("Auto · recommended", "Signal and the car changes lanes when it's clear."),
-  ], 1),
+    ("Nudge · recommended", "Signal, then nudge the wheel toward the lane."),
+    ("Auto", "Signal and the car changes lanes when it's clear."),
+  ], 0),
 ]
 
 

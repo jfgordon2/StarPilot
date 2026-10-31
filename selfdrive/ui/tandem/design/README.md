@@ -82,7 +82,7 @@ Defaults are in **bold**.
 | --- | --- | --- |
 | Driving Style | Relaxed · **Standard** · Sport | `LongitudinalPersonality` `AccelProfile` `DecelProfile` `HumanLaneChanges` |
 | Speed Limits | Off · Show · **Match** (offset **+3**). Higher limits: **Tap to confirm** · Update automatically | `ShowSpeedLimits` `SetSpeedLimit` `SLCConfirmation` `SLCConfirmationLower` `SLCConfirmationHigher` `SLCFallback` `SLCPriority` `SLCMapboxFiller` `VisionSpeedLimit` `ConfigureOffsets` `UseVienna` (from region) |
-| Lane Changes | Nudge · **Auto** | `NudgelessLaneChange` `OneLaneChange` `LaneChangeTime` `MinimumLaneChangeSpeed` `LaneDetectionWidth` `LaneChangeSmoothing` |
+| Lane Changes | **Nudge** · Auto | `NudgelessLaneChange` `OneLaneChange` `LaneChangeTime` `MinimumLaneChangeSpeed` `LaneDetectionWidth` `LaneChangeSmoothing` |
 | Smart Slowdowns | **On** · Off | `ConditionalExperimental` `CECurves` `CEStopLights` `CEStoppedLead` `CESlowerLead` `CurveSpeedController` `MapDecel` |
 | Always-On Steering | **On** · Off | `AlwaysOnLateral` |
 | Vehicle Profile | **Car** · EV · Truck · Towing | `EVTuning` `TruckTuning` `TrailerLoad` |
