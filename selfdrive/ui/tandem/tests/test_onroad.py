@@ -126,3 +126,10 @@ def test_turn_card_icons_by_maneuver():
   assert {key: turn_icon(*key) for key in cases} == cases
   pngs = {p.stem for p in draw.ICON_DIR.glob("*.png")}
   assert {draw.MIRRORED.get(name, name) for name in cases.values()} <= pngs
+
+
+def test_home_software_card_shows_only_the_version_number():
+  from openpilot.selfdrive.ui.tandem.home import short_version
+  assert short_version("6.7.9 / design/essentials / 4b3a097 / Oct 31 - Regret Driven") == "6.7.9"
+  assert short_version(b"0.10.1 / release / Oct 28") == "0.10.1"
+  assert short_version(None) == ""

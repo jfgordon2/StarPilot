@@ -202,3 +202,15 @@ def test_scroll_glow_marks_the_edges_with_more_content(monkeypatch):
   assert edges(-150, 600) == ["top", "bottom"]  # in the middle
   assert edges(-300, 600) == ["top"]            # at the end
   assert edges(0, 300) == []                    # everything fits
+
+
+def test_paragraph_max_lines_ends_the_last_line_in_an_ellipsis(monkeypatch):
+  import pyray as rl
+  from openpilot.selfdrive.ui.tandem import draw
+  drawn = []
+  monkeypatch.setattr(draw, "paragraph_lines", lambda value, size, weight, width: ["one two", "three four", "five six"])
+  monkeypatch.setattr(draw, "fit", lambda text, size, weight, width, tracking=0: text)
+  monkeypatch.setattr(draw.rl, "draw_text_ex", lambda font, line, *a: drawn.append(line))
+  monkeypatch.setattr(draw, "font", lambda weight: None)
+  draw.paragraph(rl.Rectangle(0, 0, 100, 100), "x", 20, rl.WHITE, max_lines=2)
+  assert drawn == ["one two", "three four five six" + draw.ELLIPSIS]

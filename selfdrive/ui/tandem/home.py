@@ -22,7 +22,7 @@ class HomeState:
   ignition: bool = False
   setup: str = ""              # "Standard style · Matching speed limits · Auto lane change"
   update_ready: bool = False
-  version: str = ""
+  version: str = ""            # the short version ("6.7.9"), see short_version
 
 
 def setup_line(speed) -> str:
@@ -59,6 +59,12 @@ class Hero(Component):
     draw.text(setup, self._state().setup, T.font_px(18), T.TEXT_TERTIARY)
 
 
+def short_version(description) -> str:
+  """The version number from UpdaterCurrentDescription ("6.7.9 / branch / commit / date"): the card has room for it alone."""
+  text = description.decode(errors="ignore") if isinstance(description, bytes) else str(description or "")
+  return text.split(" / ")[0].strip()
+
+
 class Card(Component):
   """An icon well, a title and a line; an optional button on the right. The whole card is tappable."""
   grow_touch_target = False
@@ -90,7 +96,7 @@ class Card(Component):
     lines = [draw.line_height(T.font_px(22)), min(line_h, draw.line_height(T.font_px(15)) * 2)]
     title, line = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
     draw.text(title, self._title(), T.font_px(22), T.TEXT, T.FONT_BOLD)
-    draw.paragraph(line, self._line(), T.font_px(15), T.TEXT_TERTIARY, spacing=1.0)
+    draw.paragraph(line, self._line(), T.font_px(15), T.TEXT_TERTIARY, spacing=1.0, max_lines=2)
 
 
 class HomeContent(Component):
@@ -167,7 +173,8 @@ def essentials_home():
     def _state(self) -> HomeState:
       speed = self._speed
       return HomeState(alerts=self.alert_count, ignition=bool(ui_state.ignition), setup=setup_line(speed),
-                       update_ready=self.update_available, version=self._version_text)
+                       update_ready=self.update_available,
+                       version=short_version(ui_state.ui_params.get("UpdaterCurrentDescription")))
 
     def _render_home_content(self):
       if not self._setup_checked:   # first-run setup, as soon as onboarding has closed

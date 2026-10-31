@@ -111,11 +111,16 @@ def paragraph_height(value: str, size: int, weight: Face, width: float, spacing:
   return len(paragraph_lines(value, size, weight, width)) * line_height(size) * spacing
 
 
-def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: Face = T.FONT, spacing: float = 1.3) -> float:
-  """Wrapped text from the top of rect. Returns the height used."""
+def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight: Face = T.FONT, spacing: float = 1.3,
+              max_lines: int | None = None) -> float:
+  """Wrapped text from the top of rect. Returns the height used. With max_lines, the last line ends in an ellipsis
+  when the text would run longer."""
   y = rect.y
   step = line_height(size) * spacing
-  for line in paragraph_lines(value, size, weight, rect.width):
+  lines = paragraph_lines(value, size, weight, rect.width)
+  if max_lines is not None and len(lines) > max_lines:
+    lines = lines[:max_lines - 1] + [fit(" ".join(lines[max_lines - 1:]) + ELLIPSIS, size, weight, rect.width)]
+  for line in lines:
     rl.draw_text_ex(font(weight), line, rl.Vector2(round(rect.x), round(y)), size, 0, color)
     y += step
   return y - rect.y
