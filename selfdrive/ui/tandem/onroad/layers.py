@@ -125,9 +125,11 @@ class StatusChip(Component):
   grow_touch_target = False
   INK = {ChipTone.INFO: T.ACCENT_TEXT, ChipTone.PAUSED: T.WARNING, ChipTone.WAITING: T.SUCCESS_TEXT}
 
-  def __init__(self, chip: Callable[[], Chip | None]):
+  def __init__(self, chip: Callable[[], Chip | None], top: Callable[[], float] = lambda: T.px(22)):
+    """top: how far down the chip sits, below the speed limit sign while that's top right (navigating)."""
     super().__init__()
     self._chip = chip
+    self._top = top
 
   def size(self, chip: Chip) -> tuple[float, float]:
     return draw.text_width(chip.label, T.font_px(17), T.FONT_SEMIBOLD) + T.px(70), T.px(44)
@@ -137,7 +139,7 @@ class StatusChip(Component):
     if chip is None:
       return
     w, h = self.size(chip)
-    box = rl.Rectangle(rect.x + rect.width - w - T.px(22), rect.y + T.px(22), w, h)
+    box = rl.Rectangle(rect.x + rect.width - w - T.px(22), rect.y + self._top(), w, h)
     draw.fill(box, draw.alpha(T.BG, 0.8), T.px(12))
     body = inset(box, x=T.px(16))
     ink = self.INK[chip.tone]
@@ -279,9 +281,12 @@ class LimitCard(Component):
   WIDTH, PAD = T.px(360), T.px(16)
   SIGN = (T.px(70), T.px(86))
 
-  def __init__(self, offer: Callable[[], LimitOffer | None], on_match: Callable[[], None], on_ignore: Callable[[], None]):
+  def __init__(self, offer: Callable[[], LimitOffer | None], on_match: Callable[[], None], on_ignore: Callable[[], None],
+               top: Callable[[], float] = lambda: T.px(16)):
+    """top: how far down the card sits, below the turn card while navigating."""
     super().__init__()
     self._offer = offer
+    self._top = top
     self._match = self._child(Button("Match", on_match, ButtonStyle.PRIMARY, height=T.px(60), font_size=T.font_px(18),
                                      radius=T.px(16), weight=T.FONT_EXTRABOLD))
     self._ignore = self._child(Button("Ignore", on_ignore, ButtonStyle.SECONDARY, height=T.px(60), font_size=T.font_px(18),
@@ -289,7 +294,7 @@ class LimitCard(Component):
 
   def box(self, rect: rl.Rectangle) -> rl.Rectangle:
     height = self.PAD * 2 + self.SIGN[1] + T.px(14) + T.px(60) + T.px(14) + T.px(4)
-    return rl.Rectangle(rect.x + T.px(16), rect.y + T.px(16), self.WIDTH, height)
+    return rl.Rectangle(rect.x + T.px(16), rect.y + self._top(), self.WIDTH, height)
 
   def _render(self, rect: rl.Rectangle):
     offer = self._offer()
@@ -315,3 +320,83 @@ class LimitCard(Component):
     left = max(0.0, min(1.0, offer.seconds_left / offer.total)) if offer.total > 0 else 0.0
     if left > 0:
       draw.fill(rl.Rectangle(bar.x, bar.y, max(bar.height, bar.width * left), bar.height), T.ACCENT, T.px(2))
+
+
+# ── Speed, speed limit sign and turn card, as in the onroad mocks ──
+
+HUD_PILL = rl.Color(0x0B, 0x0D, 0x10, 230)
+SPEED_UNIT = rl.Color(0xC9, 0xD0, 0xDA, 255)
+TURN_LINE = rl.Color(0xC9, 0xD8, 0xEA, 255)
+SIGN_TILE = (T.px(82), T.px(98))
+SIGN_MARGIN = T.px(18)
+
+
+def draw_speed(rect: rl.Rectangle, speed: float, unit: str, offset_y: float = 0.0) -> None:
+  """The current speed, top center on a dark pill."""
+  number, size = f"{round(speed)}", T.font_px(62)
+  lines = [draw.line_height(size), draw.line_height(T.font_px(17))]
+  w = max(draw.text_width(number, size, T.FONT_EXTRABOLD), draw.text_width(unit, T.font_px(17))) + T.px(80)
+  h = sum(lines) + T.px(20) - T.px(6)
+  pill = rl.Rectangle(rect.x + (rect.width - w) / 2, rect.y + T.px(16) + offset_y, w, h)
+  draw.fill(pill, HUD_PILL, T.px(22))
+  value, label = column(inset(pill, y=T.px(10)), [lines[0] - T.px(6), lines[1]])
+  draw.text(value, number, size, T.TEXT, T.FONT_EXTRABOLD, Align.CENTER)
+  draw.text(label, unit, T.font_px(17), SPEED_UNIT, h=Align.CENTER)
+
+
+def sign_tile(rect: rl.Rectangle, right: bool) -> rl.Rectangle:
+  """Where the speed limit sign sits: top left, or top right while the turn card has the top left."""
+  w, h = SIGN_TILE
+  x = rect.x + rect.width - SIGN_MARGIN - w if right else rect.x + SIGN_MARGIN
+  return rl.Rectangle(x, rect.y + SIGN_MARGIN, w, h)
+
+
+def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
+  """The posted limit on a dark tile: a US sign, or Vienna's red ring."""
+  draw.fill(tile, rl.Color(0x0B, 0x0D, 0x10, 255), T.px(14))
+  if vienna:
+    sign = place(tile, T.px(72), T.px(72))
+    draw.fill(sign, VIENNA_RED, sign.width / 2)
+    draw.fill(inset(sign, T.px(8)), rl.WHITE, sign.width / 2)
+    draw.text(sign, limit, T.font_px(28), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+    return
+  sign = place(tile, T.px(62), T.px(78))
+  draw.fill(sign, rl.WHITE, T.px(8))
+  draw.stroke(inset(sign, T.px(2)), T.BG, T.px(7), T.px(3))
+  body = inset(sign, x=T.px(5), y=T.px(9))
+  top, middle, number = column(body, [T.px(12), T.px(12), FILL])
+  draw.text(top, "SPEED", T.font_px(10), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+  draw.text(middle, "LIMIT", T.font_px(10), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+  draw.text(number, limit, T.font_px(32), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+
+
+def turn_icon(maneuver: str, modifier: str) -> str:
+  """A mock icon for a maneuver: turn arrows by side, an up arrow for straight on, a pin on arrival."""
+  if maneuver in ("arrive", "depart"):
+    return "pin"
+  if maneuver in ("roundabout", "rotary", "roundabout turn") or "uturn" in modifier.lower():
+    return "restart"
+  modifier = modifier.lower()
+  if "left" in modifier:
+    return "turn_left"
+  if "right" in modifier:
+    return "turn_right"
+  return "shift"   # straight
+
+
+TURN_CARD_WIDTH = T.px(330)
+
+
+def draw_turn_card(rect: rl.Rectangle, distance: str, text: str, maneuver: str, modifier: str) -> rl.Rectangle:
+  """The next turn, top left: its arrow, the distance and the instruction. Returns the card's box."""
+  lines = [draw.line_height(T.font_px(30)), draw.line_height(T.font_px(17))]
+  box = rl.Rectangle(rect.x + T.px(16), rect.y + T.px(16), TURN_CARD_WIDTH, max(T.px(54), sum(lines)) + T.px(28))
+  draw.fill(box, T.ACCENT_SURFACE, T.px(20))
+  body = inset(box, x=T.px(18), y=T.px(14))
+  icon, words = row(body, [T.px(54), FILL], T.px(16))
+  draw.icon(icon, turn_icon(maneuver, modifier), T.TEXT, T.px(54))
+  dist, line = column(place(words, words.width, sum(lines) + T.px(2)), lines, T.px(2))
+  draw.text(dist, distance, T.font_px(30), T.TEXT, T.FONT_EXTRABOLD)
+  draw.text(line, text, T.font_px(17), TURN_LINE)
+  return box
+

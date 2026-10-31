@@ -126,7 +126,7 @@ def paragraph(rect: rl.Rectangle, value: str, size: int, color: rl.Color, weight
 # size is the icon's box, as the mocks size their SVGs; the strokes keep the mock's weight at any size.
 
 ICON_DIR = Path(__file__).resolve().parent / "icons"
-MIRRORED = {"lane_left": "lane_right"}   # drawn from another icon, flipped
+MIRRORED = {"lane_left": "lane_right", "turn_left": "turn_right"}   # drawn from another icon, flipped
 
 
 def icon(rect: rl.Rectangle, name: str, color: rl.Color, size: float) -> None:

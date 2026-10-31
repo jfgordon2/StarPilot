@@ -22,9 +22,12 @@ from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPi
 from openpilot.selfdrive.ui.onroad.starpilot.widget_layout_manager import WidgetLayoutManager
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
-from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR,
+from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
+from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, SIGN_MARGIN, SIGN_TILE,
                                                          ArcState, BarState, Headroom, HeadroomArc, HelpSteer,
-                                                         LimitCard, LimitOffer, OnroadBar, StatusChip)
+                                                         LimitCard, LimitOffer, OnroadBar, StatusChip, draw_speed, draw_speed_limit,
+                                                         draw_turn_card, sign_tile)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
@@ -43,6 +46,21 @@ class BarAwareLayout(WidgetLayoutManager):
       super()._layout_bottom(is_rhd)
     finally:
       self.content_rect = full
+
+
+class EssentialsTurnCard(NavigationCardRenderer):
+  """StarPilot's turn card, keeping its route data, drawn as the mock's card top left. Taps do nothing: End route is in the bar."""
+
+  def __init__(self):
+    super().__init__()
+    self.box: rl.Rectangle | None = None   # where it was drawn this frame, if it was
+
+  def _render(self, rect: rl.Rectangle) -> None:
+    self.box = None
+    if not self._valid:
+      return
+    text = " ".join(t for t in (self._primary_text, self._secondary_text) if t)
+    self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier)
 
 
 class EssentialsOnroadView(StarPilotOnroadView):
@@ -66,14 +84,38 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._headroom_chimed = False
     self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
-    self._chip_view = StatusChip(lambda: self._chip)
+    self._chip_view = StatusChip(lambda: self._chip, lambda: SIGN_MARGIN + SIGN_TILE[1] + T.px(12) if self._sign_right else T.px(22))
     self._arc = HeadroomArc(lambda: self._arc_state)
     self._help = HelpSteer()
-    self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit)
+    self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit,
+                            lambda: (self._turn_card.box.y + self._turn_card.box.height - self._content_rect.y + T.px(12))
+                            if self._turn_card.box is not None else T.px(16))
+    # StarPilot's HUD keeps deciding when the speed and turn card show; they're drawn in the Essentials style.
+    self._turn_card = EssentialsTurnCard()
+    self._hud_renderer._navigation_card = self._turn_card
+    self._hud_renderer._draw_current_speed = self._draw_current_speed
+    self._sign_right = False
     self._layers_visible = False
     self._nav_sm = None
 
   # Upstream pieces replaced here
+
+  def _draw_current_speed(self, rect: rl.Rectangle) -> None:
+    draw_speed(rect, self._hud_renderer.speed, "km/h" if ui_state.is_metric else "mph", self._hud_renderer.speed_offset_y)
+
+  def _render_speed_card(self):
+    """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""
+    self._sign_right = False
+    widget = self._unified_speed_widget
+    if self._full_alert_showing():
+      widget.collapse_sources()
+      return
+    widget._refresh_snapshot()
+    limit = widget._presentation.posted_speed_text
+    if limit in ("", "–") or self._offer() is not None:
+      return
+    self._sign_right = self._turn_card.box is not None
+    draw_speed_limit(sign_tile(self._content_rect, self._sign_right), limit, ui_state.ui_params.get_bool("UseVienna"))
 
   def _render_road_name(self):
     pass

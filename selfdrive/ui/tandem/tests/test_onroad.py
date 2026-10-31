@@ -116,3 +116,13 @@ def test_every_icon_named_has_a_png():
   named = set(re.findall(r'draw\.icon\([^,]+, "(\w+)"', source)) | set(re.findall(r'icon="(\w+)"', source))
   named |= set(re.findall(r'ChipTone\.\w+, "(\w+)"', source)) | {"lane_left", "lane_right"}
   assert named and {draw.MIRRORED.get(n, n) for n in named} <= pngs
+
+
+def test_turn_card_icons_by_maneuver():
+  from openpilot.selfdrive.ui.tandem import draw
+  from openpilot.selfdrive.ui.tandem.onroad.layers import turn_icon
+  cases = {("turn", "right"): "turn_right", ("turn", "slightLeft"): "turn_left", ("turn", "straight"): "shift",
+           ("arrive", "straight"): "pin", ("roundabout", "right"): "restart", ("turn", "uturn"): "restart"}
+  assert {key: turn_icon(*key) for key in cases} == cases
+  pngs = {p.stem for p in draw.ICON_DIR.glob("*.png")}
+  assert {draw.MIRRORED.get(name, name) for name in cases.values()} <= pngs
