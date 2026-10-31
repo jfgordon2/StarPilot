@@ -219,7 +219,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     offset = float(plan.slcSpeedLimitOffset) * conversion
     return LimitOffer(pending, pending + offset, "km/h" if ui_state.is_metric else "mph",
                       str(plan.slcPresentedSpeedLimitSource or plan.slcSpeedLimitSource or "map"),
-                      CONFIRM_TIMEOUT - (now - since))
+                      CONFIRM_TIMEOUT - (now - since), CONFIRM_TIMEOUT, ui_state.ui_params.get_bool("UseVienna"))
 
   def _offroad_transition(self) -> None:
     super()._offroad_transition()
