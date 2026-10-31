@@ -162,6 +162,9 @@ class SettingRow(Component):
     draw.text(sub_rect, subtitle, T.SIZE_SUBTITLE, draw.alpha(resolve(self._subtitle_color), dim))
 
 
+PANEL_HEADER_PAD = (T.px(16), T.px(12))   # above and below a panel's title, as on the Theme & Startup mock
+
+
 class ListPanel(Component):
   """A rounded panel: optional header and banner, then items separated by dividers. Scrolls when items overflow.
 
@@ -209,7 +212,7 @@ class ListPanel(Component):
     height = draw.line_height(self._title_size)
     if self._subtitle is not None:
       height += T.px(3) + draw.line_height(T.SIZE_SUBTITLE)
-    return height + T.px(20)
+    return height + PANEL_HEADER_PAD[0] + PANEL_HEADER_PAD[1]
 
   @staticmethod
   def _height_of(widget: Widget, width: float) -> float:
@@ -240,7 +243,7 @@ class ListPanel(Component):
     y = rect.y
     if self._title is not None:
       header = rl.Rectangle(rect.x, y, rect.width, self._header_height())
-      body = inset(header, x=T.PANEL_HEADER_INSET, y=T.px(13))
+      body = inset(header, x=T.PANEL_HEADER_INSET, top=PANEL_HEADER_PAD[0], bottom=PANEL_HEADER_PAD[1])
       if self._header_control is not None:
         w, h = size_of(self._header_control, body.width / 2)
         self._header_control.render(place(body, w, h, Align.END))
