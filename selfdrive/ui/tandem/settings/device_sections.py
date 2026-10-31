@@ -205,12 +205,24 @@ class StorageBar(Component):
     title, bar, legend = column(body, [draw.line_height(T.SIZE_ROW_TITLE), T.px(14), FILL], T.px(10))
     draw.text(title, f"{_gb(used)} of {_gb(total)} used", T.SIZE_ROW_TITLE, T.TEXT, T.FONT_SEMIBOLD)
     draw.fill(bar, T.TRACK, T.px(7))
-    x = bar.x
+    # Flat segments, as in the mock's clipped track: only the bar's own ends are round.
+    x, radius = bar.x, T.px(7)
     for kind, color in self.KINDS:
-      w = bar.width * sizes.get(kind, 0.0) / total
-      if w > 0:
-        draw.fill(rl.Rectangle(x, bar.y, max(w, T.px(4)), bar.height), color, T.px(7))
-        x += w
+      w = min(bar.width * sizes.get(kind, 0.0) / total, bar.x + bar.width - x)
+      if w <= 0:
+        continue
+      w = max(w, T.px(4))
+      segment = rl.Rectangle(x, bar.y, w, bar.height)
+      at_start, at_end = x <= bar.x + 0.5, x + w >= bar.x + bar.width - 0.5
+      if at_start or at_end:
+        draw.fill(segment, color, radius)   # round, then square off the side that joins another color
+        if not at_start:
+          draw.fill(rl.Rectangle(x, bar.y, min(radius, w), bar.height), color)
+        if not at_end:
+          draw.fill(rl.Rectangle(x + max(0.0, w - radius), bar.y, min(radius, w), bar.height), color)
+      else:
+        draw.fill(segment, color)
+      x += w
     lx = legend.x
     for kind, color in self.KINDS:
       dot = rl.Rectangle(lx, legend.y + legend.height / 2 - T.px(5), T.px(10), T.px(10))
