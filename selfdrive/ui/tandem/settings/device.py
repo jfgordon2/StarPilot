@@ -55,7 +55,8 @@ class Device(Protocol):
 
 class ThisDevicePanel(ListPanel):
   def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None,
-               ask: Callable | None = None, open_language: Callable[[], None] | None = None):
+               ask: Callable | None = None, open_language: Callable[[], None] | None = None,
+               open_regulatory: Callable[[], None] | None = None):
     """open_pairing, open_remote_access and open_language show our pages and sheet. ask(title, message, label, action, danger,
     icon) shows our confirm dialog before Restart, Power Off, Recalibrate and the driver monitoring reset; the device then
     runs upstream's action without its own dialog."""
@@ -99,7 +100,7 @@ class ThisDevicePanel(ListPanel):
       SectionHeader("MORE"),
       SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on", reset_dm),
       SettingRow("Language", None, action("Change", open_language or device.change_language)),
-      regulatory := SettingRow("Regulatory", None, action("View", device.regulatory, offroad_only=True)),
+      regulatory := SettingRow("Regulatory", None, action("View", open_regulatory or device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
     ], title="This Device", footer=ButtonRow([restart, power_off]))
     regulatory.set_visible(device.show_regulatory)
@@ -185,6 +186,32 @@ class CodeTile(Component):
     text, color, weight = self._caption()
     draw.text(rl.Rectangle(group.x - T.px(60), tile.y + tile.height + T.px(14), self.TILE + T.px(120), line_h), text, T.font_px(15),
               color, weight, Align.CENTER)
+
+
+REGULATORY_FILE = "selfdrive/assets/offroad/fcc.html"
+
+
+class HtmlBlock(Component):
+  """Upstream's HTML renderer as a row of a ListPanel, so long notices scroll in our panel."""
+  grow_touch_target = False
+
+  def __init__(self, path: str):
+    super().__init__()
+    from openpilot.system.ui.widgets.html_render import ElementType, HtmlRenderer
+    self._html = HtmlRenderer(file_path=path, text_size={ElementType.P: T.font_px(17)}, text_color=T.TEXT_SECONDARY)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, self._html.get_total_height(int(max_width - T.PANEL_HEADER_INSET * 2)) + T.px(24)
+
+  def _render(self, rect: rl.Rectangle):
+    self._html.render(inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(12)))
+
+
+def regulatory_panel() -> ListPanel:
+  """The FCC notice upstream shows, in our panel."""
+  import os
+  from openpilot.common.basedir import BASEDIR
+  return ListPanel([HtmlBlock(os.path.join(BASEDIR, REGULATORY_FILE))], title="Regulatory", header_divider=True)
 
 
 def pairing_page(device: Device):
