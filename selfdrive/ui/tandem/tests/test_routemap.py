@@ -57,3 +57,31 @@ def test_fetcher_asks_once_per_place_and_keeps_only_the_latest():
   assert fetcher.route(other) == (None, M.NO_FIX)    # the slow, older answer doesn't land
   assert asked.count("slow") == 1
   assert fetcher.route(None) == (None, "")
+
+
+def test_start_position_falls_back_to_the_saved_position_without_its_heading():
+  live = '{"hasFix": true, "latitude": 45.5, "longitude": -122.6, "bearing": 90}'
+  saved = '{"hasFix": true, "latitude": 45.4, "longitude": -122.7, "bearing": 180}'
+  assert M.start_position(live, saved) == (45.5, -122.6, 90.0)
+  assert M.start_position("", saved) == (45.4, -122.7, None)
+  assert M.start_position("", "") is None
+
+
+def test_fetcher_asks_again_while_there_is_no_route():
+  clock, answers = [100.0], [M.NO_FIX, PLAN]
+  fetcher = M.RouteFetcher(lambda place: answers.pop(0), clock=lambda: clock[0])
+  place = {"latitude": 1, "longitude": 1}
+
+  def settle():
+    for _ in range(200):
+      if not fetcher._busy:
+        return
+      threading.Event().wait(0.005)
+
+  fetcher.route(place)
+  settle()
+  assert fetcher.route(place) == (None, M.NO_FIX)    # too soon to ask again
+  clock[0] += M.RouteFetcher.RETRY
+  assert fetcher.route(place)[1] == M.NO_FIX         # asking again, the reason stays up meanwhile
+  settle()
+  assert fetcher.route(place) == (PLAN, "")

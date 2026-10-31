@@ -11,6 +11,7 @@ import datetime
 import json
 import math
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -138,6 +139,17 @@ def gps_fix(raw: str) -> tuple[float, float, float | None] | None:
   return lat, lon, bearing if math.isfinite(bearing) else None
 
 
+def start_position(live: str, saved: str) -> tuple[float, float, float | None] | None:
+  """Where the route starts: the live fix (memory LastGPSPosition, kept only while the GPS has a fix), else the last
+  position StarPilot saved (persistent LastGPSPosition, written when the car turns off and while parked). Parked
+  indoors there's often no live fix, but the car hasn't moved. The saved heading may be old, so it isn't used."""
+  fix = gps_fix(live)
+  if fix is not None:
+    return fix
+  saved_fix = gps_fix(saved)
+  return (saved_fix[0], saved_fix[1], None) if saved_fix is not None else None
+
+
 FINDING = "Finding a route…"
 NO_FIX = "Needs a GPS fix to plan the route"
 NO_ROUTE = "Couldn't find a route. Check the connection."
@@ -145,13 +157,18 @@ NOT_SET_UP = "Routing isn't set up on this device"
 
 
 class RouteFetcher:
-  """One route at a time for the place being previewed; a newer place replaces an older request."""
+  """One route at a time for the place being previewed; a newer place replaces an older request. Without a route (no
+  GPS position yet, no connection), it asks again every RETRY seconds while the preview is open, keeping the reason up."""
+  RETRY = 5.0
 
-  def __init__(self, fetch: Callable[[dict], RoutePlan | str]):
+  def __init__(self, fetch: Callable[[dict], RoutePlan | str], clock: Callable[[], float] = time.monotonic):
     self._fetch = fetch          # runs in the background: a plan, or the reason there isn't one
+    self._clock = clock
     self._lock = threading.Lock()
     self._key: tuple | None = None
     self._result: RoutePlan | str = ""
+    self._busy = False
+    self._done_at = 0.0
 
   def route(self, place: dict | None) -> tuple[RoutePlan | None, str]:
     if place is None:
@@ -160,9 +177,15 @@ class RouteFetcher:
     with self._lock:
       if key != self._key:
         self._key, self._result = key, FINDING
-        threading.Thread(target=self._run, args=(key, dict(place)), daemon=True).start()
+        self._start(key, place)
+      elif (not self._busy and self._result in (NO_FIX, NO_ROUTE) and self._clock() - self._done_at >= self.RETRY):
+        self._start(key, place)
       result = self._result
     return (result, "") if isinstance(result, RoutePlan) else (None, result)
+
+  def _start(self, key: tuple, place: dict) -> None:
+    self._busy = True
+    threading.Thread(target=self._run, args=(key, dict(place)), daemon=True).start()
 
   def _run(self, key: tuple, place: dict) -> None:
     try:
@@ -171,7 +194,7 @@ class RouteFetcher:
       result = NO_ROUTE
     with self._lock:
       if key == self._key:
-        self._result = result
+        self._result, self._busy, self._done_at = result, False, self._clock()
 
 
 def mapbox_route(place: dict) -> RoutePlan | str:
@@ -181,7 +204,8 @@ def mapbox_route(place: dict) -> RoutePlan | str:
   token = Params().get("MapboxSecretKey", encoding="utf-8") or ""
   if not token.strip():
     return NOT_SET_UP
-  fix = gps_fix(Params(memory=True).get("LastGPSPosition", encoding="utf-8") or "")
+  fix = start_position(Params(memory=True).get("LastGPSPosition", encoding="utf-8") or "",
+                       Params().get("LastGPSPosition", encoding="utf-8") or "")
   if fix is None:
     return NO_FIX
   route = MapboxRouteEngine().fetch_route(token, Coordinate(fix[0], fix[1]), place, fix[2])
