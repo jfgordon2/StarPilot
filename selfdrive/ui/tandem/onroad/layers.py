@@ -256,30 +256,11 @@ class LimitOffer:
 VIENNA_RED = rl.Color(0xD9, 0x43, 0x4F, 255)
 
 
-def limit_sign(rect: rl.Rectangle, limit: float, vienna: bool) -> None:
-  """The posted sign: US (white, black border, SPEED LIMIT over the number) or Vienna (red ring)."""
-  number = f"{limit:.0f}"
-  if vienna:
-    sign = place(rect, rect.width, rect.width)
-    draw.fill(sign, VIENNA_RED, sign.width / 2)
-    draw.fill(inset(sign, sign.width * 0.11), rl.WHITE, sign.width / 2)
-    draw.text(sign, number, T.font_px(30), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
-    return
-  draw.fill(rect, rl.WHITE, T.px(9))
-  draw.stroke(inset(rect, T.px(4)), T.BG, T.px(6), T.px(3))
-  body = inset(rect, x=T.px(6), y=T.px(10))
-  top, middle, number_rect = column(body, [T.px(14), T.px(14), FILL])
-  draw.text(top, "SPEED", T.font_px(11), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
-  draw.text(middle, "LIMIT", T.font_px(11), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
-  draw.text(number_rect, number, T.font_px(34), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
-
-
 class LimitCard(Component):
   """Asks before speeding up to a higher limit; lower limits never ask. It sits over StarPilot's speed limit sign, top left,
   with the new limit's sign in it, and a bar that drains until the offer is ignored."""
   grow_touch_target = False
-  WIDTH, PAD = T.px(360), T.px(16)
-  SIGN = (T.px(70), T.px(86))
+  WIDTH, PAD = T.px(360), T.px(12)   # the pad puts the card's sign exactly where the plain sign sits
 
   def __init__(self, offer: Callable[[], LimitOffer | None], on_match: Callable[[], None], on_ignore: Callable[[], None],
                top: Callable[[], float] = lambda: T.px(16)):
@@ -293,7 +274,7 @@ class LimitCard(Component):
                                       radius=T.px(16), weight=T.FONT_BOLD))
 
   def box(self, rect: rl.Rectangle) -> rl.Rectangle:
-    height = self.PAD * 2 + self.SIGN[1] + T.px(14) + T.px(60) + T.px(14) + T.px(4)
+    height = self.PAD * 2 + SIGN_SIZE[1] + T.px(14) + T.px(60) + T.px(14) + T.px(4)
     return rl.Rectangle(rect.x + T.px(16), rect.y + self._top(), self.WIDTH, height)
 
   def _render(self, rect: rl.Rectangle):
@@ -304,9 +285,9 @@ class LimitCard(Component):
     draw.fill(box, draw.alpha(T.SURFACE_2, 0.96), T.px(22))
     draw.stroke(box, T.ACCENT, T.px(22), T.px(2))
     body = inset(box, self.PAD)
-    top, buttons, bar = column(body, [self.SIGN[1], T.px(60), T.px(4)], T.px(14))
-    sign, text = row(top, [self.SIGN[0], FILL], T.px(16))
-    limit_sign(sign, offer.limit, offer.vienna)
+    top, buttons, bar = column(body, [SIGN_SIZE[1], T.px(60), T.px(4)], T.px(14))
+    sign, text = row(top, [SIGN_SIZE[0], FILL], T.px(16))
+    draw_sign(sign, f"{offer.limit:.0f}", offer.vienna)
     lines = [draw.line_height(T.font_px(22)), draw.line_height(T.font_px(16)), draw.line_height(T.font_px(13))]
     title, question, source = column(place(text, text.width, sum(lines) + T.px(8)), lines, T.px(4))
     draw.text(title, f"New limit {offer.limit:.0f}", T.font_px(22), T.TEXT, T.FONT_EXTRABOLD)
@@ -328,6 +309,7 @@ HUD_PILL = rl.Color(0x0B, 0x0D, 0x10, 230)
 SPEED_UNIT = rl.Color(0xC9, 0xD0, 0xDA, 255)
 TURN_LINE = rl.Color(0xC9, 0xD8, 0xEA, 255)
 SIGN_TILE = (T.px(82), T.px(98))
+SIGN_SIZE = (T.px(62), T.px(78))   # the US sign inside the tile; the new-limit card draws it at the same size and spot
 SIGN_MARGIN = T.px(18)
 
 
@@ -382,15 +364,20 @@ def sign_tile(rect: rl.Rectangle) -> rl.Rectangle:
 
 
 def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
-  """The posted limit on a dark tile: a US sign, or Vienna's red ring."""
+  """The posted limit on a dark tile."""
   draw.fill(tile, rl.Color(0x0B, 0x0D, 0x10, 255), T.px(14))
+  draw_sign(place(tile, *SIGN_SIZE), limit, vienna)
+
+
+def draw_sign(area: rl.Rectangle, limit: str, vienna: bool) -> None:
+  """A US sign filling area, or Vienna's red ring centered on it (a little wider than the US sign, as in the mock)."""
   if vienna:
-    sign = place(tile, T.px(72), T.px(72))
+    sign = place(area, T.px(72), T.px(72))
     draw.fill(sign, VIENNA_RED, sign.width / 2)
     draw.fill(inset(sign, T.px(8)), rl.WHITE, sign.width / 2)
     draw.text(sign, limit, T.font_px(28), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
     return
-  sign = place(tile, T.px(62), T.px(78))
+  sign = area
   draw.fill(sign, rl.WHITE, T.px(8))
   draw.stroke(inset(sign, T.px(2)), T.BG, T.px(7), T.px(3))
   body = inset(sign, x=T.px(5), y=T.px(9))
