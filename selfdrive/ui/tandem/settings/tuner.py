@@ -1,0 +1,362 @@
+"""Tuner Mode: raw values behind the presets, each showing where it comes from, and per-item bundle overrides.
+
+A value is DEFAULT when it equals the car's stock value (StarPilot keeps it in the matching *Stock param) or the
+param default, OVERRIDE when it differs, and LEARNED while openpilot learns it (steering delay). FROM STYLE marks
+the profiles that Driving Style sets.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+import pyray as rl
+
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Stepper, Switch, Tone
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, row
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
+from openpilot.selfdrive.ui.tandem.settings.display import CLEAN_SCREEN
+from openpilot.selfdrive.ui.tandem.settings.editors import NumberSpec, number_sheet
+from openpilot.selfdrive.ui.tandem.settings.speed_steering import STYLE_PARAMS, SpeedSteering
+from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+
+DEFAULT, OVERRIDE, LEARNED, FROM_STYLE = "Default", "Override", "Learned", "From style"
+_TONES = {DEFAULT: Tone.NEUTRAL, OVERRIDE: Tone.WARNING, LEARNED: Tone.SUCCESS, FROM_STYLE: Tone.ACCENT}
+
+
+@dataclass(frozen=True)
+class Tunable:
+  key: str
+  title: str
+  subtitle: str
+  spec: NumberSpec
+  stock_key: str | None = None       # the car's own value; falls back to spec.default
+  learned_key: str | None = None     # a switch that, when on, makes openpilot learn the value
+  enable: dict = field(default_factory=dict)   # master switches the value needs
+
+
+def _f(digits: int, unit: str = "") -> Callable[[float], str]:
+  return lambda v: f"{v:.{digits}f}{unit}"
+
+
+LATERAL = {"AdvancedLateralTune": True}
+LONGITUDINAL = {"AdvancedLongitudinalTune": True}
+
+STEERING = [
+  Tunable("SteerDelay", "Steering Delay", "Time from command to wheel response", NumberSpec(0.01, 1.0, 0.01, 0.1, _f(2, " s")),
+          "SteerDelayStock", learned_key="UseAutoSteerDelay", enable=LATERAL),
+  Tunable("SteerFriction", "Friction", "Extra torque near center", NumberSpec(0.0, 1.0, 0.01, 0.1, _f(2)), "SteerFrictionStock",
+          enable=LATERAL),
+  Tunable("SteerLatAccel", "Lateral Acceleration", "Torque to cornering scaling", NumberSpec(0.5, 5.0, 0.05, 2.5, _f(2)),
+          "SteerLatAccelStock", enable=LATERAL),
+  Tunable("SteerKP", "Kp Factor", "Correction strength", NumberSpec(0.1, 3.0, 0.05, 1.0, _f(2)), "SteerKPStock", enable=LATERAL),
+]
+GAS_BRAKE = [
+  Tunable("MaxDesiredAcceleration", "Maximum Acceleration", "The hardest openpilot will accelerate",
+          NumberSpec(0.1, 4.0, 0.1, 4.0, _f(1, " m/s²")), enable=LONGITUDINAL),
+  Tunable("StartAccel", "Start Acceleration", "How firmly the car pulls away from a stop", NumberSpec(0.0, 4.0, 0.05, 0.0, _f(2, " m/s²")),
+          "StartAccelStock", enable=LONGITUDINAL),
+  Tunable("StopAccel", "Stop Acceleration", "Braking held while stopped", NumberSpec(-4.0, 0.0, 0.05, 0.0, _f(2, " m/s²")),
+          "StopAccelStock", enable=LONGITUDINAL),
+  Tunable("StoppingDecelRate", "Stopping Rate", "How quickly braking builds into a stop", NumberSpec(0.01, 1.0, 0.01, 0.8, _f(2)),
+          "StoppingDecelRateStock", enable=LONGITUDINAL),
+  Tunable("LongitudinalActuatorDelay", "Actuator Delay", "Time from command to gas or brake response",
+          NumberSpec(0.0, 1.0, 0.01, 0.15, _f(2, " s")), "LongitudinalActuatorDelayStock", enable=LONGITUDINAL),
+]
+FOLLOWING = [
+  Tunable("LeadDetectionThreshold", "Lead Detection Sensitivity", "Lower notices cars ahead sooner",
+          NumberSpec(25, 50, 1, 35, lambda v: f"{v:.0f}%", (25, 35, 50))),
+  Tunable("IncreasedStoppedDistance", "Stopped Distance", "Extra room left behind a stopped car",
+          NumberSpec(0, 10, 1, 0, lambda v: f"+{v:.0f}", (0, 3, 5, 10)), enable={"QOLLongitudinal": True}),
+]
+# Following gap per Driving Style, plus Traffic mode. Seconds behind the car ahead.
+GAPS = [("Relaxed", "RelaxedFollow", 1.6), ("Standard", "StandardFollow", 1.45), ("Sport", "AggressiveFollow", 1.25),
+        ("Traffic", "TrafficFollow", 0.75)]
+CONTROLLERS = ["Auto", "NNFF", "Lite", "Torque"]
+_CONTROLLER_PARAMS = [
+  {"NNFF": True, "NNFFLite": True, "ForceTorqueController": False},    # NNFF where the car has a model, otherwise Lite
+  {"NNFF": True, "NNFFLite": False, "ForceTorqueController": False},
+  {"NNFF": False, "NNFFLite": True, "ForceTorqueController": False},
+  {"NNFF": False, "NNFFLite": False, "ForceTorqueController": True},
+]
+ACCEL_PROFILES = [("Eco", 1), ("Standard", 0), ("Sport", 2), ("Sport+", 3)]
+DECEL_PROFILES = [("Eco", 1), ("Standard", 0), ("Sport", 2)]
+CRUISE_STEPS = [1, 5, 10]
+# Bundles listed under Bundle Overrides: name, the keys a driver can override, and the value each has with the bundle on.
+CLEAN_SCREEN_BUNDLE = Bundle("Clean Screen", "", CLEAN_SCREEN[0], dict.fromkeys(CLEAN_SCREEN, True), dict.fromkeys(CLEAN_SCREEN, False))
+ITEM_NAMES = {
+  "DeveloperSidebar": "Developer sidebar", "FPSCounter": "FPS counter", "ShowCPU": "CPU load", "ShowGPU": "GPU load",
+  "NumericalTemp": "Numeric temperature", "ShowMemoryUsage": "Memory use", "AdjacentPathMetrics": "Adjacent lane widths",
+  "SpeedLimitSources": "Speed limit sources", "LeadInfo": "Lead distance and speed", "RadarTracksUI": "Radar points",
+  "ShowStoppingPoint": "Stopping point", "ShowStoppingPointMetrics": "Stopping point distance", "AdjacentPath": "Adjacent paths",
+  "PedalsOnUI": "Pedals", "HideChangingLanesBanner": "Hide lane change banner", "HideTurningBanner": "Hide turn banner",
+  "HideDistanceProfileBanner": "Hide driving style banner",
+}
+OVERRIDE_BUNDLES = [DEVELOPER_VIEW, LEAD_INSIGHTS, CLEAN_SCREEN_BUNDLE]
+
+
+class Tuner:
+  def __init__(self, store: SettingsStore):
+    self._store = store
+    self._speed = SpeedSteering(store)
+
+  # Single values
+
+  def value(self, t: Tunable) -> float:
+    return self._store.get_float(t.key)
+
+  def baseline(self, t: Tunable) -> float:
+    if t.stock_key is not None:
+      stock = self._store.get_float(t.stock_key)
+      if stock:
+        return stock
+    return t.spec.default
+
+  def status(self, t: Tunable) -> str:
+    if t.learned_key is not None and self._store.get_bool(t.learned_key):
+      return LEARNED
+    return DEFAULT if abs(self.value(t) - self.baseline(t)) < t.spec.step / 2 else OVERRIDE
+
+  def set_value(self, t: Tunable, value: float) -> None:
+    values = dict(t.enable) | {t.key: float(value)}
+    if t.learned_key is not None:
+      values[t.learned_key] = False
+    self._store.write(values)
+
+  def reset(self, t: Tunable) -> None:
+    values = {t.key: float(self.baseline(t))}
+    if t.learned_key is not None:
+      values[t.learned_key] = True
+    self._store.write(values)
+
+  # Choices
+
+  @property
+  def controller(self) -> int:
+    nnff, lite, torque = (self._store.get_bool(k) for k in ("NNFF", "NNFFLite", "ForceTorqueController"))
+    if torque:
+      return 3
+    if nnff:
+      return 0 if lite else 1
+    return 2 if lite else -1
+
+  def set_controller(self, index: int) -> None:
+    self._store.write(LATERAL | _CONTROLLER_PARAMS[index])
+
+  def _profile(self, key: str, profiles: list[tuple[str, int]]) -> int:
+    value = self._store.get_int(key)
+    return next((i for i, (_, v) in enumerate(profiles) if v == value), 1)
+
+  @property
+  def accel_profile(self) -> int:
+    return self._profile("AccelerationProfile", ACCEL_PROFILES)
+
+  def set_accel_profile(self, index: int) -> None:
+    self._store.write({"AccelerationProfile": ACCEL_PROFILES[index][1]})
+
+  @property
+  def decel_profile(self) -> int:
+    return self._profile("DecelerationProfile", DECEL_PROFILES)
+
+  def set_decel_profile(self, index: int) -> None:
+    self._store.write({"DecelerationProfile": DECEL_PROFILES[index][1]})
+
+  def profile_status(self, key: str) -> str:
+    _, accel, decel = STYLE_PARAMS[self._speed.style]
+    expected = accel if key == "AccelerationProfile" else decel
+    return FROM_STYLE if self._store.get_int(key) == expected else OVERRIDE
+
+  def gap(self, key: str) -> float:
+    return self._store.get_float(key)
+
+  def set_gap(self, key: str, seconds: float) -> None:
+    self._store.write({"CustomPersonalities": True, key: round(seconds, 2)})
+
+  def switch(self, key: str) -> bool:
+    return self._store.get_bool(key)
+
+  def set_switch(self, key: str, on: bool, enable: dict | None = None) -> None:
+    self._store.write((enable or {}) | {key: on})
+
+  @property
+  def cruise_step(self) -> int:
+    step = self._store.get_float("CustomCruise")
+    return min(range(len(CRUISE_STEPS)), key=lambda i: abs(CRUISE_STEPS[i] - step))
+
+  def set_cruise_step(self, index: int) -> None:
+    self._store.write({"CustomCruise": float(CRUISE_STEPS[index])})
+
+  # Bundle overrides
+
+  def bundle_items(self, bundle: Bundle) -> list[str]:
+    return [k for k in bundle.on if k in ITEM_NAMES]
+
+  def item_differs(self, bundle: Bundle, key: str) -> bool:
+    on = bundle.is_on(self._store) if bundle is not CLEAN_SCREEN_BUNDLE else self._store.get_bool("AdvancedCustomUI")
+    expected = bundle.on[key] if on else bundle.off.get(key, bundle.on[key])
+    return self._store.get_bool(key) != expected
+
+  def bundle_changes(self, bundle: Bundle) -> int:
+    return sum(self.item_differs(bundle, k) for k in self.bundle_items(bundle))
+
+  # Counts and reset
+
+  def changed(self, tunables: list[Tunable]) -> int:
+    return sum(self.status(t) == OVERRIDE for t in tunables)
+
+  def gas_brake_changes(self) -> int:
+    profiles = sum(self.profile_status(k) == OVERRIDE for k in ("AccelerationProfile", "DecelerationProfile"))
+    return self.changed(GAS_BRAKE) + profiles
+
+  def following_changes(self) -> int:
+    return self.changed(FOLLOWING) + sum(abs(self.gap(key) - default) > 0.01 for _, key, default in GAPS)
+
+  def reset_all(self) -> None:
+    values: dict = {}
+    for t in STEERING + GAS_BRAKE + FOLLOWING:
+      values[t.key] = float(self.baseline(t))
+      if t.learned_key is not None:
+        values[t.learned_key] = True
+    _, accel, decel = STYLE_PARAMS[self._speed.style]
+    values |= {"AccelerationProfile": accel, "DecelerationProfile": decel} | _CONTROLLER_PARAMS[0]
+    values |= {key: default for _, key, default in GAPS} | {"CustomCruise": 1.0}
+    for bundle in OVERRIDE_BUNDLES:
+      on = bundle.is_on(self._store)
+      values |= {k: v for k, v in (bundle.on if on else bundle.off).items() if k in ITEM_NAMES}
+    self._store.write(values)
+
+
+def _changed_label(count: int) -> str:
+  return f"{count} changed" if count else ""
+
+
+def tunable_row(tuner: Tuner, t: Tunable, window) -> SettingRow:
+  def edit():
+    window.present(number_sheet(window, t.title, t.subtitle, NumberSpec(t.spec.minimum, t.spec.maximum, t.spec.step, tuner.baseline(t),
+                                                                        t.spec.fmt, t.spec.picks),
+                                lambda: tuner.value(t), lambda v: tuner.set_value(t, v)))
+
+  def action():
+    if tuner.status(t) == OVERRIDE:
+      tuner.reset(t)
+    else:
+      edit()
+
+  return SettingRow(t.title, t.subtitle, ValueStatus(lambda: t.spec.fmt(tuner.value(t)), lambda: tuner.status(t),
+                                                     Button(lambda: "Reset" if tuner.status(t) == OVERRIDE else "Override", action,
+                                                            height=T.px(40)), on_value=edit))
+
+
+class ValueStatus(Component):
+  """Value, then its source badge, then an action button."""
+  grow_touch_target = False
+
+  def __init__(self, value: Callable[[], str], status: Callable[[], str], button: Button, on_value: Callable[[], None] | None = None):
+    super().__init__()
+    self._value = value
+    self._status = status
+    self._badge = self._child(Badge(status, lambda: _TONES.get(status(), Tone.NEUTRAL)))
+    self._button = self._child(button)
+    self.set_click_callback(on_value)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return T.px(330), T.px(44)
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._badge.set_parent_rect(parent_rect)
+    self._button.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    button_w = T.px(108)
+    value, badge, button = row(rect, [FILL, T.px(96), button_w], T.px(10))
+    draw.text(value, self._value(), T.font_px(18), T.TEXT, T.FONT_SEMIBOLD, h=Align.END)
+    bw, bh = self._badge.preferred_size(badge.width)
+    self._badge.render(rl.Rectangle(badge.x + (badge.width - bw) / 2, badge.y + (badge.height - bh) / 2, bw, bh))
+    self._button.render(rl.Rectangle(button.x, button.y + (button.height - T.px(40)) / 2, button.width, T.px(40)))
+
+
+def steering_panel(tuner: Tuner, window) -> ListPanel:
+  return ListPanel([
+    *[tunable_row(tuner, t, window) for t in STEERING],
+    SettingRow("Steering Controller", "Auto uses NNFF when your car has a model",
+               Segmented(CONTROLLERS, lambda: tuner.controller, tuner.set_controller)),
+  ], title="Steering", subtitle="Learned values work for most cars. An override replaces the learned value until you reset it.")
+
+
+def gas_brake_panel(tuner: Tuner, window) -> ListPanel:
+  def profile(title: str, key: str, profiles, get, set_) -> SettingRow:
+    return SettingRow(title, lambda: "Set by Driving Style" if tuner.profile_status(key) == FROM_STYLE else "Overrides Driving Style",
+                      Segmented([name for name, _ in profiles], get, set_))
+
+  return ListPanel([
+    profile("Acceleration Profile", "AccelerationProfile", ACCEL_PROFILES, lambda: tuner.accel_profile, tuner.set_accel_profile),
+    profile("Braking Profile", "DecelerationProfile", DECEL_PROFILES, lambda: tuner.decel_profile, tuner.set_decel_profile),
+    *[tunable_row(tuner, t, window) for t in GAS_BRAKE],
+  ], title="Gas & Brake", subtitle="Driving Style and Vehicle Profile set these. An override replaces their value.")
+
+
+def following_panel(tuner: Tuner, window) -> ListPanel:
+  gaps = [SettingRow(name, None, Stepper(lambda k=key: tuner.gap(k), lambda v, k=key: tuner.set_gap(k, v), 0.5, 3.0, 0.05,
+                                         fmt=lambda v: f"{v:.2f} s", value_width=T.px(110)), indent=True)
+          for name, key, _ in GAPS]
+  return ListPanel([
+    SectionHeader("FOLLOWING GAP BY STYLE"),
+    *gaps,
+    *[tunable_row(tuner, t, window) for t in FOLLOWING],
+    SettingRow("Use Radar for Take-Offs", "Starts moving as soon as the radar sees the car ahead pull away",
+               Switch(lambda: tuner.switch("RadarTakeoffs"), lambda on: tuner.set_switch("RadarTakeoffs", on))),
+    SettingRow("Force Stops at Lights", "Comes to a full stop for red lights the model detects",
+               Switch(lambda: tuner.switch("ForceStops"), lambda on: tuner.set_switch("ForceStops", on, {"QOLLongitudinal": True}))),
+    SettingRow("Cruise Button Step", "How far one press of + or − moves the set speed",
+               Segmented([str(s) for s in CRUISE_STEPS], lambda: tuner.cruise_step, tuner.set_cruise_step)),
+  ], title="Following & Stops")
+
+
+class BundleOverrides(Component):
+  """A tab per bundle; one switch per param it sets, marked OVERRIDE where it differs from the bundle."""
+  grow_touch_target = False
+
+  def __init__(self, tuner: Tuner):
+    super().__init__()
+    self._tuner = tuner
+    self._tab = 0
+    self._panels = [self._panel(b) for b in OVERRIDE_BUNDLES]
+    self._tabs = Segmented([b.name for b in OVERRIDE_BUNDLES], lambda: self._tab, self._select)
+    self._outer = [self._child(p) for p in self._panels]
+
+  def _select(self, index: int) -> None:
+    self._tab = index
+
+  def _panel(self, bundle: Bundle) -> ListPanel:
+    tuner = self._tuner
+
+    def item(key: str) -> SettingRow:
+      return SettingRow(ITEM_NAMES[key], lambda: "Override: differs from the bundle" if tuner.item_differs(bundle, key) else None,
+                        Switch(lambda: tuner.switch(key), lambda on: tuner.set_switch(key, on)), subtitle_color=T.WARNING)
+
+    def footnote() -> str:
+      return f"{tuner.bundle_changes(bundle)} of {len(tuner.bundle_items(bundle))} items differ from the bundle."
+
+    return ListPanel([item(k) for k in tuner.bundle_items(bundle)], title="Bundle Overrides", footnote=footnote)
+
+  def _render(self, rect: rl.Rectangle):
+    tabs_h = T.SEGMENT_HEIGHT
+    w, _ = self._tabs.preferred_size(rect.width)
+    self._tabs.render(rl.Rectangle(rect.x, rect.y, w, tabs_h))
+    self._panels[self._tab].render(rl.Rectangle(rect.x, rect.y + tabs_h + T.px(12), rect.width, rect.height - tabs_h - T.px(12)))
+
+
+def tuner_page(tuner: Tuner, window):
+  from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage
+  return SectionPage("TUNER MODE", [
+    Section("Steering", lambda: steering_panel(tuner, window), lambda: _changed_label(tuner.changed(STEERING)), value_tone=Tone.WARNING),
+    Section("Gas & Brake", lambda: gas_brake_panel(tuner, window), lambda: _changed_label(tuner.gas_brake_changes()),
+            value_tone=Tone.WARNING),
+    Section("Following & Stops", lambda: following_panel(tuner, window), lambda: _changed_label(tuner.following_changes()),
+            value_tone=Tone.WARNING),
+    Section("Bundle Overrides", lambda: BundleOverrides(tuner),
+            lambda: _changed_label(sum(tuner.bundle_changes(b) for b in OVERRIDE_BUNDLES)), value_tone=Tone.WARNING),
+  ], tone=Tone.WARNING, footer=[Button("Reset all to defaults", tuner.reset_all, ButtonStyle.DANGER_OUTLINE, width=T.SIDEBAR_WIDTH)])

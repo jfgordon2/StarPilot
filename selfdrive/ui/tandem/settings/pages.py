@@ -10,6 +10,7 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
 from openpilot.selfdrive.ui.tandem.chrome import HubGrid, HubTile, PageHeader, Sidebar, SidebarItem
+from openpilot.selfdrive.ui.tandem.controls import Tone
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
 
 
@@ -82,20 +83,24 @@ class Section:
   page: Callable[[], Widget]
   value: Bindable[str] | None = None
   visible: Bindable[bool] = True
+  value_tone: Tone = Tone.NEUTRAL
 
 
 class SectionPage(Component):
   """A sidebar of sections; the chosen section fills the rest. Sections are built when first chosen."""
   grow_touch_target = False
 
-  def __init__(self, caption: str, sections: list[Section], selected: int = 0):
+  def __init__(self, caption: str, sections: list[Section], selected: int = 0, tone: Tone = Tone.ACCENT,
+               footer: list[Widget] | None = None):
+    """tone colors the caption and selection (WARNING for Tuner Mode); footer sits at the bottom of the sidebar."""
     super().__init__()
     self._sections = sections
     self._pages: dict[int, Widget] = {}
     self._selected = selected
     self._shown = False
-    items = [SidebarItem(s.label, on_select=lambda i=i: self.select(i), value=s.value, visible=s.visible) for i, s in enumerate(sections)]
-    self._sidebar = self._child(Sidebar(caption, items, selected=lambda: self._selected))
+    items = [SidebarItem(s.label, on_select=lambda i=i: self.select(i), value=s.value, value_tone=s.value_tone,
+                         visible=s.visible) for i, s in enumerate(sections)]
+    self._sidebar = self._child(Sidebar(caption, items, selected=lambda: self._selected, tone=tone, footer=footer))
 
   @property
   def selected(self) -> int:

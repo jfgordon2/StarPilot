@@ -537,3 +537,74 @@ def test_wheel_button_actions():
   vehicle.set_action(lkas, 9)
   assert cache.values["LKASButtonControl"] == 9 and vehicle.action_name(lkas) == "Always-on steering"
   assert vehicle.buttons_summary() == "Buttons customized"
+
+
+# ── Tuner Mode ──
+
+def test_tunable_default_override_and_reset_to_the_cars_value():
+  from openpilot.selfdrive.ui.tandem.settings.tuner import DEFAULT, OVERRIDE, STEERING, Tuner
+  store, cache = _store({"SteerFriction": 0.12, "SteerFrictionStock": 0.12})
+  tuner = Tuner(store)
+  friction = STEERING[1]
+  assert tuner.status(friction) == DEFAULT
+  before = tuner.changed(STEERING)
+  tuner.set_value(friction, 0.2)
+  assert tuner.status(friction) == OVERRIDE and cache.values["AdvancedLateralTune"] and tuner.changed(STEERING) == before + 1
+  tuner.reset(friction)
+  assert cache.values["SteerFriction"] == 0.12 and tuner.status(friction) == DEFAULT
+
+
+def test_steering_delay_is_learned_until_overridden():
+  from openpilot.selfdrive.ui.tandem.settings.tuner import LEARNED, OVERRIDE, STEERING, Tuner
+  store, cache = _store({"UseAutoSteerDelay": True, "SteerDelay": 0.2, "SteerDelayStock": 0.2})
+  tuner = Tuner(store)
+  delay = STEERING[0]
+  assert tuner.status(delay) == LEARNED
+  tuner.set_value(delay, 0.3)
+  assert not cache.values["UseAutoSteerDelay"] and tuner.status(delay) == OVERRIDE
+  tuner.reset(delay)
+  assert cache.values["UseAutoSteerDelay"] and tuner.status(delay) == LEARNED
+
+
+def test_profiles_follow_driving_style_until_overridden():
+  from openpilot.selfdrive.ui.tandem.settings.tuner import FROM_STYLE, OVERRIDE, Tuner
+  store, cache = _store()
+  SpeedSteering(store).set_style(2)
+  tuner = Tuner(store)
+  assert tuner.profile_status("AccelerationProfile") == FROM_STYLE
+  before = tuner.gas_brake_changes()
+  tuner.set_accel_profile(3)
+  assert tuner.profile_status("AccelerationProfile") == OVERRIDE and tuner.gas_brake_changes() == before + 1
+
+
+def test_steering_controller_choices():
+  from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
+  store, cache = _store()
+  tuner = Tuner(store)
+  for i in range(4):
+    tuner.set_controller(i)
+    assert tuner.controller == i
+
+
+def test_bundle_overrides_count_items_that_differ():
+  from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW
+  from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
+  store, cache = _store()
+  DEVELOPER_VIEW.set(store, True)
+  tuner = Tuner(store)
+  assert tuner.bundle_changes(DEVELOPER_VIEW) == 0
+  tuner.set_switch("ShowGPU", False)
+  assert tuner.item_differs(DEVELOPER_VIEW, "ShowGPU") and tuner.bundle_changes(DEVELOPER_VIEW) == 1
+
+
+def test_reset_all_restores_defaults_and_bundle_values():
+  from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW
+  from openpilot.selfdrive.ui.tandem.settings.tuner import GAPS, STEERING, Tuner
+  store, cache = _store({"SteerKPStock": 1.1})
+  DEVELOPER_VIEW.set(store, True)
+  tuner = Tuner(store)
+  tuner.set_value(STEERING[3], 2.0)
+  tuner.set_gap("RelaxedFollow", 2.5)
+  tuner.set_switch("ShowGPU", False)
+  tuner.reset_all()
+  assert cache.values["SteerKP"] == 1.1 and cache.values["RelaxedFollow"] == GAPS[0][2] and cache.values["ShowGPU"]

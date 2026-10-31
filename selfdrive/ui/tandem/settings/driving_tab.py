@@ -7,10 +7,12 @@ import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.chrome import HubTile
-from openpilot.selfdrive.ui.tandem.controls import Glyph, ToggleButton
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Glyph, ToggleButton
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
+from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner, tuner_page
 from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
 from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_panel
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
@@ -29,6 +31,10 @@ class Lazy:
     if self._value is None:
       self._value = self._make()
     return self._value
+
+
+def chevron_glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
+  draw.chevron(rect, color, size)
 
 
 def scribble(key: str) -> Glyph:
@@ -56,22 +62,30 @@ def driving_hub(window) -> Widget:
   def tuner() -> bool:
     return TUNER_MODE.is_on(store)
 
+  def set_bundle(bundle, on: bool) -> None:
+    bundle.set(store, on)
+    if bundle is TUNER_MODE and on:
+      open_tuner()
+
   def starpilot(panel: str) -> Callable[[], Widget]:
     return lambda: upstream.StarPilotPage(panel, on_exit=window.pop)
 
   def opener(make: Callable[[], Widget]) -> Callable[[], None]:
     return lambda: window.push(make())
 
+  def open_tuner() -> None:
+    window.push(tuner_page(Tuner(store), window))
+
   def speed_steering() -> Widget:
+    tuner_button = Button("Tuner Mode", open_tuner, ButtonStyle.SECONDARY, width=T.SIDEBAR_WIDTH, accessory=chevron_glyph)
+    tuner_button.set_visible(tuner)
     return SectionPage("SPEED & STEERING", [
       Section("Everyday", lambda: everyday_panel(speed)),
       Section("Vehicle Profile", lambda: vehicle_profile_panel(profile), value=profile.summary),
       Section("Weather", lambda: weather_panel(weather), value=weather.summary),
       Section("Navigation", lambda: navigation_panel(navigation, opener(starpilot("NAVIGATION")), opener(starpilot("MAPS")))),
       Section("Assistance", lambda: assistance_panel(assistance)),
-      Section("Gas & Brake", lambda: upstream.StarPilotPage("LONGITUDINAL"), visible=tuner),
-      Section("Steering", lambda: upstream.StarPilotPage("LATERAL"), visible=tuner),
-    ])
+    ], footer=[tuner_button])
 
   def display() -> Widget:
     return SectionPage("DISPLAY", [
@@ -84,7 +98,7 @@ def driving_hub(window) -> Widget:
     return store.get_str("CarModelName") or "Detected on the first drive"
 
   strip = Strip("POWER USER", "Extra detail and fine tuning, each behind one switch", [
-    ToggleButton(b.name, lambda b=b: b.is_on(store), lambda on, b=b: b.set(store, on)) for b in BUNDLES])
+    ToggleButton(b.name, lambda b=b: b.is_on(store), lambda on, b=b: set_bundle(b, on)) for b in BUNDLES])
 
   return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
     HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), scribble("steering")),
