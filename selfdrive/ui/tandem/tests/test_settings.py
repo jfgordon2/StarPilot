@@ -259,3 +259,70 @@ def test_starpilot_section_reopens_instead_of_showing_the_starpilot_hub():
   layout.navigate_back()
   page._update_state()
   assert layout._selected_leaf["panel"] == "SOUNDS" and layout.depth == 1
+
+
+# ── This Device ──
+
+class FakeDevice:
+  def __init__(self, paired=False, offroad=True, calibration="Calibrated"):
+    self.paired, self.offroad, self.cal = paired, offroad, calibration
+    self.calls = []
+    self.refreshes = 0
+
+  def is_paired(self):
+    return self.paired
+
+  def is_offroad(self):
+    return self.offroad
+
+  def calibration(self):
+    return self.cal
+
+  def remote_access_label(self):
+    return "Set Up"
+
+  def ids(self):
+    return "abc123 · serial"
+
+  def show_regulatory(self):
+    return False
+
+  def refresh(self):
+    self.refreshes += 1
+
+  def __getattr__(self, name):
+    return lambda: self.calls.append(name)
+
+
+def _rows(panel):
+  return {row._title: row for row in panel.items if hasattr(row, "_title")}
+
+
+def test_this_device_buttons_call_the_device_and_respect_offroad():
+  from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel
+  device = FakeDevice(offroad=False)
+  panel = ThisDevicePanel(device)
+  rows = _rows(panel)
+  rows["Camera Calibration"]._control._click_callback()
+  assert device.calls == ["recalibrate"]
+  assert not rows["Driver Camera"]._control.enabled
+  assert rows["Camera Calibration"]._control.enabled
+  restart, power_off = panel._footer._buttons
+  assert not power_off.is_visible
+  restart._click_callback()
+  assert device.calls == ["recalibrate", "restart"]
+  device.offroad = True
+  assert power_off.is_visible and rows["Driver Camera"]._control.enabled
+
+
+def test_this_device_hides_pair_once_paired_and_refreshes_on_show():
+  from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel
+  device = FakeDevice()
+  panel = ThisDevicePanel(device)
+  phone = _rows(panel)["Phone App"]
+  assert phone._control.is_visible
+  device.paired = True
+  assert not phone._control.is_visible
+  panel.show_event()
+  assert device.refreshes == 1
+  assert not _rows(panel)["Regulatory"].is_visible

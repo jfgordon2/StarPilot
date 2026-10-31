@@ -9,7 +9,7 @@ import pyray as rl
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve
-from openpilot.selfdrive.ui.tandem.layout import Align, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, inset, place, row
 
 
 class Tone(Enum):
@@ -45,6 +45,7 @@ class ButtonStyle(Enum):
   GHOST = "ghost"                # text only, for links like "Reset to default"
   DANGER = "danger"              # filled red, destructive confirm
   DANGER_OUTLINE = "outline"     # outlined red, destructive entry points
+  DANGER_SOFT = "soft"           # tinted red, e.g. Power Off
   NAV = "nav"                    # back/close squares and onroad controls
 
 
@@ -54,6 +55,7 @@ _BUTTON_COLORS = {
   ButtonStyle.GHOST: (None, T.ACCENT_TEXT, None),
   ButtonStyle.DANGER: (T.DANGER_BUTTON, T.TEXT, None),
   ButtonStyle.DANGER_OUTLINE: (None, T.DANGER_TEXT_OUTLINE, T.DANGER_BORDER),
+  ButtonStyle.DANGER_SOFT: (T.DANGER_SURFACE, T.DANGER_TEXT, None),
   ButtonStyle.NAV: (T.CONTROL_NAV, T.TEXT, None),
 }
 
@@ -82,7 +84,7 @@ class Button(Component):
 
   @property
   def _weight(self):
-    return T.FONT_BOLD if self._style in (ButtonStyle.PRIMARY, ButtonStyle.DANGER) else T.FONT_SEMIBOLD
+    return T.FONT_BOLD if self._style in (ButtonStyle.PRIMARY, ButtonStyle.DANGER, ButtonStyle.DANGER_SOFT) else T.FONT_SEMIBOLD
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     if self._width is not None:
@@ -125,6 +127,25 @@ class Button(Component):
       self._accessory(rl.Rectangle(content.x + content.width - acc_size, content.y, acc_size, content.height), ink, acc_size)
       content = inset(content, right=acc_size + T.px(8))
     draw.text(content, label, self._font_size, ink, self._weight, Align.START)
+
+
+class ButtonRow(Component):
+  """Buttons side by side at equal widths, e.g. Restart and Power Off. Hidden buttons give up their space."""
+  grow_touch_target = False
+
+  def __init__(self, buttons: list[Button], height: float = T.px(52), gap: float = T.px(10)):
+    super().__init__()
+    self._buttons = [self._child(b) for b in buttons]
+    self._height = height
+    self._gap = gap
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, self._height
+
+  def _render(self, rect: rl.Rectangle):
+    visible = [b for b in self._buttons if b.is_visible]
+    for button, cell in zip(visible, row(rect, [FILL] * len(visible), self._gap), strict=True):
+      button.render(cell)
 
 
 class ValueButton(Button):

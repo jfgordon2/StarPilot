@@ -128,11 +128,6 @@ class StarPilotPage(Hosted):
         self._open()
 
 
-def device() -> Hosted:
-  from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
-  return Hosted(DeviceLayout)
-
-
 def developer() -> Hosted:
   from openpilot.selfdrive.ui.layouts.settings.developer import DeveloperLayout
   return Hosted(DeveloperLayout)

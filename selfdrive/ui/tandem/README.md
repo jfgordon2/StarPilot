@@ -64,10 +64,11 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 | `settings/window.py` | `SettingsWindow`: five tabs, each with its own page stack, and the close/back button. Also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. |
 | `settings/pages.py` | `HubPage` (title and tiles) and `SectionPage` (sidebar of sections, each built when first chosen). |
 | `settings/speed_steering.py` | The Everyday choices. Each one writes several params together, e.g. Driving Style sets personality, acceleration and braking. |
+| `settings/device.py` | This Device. Its buttons call upstream `DeviceLayout`'s own handlers, so pairing, calibration reset and power off keep upstream's checks and dialogs. |
 | `settings/store.py` | Reads through the shared param cache; each write signals the driving processes once. |
 | `settings/upstream.py` | Upstream panels hosted in the window until native screens replace them. `StarPilotPage` opens one StarPilot panel directly, skipping StarPilot's hub. |
 
-Built natively so far: the Driving hub and Speed & Steering's Everyday section. Everything else is an upstream panel inside our window: Display, Alerts, Driving Model, Vehicle, Driver Assistance (openpilot's toggles), Navigation, Gas & Brake and Steering on the Driving tab; This Device, General and Developer on the Device tab; and the Network, Bluetooth and Software tabs. Replace them one at a time. Upstream code that ends up unused stays in the tree; it is not imported, and it never conflicts on a rebase.
+Built natively so far: the Driving hub, Speed & Steering's Everyday section, and This Device. Everything else is an upstream panel inside our window: Display, Alerts, Driving Model, Vehicle, Driver Assistance (openpilot's toggles), Navigation, Gas & Brake and Steering on the Driving tab; General and Developer on the Device tab; and the Network, Bluetooth and Software tabs. Replace them one at a time. Upstream code that ends up unused stays in the tree; it is not imported, and it never conflicts on a rebase.
 
 ## Third-party
 

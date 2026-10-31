@@ -15,6 +15,7 @@ from openpilot.selfdrive.ui.tandem.chrome import BottomNav, HubTile
 from openpilot.selfdrive.ui.tandem.controls import Glyph
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings import upstream
+from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice
 from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, can_go_back, go_back
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering, everyday_panel
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -201,7 +202,7 @@ class SettingsWindow(Widget):
 
   def _device(self) -> Widget:
     return SectionPage("DEVICE", [
-      Section("This Device", upstream.device),
+      Section("This Device", lambda: ThisDevicePanel(UpstreamDevice())),
       Section("General", lambda: upstream.StarPilotPage("SYSTEM")),
       Section("Developer", upstream.developer),
     ])
