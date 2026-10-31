@@ -77,23 +77,24 @@ def test_invisible_header_buttons_do_not_intercept_home_card_taps(home_layout):
 
 
 @pytest.mark.parametrize("state", [HomeLayoutState.ALERTS, HomeLayoutState.UPDATE])
-def test_home_card_opens_detail_view_and_close_restores_full_height(home_layout, state):
+def test_home_card_opens_our_detail_view_full_height_and_back_returns(home_layout, state):
   f, home = home_layout, home_layout.home
   rect = rl.Rectangle(554, 0, 1606, 1080)
   home.render(rect)
+  view = home._alerts_view if state == HomeLayoutState.ALERTS else home._update_view
+  drawn = []
+  view._render = lambda r: drawn.append(r)
   if state == HomeLayoutState.ALERTS:
     home._content._hero._click_callback()
   else:
     home._content._update._button._click_callback()
   assert home.current_state == state
   home.render(rect)
-  assert f.headers == [state]
-  panel = home._layout_widgets[state]
-  assert panel.rendered[-1].y == rect.y + CONTENT_MARGIN + HEADER_HEIGHT + SPACING
-  panel.dismiss_callback()
+  assert not f.headers                                  # our views carry their own back and title
+  assert drawn[-1].y == rect.y + CONTENT_MARGIN and drawn[-1].height == rect.height - 2 * CONTENT_MARGIN
+  view._header._back._click_callback()
   assert home.current_state == HomeLayoutState.HOME
   home.render(rect)
-  assert f.headers == [state]
   assert f.cards["hero"].y == rect.y + CONTENT_MARGIN
 
 

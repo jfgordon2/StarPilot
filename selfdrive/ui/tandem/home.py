@@ -124,6 +124,8 @@ def essentials_home():
   from openpilot.selfdrive.ui.ui_state import ui_state
   from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
   from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering
+  from openpilot.selfdrive.ui.tandem.settings.software_tab import notes_text
+  from openpilot.selfdrive.ui.tandem.home_alerts import AlertsView, HomeAlert, UpdateView
 
   class EssentialsHome(HomeLayout):
     def __init__(self):
@@ -132,9 +134,35 @@ def essentials_home():
       self._setup_checked = False
       self._content = HomeContent(self._state, lambda: self._set_state(HomeLayoutState.ALERTS), self._where_to,
                                   lambda: self._set_state(HomeLayoutState.UPDATE))
+      home = lambda: self._set_state(HomeLayoutState.HOME)  # noqa: E731
+      self._alerts_view = AlertsView(self._home_alerts, home, self._alert_action)
+      self._update_view = UpdateView(self._new_version, lambda: notes_text(self.update_alert.release_notes), home,
+                                     lambda: self.update_alert.reboot_btn._click_callback())
 
     def _show_header(self) -> bool:
-      return self.current_state != HomeLayoutState.HOME
+      return False   # our alerts and update views carry their own back and title
+
+    def _home_alerts(self) -> list[HomeAlert]:
+      return [HomeAlert(a.key, a.text, a.severity > 0) for a in self.offroad_alert.sorted_alerts if a.visible]
+
+    def _alert_action(self):
+      """Upstream's one footer action, when it shows one."""
+      alert = self.offroad_alert
+      if alert.excessive_actuation_btn.is_visible:
+        return "Acknowledge excessive actuation", alert.excessive_actuation_btn._click_callback
+      if alert.snooze_btn.is_visible:
+        return "Snooze update", alert.snooze_btn._click_callback
+      return None
+
+    def _new_version(self) -> str:
+      description = ui_state.ui_params.get("UpdaterNewDescription") or ""
+      return description.split(" / ")[0] or "A new version"
+
+    def _render_alerts_view(self):
+      self._alerts_view.render(self.content_rect)
+
+    def _render_update_view(self):
+      self._update_view.render(self.content_rect)
 
     def _state(self) -> HomeState:
       speed = self._speed
