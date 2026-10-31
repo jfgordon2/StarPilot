@@ -154,8 +154,8 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     s.blindspot = bool(cs.leftBlindspot if direction_left else cs.rightBlindspot)
   if valid.get("modelV2", False):
     meta = sm["modelV2"].meta
-    s.lane_change = {1: "pre", 2: "starting", 3: "finishing"}.get(int(meta.laneChangeState), "off")
-    s.lane_change_direction = {1: "left", 2: "right"}.get(int(meta.laneChangeDirection), "none")
+    s.lane_change = {1: "pre", 2: "starting", 3: "finishing"}.get(meta.laneChangeState.raw, "off")
+    s.lane_change_direction = {1: "left", 2: "right"}.get(meta.laneChangeDirection.raw, "none")
   if valid.get("starpilotCarState", False):
     s.lateral_paused = bool(sm["starpilotCarState"].pauseLateral)
   toggles = ui_state.starpilot_toggles or {}

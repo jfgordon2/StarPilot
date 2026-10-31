@@ -42,7 +42,7 @@ def warning_view(monkeypatch):
   view._headroom_warning = view._headroom_chimed = False
   view._memory = Memory()
   view.model_renderer = SimpleNamespace(lane_line_color_override=None)
-  view.alert_renderer = SimpleNamespace(get_alert=lambda _: alert[0], will_render=lambda: (fading[0], True))
+  view.alert_renderer = SimpleNamespace(get_alert=lambda _: alert[0], will_render=lambda: (fading[0], True), level=lambda: None)
   view.is_in_reverse = lambda: False
   view._camera_view = lambda: 2
   view._preview = lambda: 0.95

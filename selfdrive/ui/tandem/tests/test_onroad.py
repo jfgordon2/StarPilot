@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from cereal import car, custom
+from cereal import car, custom, log
 
 from openpilot.selfdrive.ui.tandem.onroad.layers import AT_LIMIT, COMFORTABLE, LIMIT_HOLD, WORKING, Headroom
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, ChipTone, Snapshot, chip_for, snapshot, weather_name
@@ -42,6 +42,21 @@ def test_chip_holds_two_seconds_and_hides_under_alerts():
   assert picker.update(Snapshot(), 1.5, False).key == "curve"
   assert picker.update(Snapshot(), 2.1, False) is None
   assert picker.update(Snapshot(curve_control=True), 3.0, True) is None
+
+
+@pytest.mark.parametrize("lane_state, expected", [("off", "off"), ("preLaneChange", "pre"),
+                                                 ("laneChangeStarting", "starting"), ("laneChangeFinishing", "finishing")])
+@pytest.mark.parametrize("direction", ["none", "left", "right"])
+def test_snapshot_accepts_live_model_lane_change_enums(lane_state, expected, direction):
+  model = log.ModelDataV2.new_message()
+  model.meta.laneChangeState = lane_state
+  model.meta.laneChangeDirection = direction
+  # Live UI messages are readers after decoding, not integer-valued test doubles.
+  with log.ModelDataV2.from_bytes(model.to_bytes()) as received:
+    state = SimpleNamespace(sm=StatusMessages(modelV2=received), engaged=True, is_metric=False,
+                            always_on_lateral_active=False, starpilot_toggles={})
+    current = snapshot(state)
+    assert (current.lane_change, current.lane_change_direction) == (expected, direction)
 
 
 @pytest.mark.parametrize("direction", ["left", "right"])

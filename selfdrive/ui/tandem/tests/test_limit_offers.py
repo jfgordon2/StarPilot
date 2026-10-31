@@ -14,7 +14,8 @@ from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, Snapshot
 def limit_view(monkeypatch):
   plan = custom.StarPilotPlan.new_message()
   sm = {"starpilotPlan": plan}
-  state = SimpleNamespace(sm=SimpleNamespace(valid={"starpilotPlan": True}), is_metric=False, started=True)
+  state = SimpleNamespace(sm=SimpleNamespace(valid={"starpilotPlan": True}), is_metric=False, started=True,
+                          ui_params=SimpleNamespace(get_bool=lambda _: False))
 
   class Messages(dict):
     valid = state.sm.valid
@@ -98,6 +99,7 @@ def test_limit_changes_are_observed_while_an_alert_covers_the_card(limit_view, m
   view._draw_hud_controls = True
   view._chips = ChipPicker()
   view._navigating = lambda: False
+  view._render_driver_monitor = lambda: None  # this state-only fixture has no driver-camera renderer
   monkeypatch.setattr(onroad.StarPilotOnroadView, "_render", lambda self, rect: None)
   monkeypatch.setattr(onroad, "snapshot", lambda *args: Snapshot())
   view._render(rl.Rectangle(0, 0, 2160, 1080))
