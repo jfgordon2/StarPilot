@@ -282,6 +282,8 @@ class ListPanel(Component):
         draw.hline(viewport.x, cy, viewport.width)
         cy += T.DIVIDER
     rl.end_scissor_mode()
+    if content > viewport.height:
+      draw.scroll_glow(viewport, offset, content)
 
     if self._bottom is not None:
       by = rect.y + rect.height - footnote_h - footer_h - bottom_h
@@ -408,3 +410,4 @@ class OptionList(Component):
         draw.text(body, title, self._font_size, T.TEXT, weight)
     if scrolls:
       rl.end_scissor_mode()
+      draw.scroll_glow(rect, self._offset, content)

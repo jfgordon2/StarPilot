@@ -43,6 +43,23 @@ def gradient_v(rect: rl.Rectangle, top: rl.Color, bottom: rl.Color) -> None:
   rl.draw_rectangle_gradient_v(int(rect.x), int(rect.y), int(rect.width), int(rect.height), top, bottom)
 
 
+GLOW_HEIGHT = T.px(40)
+
+
+def scroll_glow(rect: rl.Rectangle, offset: float, content: float) -> None:
+  """A soft accent glow at each edge of a scrolling list that has more past it: the top once scrolled down, the bottom
+  while there's more below. offset is the scroll offset (0 or less) and content the list's full height."""
+  inner = rl.Rectangle(rect.x + T.px(12), rect.y, rect.width - T.px(24), rect.height)   # clear of rounded corners
+  edge, clear = alpha(T.ACCENT, 0.32), alpha(T.ACCENT, 0.0)
+  if offset < -0.5:
+    gradient_v(rl.Rectangle(inner.x, inner.y, inner.width, GLOW_HEIGHT), edge, clear)
+    fill(rl.Rectangle(inner.x, inner.y, inner.width, T.px(2)), alpha(T.ACCENT, 0.6), T.px(1))
+  if content + offset > rect.height + 0.5:
+    bottom = inner.y + inner.height
+    gradient_v(rl.Rectangle(inner.x, bottom - GLOW_HEIGHT, inner.width, GLOW_HEIGHT), clear, edge)
+    fill(rl.Rectangle(inner.x, bottom - T.px(2), inner.width, T.px(2)), alpha(T.ACCENT, 0.6), T.px(1))
+
+
 def hline(x: float, y: float, width: float, color: rl.Color = T.CONTROL) -> None:
   rl.draw_rectangle_rec(rl.Rectangle(x, y, width, T.DIVIDER), color)
 

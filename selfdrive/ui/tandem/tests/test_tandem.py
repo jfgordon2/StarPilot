@@ -184,3 +184,21 @@ def test_slider_merges_marks_at_the_same_value():
   from openpilot.selfdrive.ui.tandem.controls import Slider
   slider = Slider(100, lambda v: None, 0, 100, marks=[(80, "Quiet"), (100, "Normal"), (100, "Loud")])
   assert slider.merged_marks() == [(80, "Quiet"), (100, "Normal · Loud")]
+
+
+def test_scroll_glow_marks_the_edges_with_more_content(monkeypatch):
+  from openpilot.selfdrive.ui.tandem import draw
+  glows = []
+  monkeypatch.setattr(draw, "gradient_v", lambda r, top, bottom: glows.append("top" if top.a > bottom.a else "bottom"))
+  monkeypatch.setattr(draw, "fill", lambda *args, **kwargs: None)
+  view = rl.Rectangle(0, 0, 400, 300)
+
+  def edges(offset, content):
+    glows.clear()
+    draw.scroll_glow(view, offset, content)
+    return glows[:]
+
+  assert edges(0, 600) == ["bottom"]            # at the top, more below
+  assert edges(-150, 600) == ["top", "bottom"]  # in the middle
+  assert edges(-300, 600) == ["top"]            # at the end
+  assert edges(0, 300) == []                    # everything fits
