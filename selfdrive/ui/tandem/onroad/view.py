@@ -14,6 +14,7 @@ Everything else, from the camera and path to alerts, is upstream's.
 from __future__ import annotations
 
 import datetime
+from collections.abc import Callable
 import time
 
 import pyray as rl
@@ -29,7 +30,7 @@ from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
-                                                         draw_turn_card, sign_tile)
+                                                         draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
@@ -39,10 +40,12 @@ V_CRUISE_UNSET = 255
 
 
 class EssentialsTurnCard(NavigationCardRenderer):
-  """StarPilot's turn card, keeping its route data, drawn as the mock's card top left. Taps do nothing: End route is in the bar."""
+  """StarPilot's turn card, keeping its route data, drawn as the mock's card top left, below the speed limit sign when
+  there is one. Taps do nothing: End route is in the bar."""
 
-  def __init__(self):
+  def __init__(self, below_sign: Callable[[], bool]):
     super().__init__()
+    self._below_sign = below_sign
     self.box: rl.Rectangle | None = None   # where it was drawn this frame, if it was
 
   def _render(self, rect: rl.Rectangle) -> None:
@@ -50,7 +53,8 @@ class EssentialsTurnCard(NavigationCardRenderer):
     if not self._valid:
       return
     text = " ".join(t for t in (self._primary_text, self._secondary_text) if t)
-    self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier)
+    self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier,
+                              TURN_BELOW_SIGN if self._below_sign() else TURN_CARD_TOP)
 
 
 class _NoFavorites:
@@ -108,14 +112,13 @@ class EssentialsOnroadView(StarPilotOnroadView):
                             lambda: (self._turn_card.box.y + self._turn_card.box.height - self._content_rect.y + T.px(12))
                             if self._turn_card.box is not None else T.px(16))
     # StarPilot's HUD keeps deciding when the speed and turn card show; they're drawn in the Essentials style.
-    self._turn_card = EssentialsTurnCard()
+    self._turn_card = EssentialsTurnCard(lambda: self._posted_limit() is not None)
     self._hud_renderer._navigation_card = self._turn_card
     self._hud_renderer._draw_current_speed = self._draw_current_speed
     self._favorite_radial_menu = _NoFavorites()
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()
     self._layers_visible = False
-    self._speed_limit_shown = False
     self._nav_sm = None
 
   # Upstream pieces replaced here
@@ -132,17 +135,19 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""
-    widget = self._unified_speed_widget
-    self._speed_limit_shown = False
     if self._full_alert_showing():
-      widget.collapse_sources()
+      self._unified_speed_widget.collapse_sources()
       return
-    widget._refresh_snapshot()
+    limit = self._posted_limit()
+    if limit is not None:
+      draw_speed_limit(sign_tile(self._content_rect), limit, ui_state.ui_params.get_bool("UseVienna"))
+
+  def _posted_limit(self) -> str | None:
+    """The limit for the sign, or None when it's hidden: no limit known, or the new-limit card is asking."""
+    widget = self._unified_speed_widget
+    widget._refresh_snapshot()   # cached per frame
     limit = widget._presentation.posted_speed_text
-    if limit in ("", "–") or self._offer() is not None:
-      return
-    self._speed_limit_shown = True
-    draw_speed_limit(sign_tile(self._content_rect, self._turn_card.box is not None), limit, ui_state.ui_params.get_bool("UseVienna"))
+    return None if limit in ("", "–") or self._offer() is not None else limit
 
   def _render_driver_monitor(self) -> None:
     """Upstream's driver state (its fades already hide it for alerts, stale data and the hide toggle), as our tile."""
@@ -151,8 +156,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     attentive = dm._color_fade_filter.update(0.0 if dm._awareness_unfull else 1.0)
     if not (ui_state.started and self._draw_hud_controls):
       return
-    below_sign = self._turn_card.box is not None and self._speed_limit_shown
-    draw_driver_monitor(dm_tile(self._content_rect, below_sign), dm._fade_filter.x, attentive, dm.is_active)
+    draw_driver_monitor(dm_tile(self._content_rect), dm._fade_filter.x, attentive, dm.is_active)
 
   def _render_road_name(self):
     pass

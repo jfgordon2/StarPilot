@@ -376,11 +376,9 @@ def draw_speed(rect: rl.Rectangle, speed: float, unit: str, offset_y: float = 0.
       draw_signal(rl.Rectangle(x, pill.y, SIGNAL_SIZE[0], pill.height), side, now)
 
 
-def sign_tile(rect: rl.Rectangle, right: bool) -> rl.Rectangle:
-  """Where the speed limit sign sits: top left, or top right while the turn card has the top left."""
-  w, h = SIGN_TILE
-  x = rect.x + rect.width - SIGN_MARGIN - w if right else rect.x + SIGN_MARGIN
-  return rl.Rectangle(x, rect.y + SIGN_MARGIN, w, h)
+def sign_tile(rect: rl.Rectangle) -> rl.Rectangle:
+  """Where the speed limit sign sits: top left."""
+  return rl.Rectangle(rect.x + SIGN_MARGIN, rect.y + SIGN_MARGIN, *SIGN_TILE)
 
 
 def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
@@ -404,14 +402,11 @@ def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
 
 DM_TILE = T.px(64)
 DM_RING = (T.px(50), T.px(3))     # diameter and width
-DM_GAP = T.px(12)                 # below the speed limit sign when they share the top right
 
 
-def dm_tile(rect: rl.Rectangle, below_sign: bool) -> rl.Rectangle:
-  """The driver monitor's place: top right, centered on the sign's column, under the sign when the sign is there too."""
-  x = rect.x + rect.width - SIGN_MARGIN - (SIGN_TILE[0] + DM_TILE) / 2
-  y = rect.y + SIGN_MARGIN + (SIGN_TILE[1] + DM_GAP if below_sign else 0)
-  return rl.Rectangle(x, y, DM_TILE, DM_TILE)
+def dm_tile(rect: rl.Rectangle) -> rl.Rectangle:
+  """The driver monitor's place: the top right corner, inset like the sign is on the left."""
+  return rl.Rectangle(rect.x + rect.width - SIGN_MARGIN - DM_TILE, rect.y + SIGN_MARGIN, DM_TILE, DM_TILE)
 
 
 def draw_driver_monitor(tile: rl.Rectangle, opacity: float, attentive: float, watching: bool) -> None:
@@ -450,12 +445,15 @@ def turn_icon(maneuver: str, modifier: str) -> str:
 
 
 TURN_CARD_WIDTH = T.px(330)
+TURN_CARD_TOP = T.px(16)
+TURN_BELOW_SIGN = SIGN_MARGIN + SIGN_TILE[1] + T.px(12)   # the card's top while the sign holds the corner
 
 
-def draw_turn_card(rect: rl.Rectangle, distance: str, text: str, maneuver: str, modifier: str) -> rl.Rectangle:
-  """The next turn, top left: its arrow, the distance and the instruction. Returns the card's box."""
+def draw_turn_card(rect: rl.Rectangle, distance: str, text: str, maneuver: str, modifier: str,
+                   top: float = TURN_CARD_TOP) -> rl.Rectangle:
+  """The next turn, top left (below the sign when there is one): its arrow, the distance and the instruction. Returns the card's box."""
   lines = [draw.line_height(T.font_px(30)), draw.line_height(T.font_px(17))]
-  box = rl.Rectangle(rect.x + T.px(16), rect.y + T.px(16), TURN_CARD_WIDTH, max(T.px(54), sum(lines)) + T.px(28))
+  box = rl.Rectangle(rect.x + SIGN_MARGIN, rect.y + top, TURN_CARD_WIDTH, max(T.px(54), sum(lines)) + T.px(28))
   draw.fill(box, T.ACCENT_SURFACE, T.px(20))
   body = inset(box, x=T.px(18), y=T.px(14))
   icon, words = row(body, [T.px(54), FILL], T.px(16))
