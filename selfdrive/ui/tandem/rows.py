@@ -78,6 +78,8 @@ class SettingRow(Component):
     self._title = title
     self._subtitle = subtitle
     self._control = control
+    self._control_hit_rect: rl.Rectangle | None = None
+    self._press_on_control = False
     self._leading = leading
     self._indent = indent
     self._height = height
@@ -110,6 +112,18 @@ class SettingRow(Component):
     default = T.SUB_ROW_HEIGHT if self._indent else T.ROW_HEIGHT
     return max_width, self._height or default
 
+  def _on_control(self, pos) -> bool:
+    return self._control_hit_rect is not None and rl.check_collision_point_rec(pos, self._control_hit_rect)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._press_on_control = self._on_control(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    on_control = self._press_on_control or self._on_control(mouse_pos)
+    self._press_on_control = False
+    if not on_control:
+      super()._handle_mouse_release(mouse_pos)
+
   def _render(self, rect: rl.Rectangle):
     if self._indent:
       draw.fill(rect, T.SURFACE_1)
@@ -121,9 +135,13 @@ class SettingRow(Component):
       size = T.px(16)
       draw.chevron(rl.Rectangle(body.x + body.width - size, body.y, size, body.height), T.TEXT_TERTIARY, size)
       body = inset(body, right=size + T.px(12))
+    self._control_hit_rect = None
     if self._control is not None and self._control.is_visible:
       w, h = size_of(self._control, body.width * 0.6)
-      self._control.render(place(body, w, h, Align.END))
+      self._control.set_rect(place(body, w, h, Align.END))
+      # Capture before its callback runs: e.g. Forget can hide itself during this same input batch.
+      self._control_hit_rect = self._control._hit_rect
+      self._control.render()
       body = inset(body, right=w + T.px(16))
     if self._leading is not None and self._leading.is_visible:
       w, h = size_of(self._leading, body.width)

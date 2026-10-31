@@ -187,7 +187,7 @@ class FakeWheel:
   def actions(self):
     return [("a:engage_openpilot", "Engage"), ("a:disengage_openpilot", "Disengage"), ("a:cycle_driving_personality", "Change driving style"),
             ("a:toggle_screen_off", "Screen off / on"),
-            ("favorite:0", "Navigate to favorite 1")]
+            ("favorite:0", "Favorite 1 · Save a clip")]
 
   def status(self):
     return self.state
@@ -214,6 +214,7 @@ class FakeWheel:
       mapping["slot"] = int(key.split(":")[1])
     else:
       self.keys[mapping["slot"]] = key
+    return True
 
   def delete(self, mapping_id):
     self.maps = [m for m in self.maps if m["id"] != mapping_id]

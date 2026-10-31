@@ -21,6 +21,7 @@ from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
 from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
+from openpilot.selfdrive.ui.tandem.settings.favorites import favorite_action_names
 
 LEARN_SECONDS = 20
 
@@ -35,7 +36,7 @@ class WheelSource(Protocol):
   def cancel_learning(self) -> None: ...
   def start_testing(self) -> None: ...
   def stop_testing(self) -> None: ...
-  def assign(self, mapping_id: str, key: str) -> None: ...
+  def assign(self, mapping_id: str, key: str) -> bool: ...
   def free_slot(self) -> int | None: ...
   def delete(self, mapping_id: str) -> None: ...
 
@@ -70,8 +71,7 @@ class WheelButtons:
     return name or "No remote connected"
 
   def start_testing(self) -> None:
-    if self.buttons():
-      self.source.start_testing()
+    self.source.start_testing()
 
   def summary(self) -> str:
     count = len(self.buttons())
@@ -139,6 +139,7 @@ class AssignSheet(Component):
     self._learned: dict | None = None
     self._action = -1
     self._started = False
+    self._error = ""
     self._grid = self._child(ActionGrid(model.source.actions(), lambda: self._action, self._pick))
 
   def _pick(self, index: int) -> None:
@@ -162,8 +163,9 @@ class AssignSheet(Component):
   def save(self) -> bool:
     if not self.ready:
       return False
-    self._model.source.assign(self._learned["id"], self._model.source.actions()[self._action][0])
-    return True
+    saved = self._model.source.assign(self._learned["id"], self._model.source.actions()[self._action][0])
+    self._error = "" if saved else "Remove another button to free an action slot, then try again."
+    return saved
 
   def cancel(self) -> None:
     self._model.source.cancel_learning()
@@ -171,6 +173,8 @@ class AssignSheet(Component):
       self._model.source.delete(self._learned["id"])
 
   def step_one(self) -> tuple[str, str]:
+    if self._error:
+      return "Couldn't assign this button", self._error
     if self._slot is None:
       return "All button slots are in use", "Remove a button to add another."
     if self._learned is None:
@@ -209,10 +213,14 @@ def wheel_panel(model: WheelButtons, window) -> Component:
   def change(mapping: dict) -> Callable[[], None]:
     def show():
       actions = model.source.actions()
+      error = ""
 
       def pick(index: int):
-        model.source.assign(mapping["id"], actions[index][0])
-        window.dismiss()
+        nonlocal error
+        if model.source.assign(mapping["id"], actions[index][0]):
+          window.dismiss()
+        else:
+          error = "All action slots are in use. Remove another button first."
 
       def remove():
         model.source.delete(mapping["id"])
@@ -221,7 +229,7 @@ def wheel_panel(model: WheelButtons, window) -> Component:
       window.present(Sheet(mapping.get("event_name") or "Button", OptionList([name for _, name in actions],
                                                                              lambda: next((i for i, (k, _) in enumerate(actions) if k == current), -1),
                                                                              pick, row_height=T.px(52)),
-                           subtitle="What this button does while driving",
+                           subtitle=lambda: error or "What this button does while driving",
                            actions=[Button("Remove", remove, ButtonStyle.DANGER_SOFT)], on_dismiss=window.dismiss))
     return show
 
@@ -393,6 +401,7 @@ class BluetoothPage(Component):
 
   def hide_event(self):
     super().hide_event()
+    self._wheel.source.cancel_learning()
     self._wheel.source.stop_testing()
     self._bt.set_active(False)
 
@@ -435,7 +444,7 @@ class UpstreamWheel:
   def actions(self) -> list[tuple[str, str]]:
     keys = {o["key"].rsplit(":", 1)[-1]: o["key"] for o in self._ca.CONTROLLER_ACTION_OPTIONS}
     choices = [(keys[suffix], name) for suffix, name in ACTION_NAMES.items() if suffix in keys]
-    return choices + [(f"favorite:{i}", f"Navigate to favorite {i + 1}") for i in range(self.favorite_slots)]
+    return choices + [(f"favorite:{i}", name) for i, name in enumerate(favorite_action_names(self._params))]
 
   def status(self) -> dict:
     return self._wc.public_status(self._params, self._memory)
@@ -457,20 +466,35 @@ class UpstreamWheel:
     return next((self.favorite_slots + i for i, s in enumerate(self._slots())
                  if self.favorite_slots + i not in used and not s.get("enabled")), None)
 
-  def assign(self, mapping_id: str, key: str) -> None:
+  def _release_slot(self, slot: int) -> None:
+    if slot >= self.favorite_slots and not any(m["slot"] == slot for m in self.mappings()):
+      self._wc.set_controller_action_slot(slot - self.favorite_slots, None, "", self._params)
+
+  def assign(self, mapping_id: str, key: str) -> bool:
     mappings = self.mappings()
-    mapping = next(m for m in mappings if m["id"] == mapping_id)
+    mapping = next((m for m in mappings if m["id"] == mapping_id), None)
+    names = dict(self.actions())
+    if mapping is None or key not in names:
+      return False
+    old_slot = mapping["slot"]
     if key.startswith("favorite:"):
       mapping["slot"] = int(key.split(":")[1])
     else:
-      if mapping["slot"] < self.favorite_slots:
-        mapping["slot"] = self.free_slot() or self.favorite_slots
-      name = next(n for k, n in self.actions() if k == key)
-      self._wc.set_controller_action_slot(mapping["slot"] - self.favorite_slots, key, name, self._params)
+      if old_slot < self.favorite_slots or sum(m["slot"] == old_slot for m in mappings) > 1:
+        slot = self.free_slot()
+        if slot is None:
+          return False
+        mapping["slot"] = slot
+      self._wc.set_controller_action_slot(mapping["slot"] - self.favorite_slots, key, names[key], self._params)
     self._wc.save_mappings(mappings, self._params)
+    if mapping["slot"] != old_slot:
+      self._release_slot(old_slot)
+    return True
 
   def delete(self, mapping_id: str) -> None:
-    self._wc.delete_mapping(mapping_id, self._params)
+    mapping = next((m for m in self.mappings() if m["id"] == mapping_id), None)
+    if mapping is not None and self._wc.delete_mapping(mapping_id, self._params):
+      self._release_slot(mapping["slot"])
 
 
 class UpstreamBluetooth:

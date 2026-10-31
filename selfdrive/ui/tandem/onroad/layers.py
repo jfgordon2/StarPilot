@@ -149,19 +149,31 @@ class StatusChip(Component):
 
 COMFORTABLE, WORKING, AT_LIMIT = "comfortable", "working", "at_limit"
 WORKING_FROM, LIMIT_FROM, LIMIT_HOLD = 0.60, 0.85, 0.5
+LIMIT_RELEASE = 0.80
+LIMIT_LANE_COLOR = rl.Color(255, 138, 77, 255)
+LIMIT_BORDER_COLOR = rl.Color(224, 162, 58, 255)
 
 
 class Headroom:
-  """Three stages instead of a fade. At limit only after LIMIT_HOLD seconds over LIMIT_FROM, so a bump doesn't trigger it."""
+  """Debounce limit entry and release below 80%, so bumps and threshold noise don't repeat warnings."""
 
   def __init__(self):
     self._over_since: float | None = None
+    self._at_limit = False
 
-  def stage(self, usage: float, now: float) -> str:
+  def stage(self, usage: float, now: float, active: bool = True) -> str:
+    if not active:
+      self._over_since = None
+      self._at_limit = False
+      return COMFORTABLE
     usage = abs(usage)
+    if self._at_limit and usage >= LIMIT_RELEASE:
+      return AT_LIMIT
+    self._at_limit = False
     if usage >= LIMIT_FROM:
       self._over_since = now if self._over_since is None else self._over_since
       if now - self._over_since >= LIMIT_HOLD:
+        self._at_limit = True
         return AT_LIMIT
     else:
       self._over_since = None
@@ -215,7 +227,7 @@ class HeadroomArc(Component):
 
 
 class HelpSteer(Component):
-  """The at-limit banner. Drawn by the UI, so it has no chime of its own."""
+  """The at-limit banner; the view requests its one-shot warning through soundd."""
   grow_touch_target = False
 
   def _render(self, rect: rl.Rectangle):

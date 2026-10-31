@@ -55,6 +55,7 @@ STARPILOT_CUSTOM_ALERT_OFFSET = 1000
 STARPILOT_CUSTOM_ALERT_START = int(StarPilotAudibleAlert.angry)
 TURN_STEERING_LIMIT_ALERT_SUFFIX = "steersaturated"
 GPU_MODEL_READY_ALERT = 2000
+STEERING_HEADROOM_ALERT = 2001
 
 # Keep carState out of this list; C4's onroad stack is near msgq's 15-reader limit.
 SOUNDD_SERVICES = ('selfdriveState', 'soundPressure', 'starpilotSelfdriveState', 'starpilotPlan')
@@ -99,6 +100,7 @@ def read_volume_settings(params):
 
 sound_list: dict[int, tuple[str, int | None, float]] = {
   GPU_MODEL_READY_ALERT: ("model_ready.wav", 1, MAX_VOLUME),
+  STEERING_HEADROOM_ALERT: ("warning_soft.wav", 1, MAX_VOLUME),
   # AudibleAlert, file name, play count (none for infinite)
   AudibleAlert.engage: ("engage.wav", 1, MAX_VOLUME),
   AudibleAlert.disengage: ("disengage.wav", 1, MAX_VOLUME),
@@ -164,6 +166,7 @@ class Soundd:
     self.model_ready_params = Params(return_defaults=True)
     self.model_ready_last_check = 0.0
     self.model_ready_pending = False
+    self.headroom_warning_seen = time.monotonic()  # a soundd restart must not replay an existing warning
 
     self.starpilot_toggles = get_starpilot_toggles()
 
@@ -392,6 +395,28 @@ class Soundd:
       self.current_alert_type = ""
       self.update_alert(GPU_MODEL_READY_ALERT)
 
+  def update_headroom_sound(self, sm):
+    if self.current_alert == STEERING_HEADROOM_ALERT:
+      self.current_alert_type = "steerSaturated/warning"
+      loaded = self.loaded_sounds.get(STEERING_HEADROOM_ALERT)
+      if loaded is None or self.current_sound_frame >= len(loaded):
+        self.current_alert = AudibleAlert.none
+        self.current_sound_frame = 0
+    try:
+      warning = float(self.params_memory.get("SteeringHeadroomWarning") or 0.0)
+    except (TypeError, ValueError):
+      return
+    if not math.isfinite(warning) or warning <= self.headroom_warning_seen:
+      return
+    self.headroom_warning_seen = warning
+    # Consume busy/expired requests rather than playing a warning after its curve.
+    if (0 <= time.monotonic() - warning <= 1.0 and self.current_alert == AudibleAlert.none
+        and not self.selfdrive_timeout_alert and sm.valid["selfdriveState"] and sm.alive["selfdriveState"]
+        and sm["selfdriveState"].alertSize == log.SelfdriveState.AlertSize.none
+        and sm["starpilotSelfdriveState"].alertSize == custom.StarPilotSelfdriveState.AlertSize.none):
+      self.current_alert_type = "steerSaturated/warning"
+      self.update_alert(STEERING_HEADROOM_ALERT)
+
   def get_volume_override(self):
     if self.current_alert_type.startswith("belowSteerSpeed/"):
       return self.volume_settings["BelowSteerSpeedVolume"] / 100.0
@@ -459,6 +484,7 @@ class Soundd:
               self.current_volume = 0.0
 
           self.get_audible_alert(sm)
+          self.update_headroom_sound(sm)
           self.update_model_ready_sound(sm)
 
           if self.current_alert != AudibleAlert.none:
@@ -526,6 +552,7 @@ class Soundd:
       AudibleAlert.preAlert: settings["PromptDistractedVolume"] / 100.0,
 
       AudibleAlert.warningSoft: settings["WarningSoftVolume"] / 100.0,
+      STEERING_HEADROOM_ALERT: settings["WarningSoftVolume"] / 100.0,
       AudibleAlert.warningImmediate: settings["WarningImmediateVolume"] / 100.0,
 
       starpilot_alert_key(StarPilotAudibleAlert.goat): settings["PromptVolume"] / 100.0,

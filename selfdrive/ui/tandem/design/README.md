@@ -79,7 +79,7 @@ Defaults are in **bold**.
 | Speed Limits | Off · Show · **Match** (offset **+3**). Higher limits: **Tap to confirm** · Update automatically | `ShowSpeedLimits` `SetSpeedLimit` `SLCConfirmation` `SLCConfirmationLower` `SLCConfirmationHigher` `SLCFallback` `SLCPriority` `SLCMapboxFiller` `VisionSpeedLimit` `ConfigureOffsets` `UseVienna` (from region) |
 | Lane Changes | Nudge · **Auto** | `NudgelessLaneChange` `OneLaneChange` `LaneChangeTime` `MinimumLaneChangeSpeed` `LaneDetectionWidth` `LaneChangeSmoothing` |
 | Smart Slowdowns | **On** · Off | `ConditionalExperimental` `CECurves` `CEStopLights` `CEStoppedLead` `CESlowerLead` `CurveSpeedController` `MapDecel` |
-| Always-On Steering | **On** · Off | `AlwaysOnLateral` `PauseAOLOnBrake` `TeslaAOLDisengageOnBrake` |
+| Always-On Steering | **On** · Off | `AlwaysOnLateral` |
 | Vehicle Profile | **Car** · EV · Truck · Towing | `EVTuning` `TruckTuning` `TrailerLoad` |
 | Weather | **Auto** · Off | `WeatherPresets` `LowVisibility` `Rain` `RainStorm` `Snow` |
 
@@ -126,6 +126,7 @@ This builds on the existing torque bar in `selfdrive/ui/onroad/starpilot/torque_
   - **Comfortable (under 60%):** a thin white arc and no sound.
   - **Working (60–85%):** the arc turns amber and gets thicker.
   - **At limit (over 85%, held for about half a second):** the arc turns orange-red, the lane lines tint, and the Warning alert "Help steer" plays one chime.
+    The border turns amber. The warning clears below 80% to avoid repeated chimes near the threshold, and clears whenever steering becomes inactive. Existing driving alerts take priority.
 - **Preview of the curve ahead.** A faint extension of the arc shows the steering the planned path will need 2–3 seconds out, based on the model's desired curvature at the current speed. The driver sees trouble before the car reaches it.
 - The arc sits on the road view just above the onroad bar, where the driver is already looking. It replaces the flat "STEERING" bar from the earlier mocks.
 
@@ -174,8 +175,8 @@ The bottom bar has five tabs: Driving, Device, Network, Bluetooth and Software. 
 - **Bluetooth:** leads with **Wheel Buttons**, because a remote mounted on the steering wheel is the main reason to pair something.
   - The connected remote is listed with its assigned buttons, each with its action.
   - New remotes start with four presets: engage, disengage, change driving style, and screen off / on.
-  - **Press to find.** While this tab is open, the wheel controls test mode (`WheelControlTestActive`) is on. Pressing a button on the remote highlights its row and marks it PRESSED, and its action does not run. An unassigned button highlights Add a button instead. This replaces the separate Test button.
-  - **Add a button** opens a two-step sheet. Step 1: press the button on the remote; listening stops after 20 seconds. Step 2: pick one of nine actions (driving style, screen, set speed, save a clip, navigate to a favorite, always-on steering, coast, engage, disengage).
+  - **Press to find.** While this tab is open, the wheel controls test mode (`WheelControlTestActive`) is on, both parked and onroad. Pressing a button on the remote highlights its row and marks it PRESSED, and its action does not run. An unassigned button highlights Add a button instead, including before any buttons are mapped. Leaving the tab or closing settings ends testing and cancels pending button learning; normal mapped actions keep their previous enabled state. This replaces the separate Test button.
+  - **Add a button** opens a two-step sheet. Step 1: press the button on the remote; listening stops after 20 seconds. Step 2: pick an action (driving style, screen, save a clip, run a favorite, always-on steering, coast, engage, disengage). Favorites are the saved settings/actions; each choice shows its configured name. Removing or moving a mapping releases its action slot when no other button uses it.
   - Pulse and glide and driver selfie are only in Tuner Mode.
   - This uses the existing wheel controls service (`WheelControlMappings`, `ControllerActionSlots`, `WheelControlLearnSlot`).
   - Car audio (Test sound) and Nearby devices sit in a smaller column. Pairing waits until the car is parked.

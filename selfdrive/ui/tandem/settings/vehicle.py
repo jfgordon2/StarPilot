@@ -20,13 +20,14 @@ from openpilot.selfdrive.ui.tandem.layout import FILL, column, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.pages import FillPage
+from openpilot.selfdrive.ui.tandem.settings.favorites import favorite_action_names
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
 # StarPilot's button action ids, named for what they do.
 ACTION_NAMES = {0: "Car default", 1: "Change driving style", 2: "Coast", 3: "Pause steering", 4: "Pause gas and brake",
                 5: "Switch experimental mode", 6: "Traffic mode", 7: "Switchback mode", 8: "Save a clip", 9: "Always-on steering",
-                10: "Match the speed limit", 11: "Navigate to favorite 1", 12: "Navigate to favorite 2", 13: "Navigate to favorite 3"}
+                10: "Match the speed limit", 11: "Favorite 1", 12: "Favorite 2", 13: "Favorite 3"}
 
 
 @dataclass(frozen=True)
@@ -217,7 +218,8 @@ class UpstreamCars:
       allowed = {0, 9, 10, 11, 12, 13}
     else:
       allowed = set(range(9)) | {11, 12, 13} | ({9} if button.key == "LKASButtonControl" else set())
-    return [(o["id"], ACTION_NAMES.get(o["id"], o["name"])) for o in self._v.ACTION_OPTIONS
+    names = ACTION_NAMES | {11 + i: name for i, name in enumerate(favorite_action_names(self._state.params))}
+    return [(o["id"], names.get(o["id"], o["name"])) for o in self._v.ACTION_OPTIONS
             if o["id"] in allowed and (longitudinal or not o.get("requires_longitudinal", False))]
 
   def buttons(self) -> list[WheelButton]:

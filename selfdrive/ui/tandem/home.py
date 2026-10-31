@@ -1,7 +1,7 @@
 """The parked home screen: readiness and the current setup, Where to?, and update status.
 
-EssentialsHome subclasses upstream's HomeLayout and replaces only its home content. The header, the offroad
-alerts and the update screen are upstream's.
+EssentialsHome subclasses upstream's HomeLayout and replaces its home content, reclaiming the legacy header
+space. The offroad alerts and update screen retain upstream's header and navigation.
 """
 from __future__ import annotations
 
@@ -131,6 +131,9 @@ def essentials_home():
       self._setup_checked = False
       self._content = HomeContent(self._state, lambda: self._set_state(HomeLayoutState.ALERTS), self._where_to,
                                   lambda: self._set_state(HomeLayoutState.UPDATE))
+
+    def _show_header(self) -> bool:
+      return self.current_state != HomeLayoutState.HOME
 
     def _state(self) -> HomeState:
       speed = self._speed

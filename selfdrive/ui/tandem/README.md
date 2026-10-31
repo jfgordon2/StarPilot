@@ -56,17 +56,18 @@ page = SettingsPage(
 This fork is rebased onto StarPilot, and everything outside this package belongs to StarPilot or to openpilot underneath it. Our work therefore lives in new files and edits upstream files only when there is no other way.
 
 - **Ours:** everything in `selfdrive/ui/tandem/`, meaning the code, `design/` (mocks and docs), `tools/` and `tests/`. Also the new font files `selfdrive/assets/fonts/Figtree-*` and `Figtree-OFL.txt`, which have to sit where the app loads fonts from.
-- **Two upstream edits:**
+- **Upstream integration:**
   - The file names in `FontWeight` (`system/ui/lib/application.py`), which switch the whole UI to Figtree.
   - In `selfdrive/ui/layouts/main.py`: the imports, the calls that create the sidebar, home, settings and onroad screens (`screens.py`), and the left sidebar's width. StarPilot's developer sidebar on the right keeps upstream's width.
+  - In the wheel controls daemon and its manager predicate: temporary button testing runs while the Bluetooth screen is open, including onroad, without changing the saved enable setting. Tests cover the service and screen lifecycle.
 
-  If a rebase conflicts in either file, keep upstream's version and make the edit again.
-- **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, the `starpilot/` tree, the upstream settings panels, and every existing test.
+  If a rebase conflicts in these files, keep upstream's version and reapply the integration.
+- **Unchanged:** `Widget`, `process.py`, the installer, the Inter and mono files, `THIRD_PARTY_NOTICES.md`, and the upstream settings panels.
 - **New needs go in this package**, not in shared modules. For example, extra font faces live in `fonts.py` rather than in `FontWeight`.
 
 ## The settings window
 
-`settings/` is the Essentials settings window. `selfdrive/ui/layouts/main.py` creates it through `settings_window()` instead of upstream's `SettingsLayout`; that's the second and last upstream edit. Set `TANDEM_SETTINGS=0` to get the upstream window back.
+`settings/` is the Essentials settings window. `selfdrive/ui/layouts/main.py` creates it through `settings_window()` instead of upstream's `SettingsLayout`. Set `TANDEM_SETTINGS=0` to get the upstream window back.
 
 ### How it's built
 
@@ -110,6 +111,8 @@ These are reached from a row or button, never as a tab:
   - "Attach last drive" in Report a Problem.
   - Automatic matching of the speed limit sign style to your region, so the choice is US or Vienna.
 - **Wheel remotes** don't come with four preset buttons. A button has to be pressed before it can be mapped.
+- **Wheel-button testing** captures remote presses while the Bluetooth tab is shown, including onroad and with no mappings yet. Leaving the tab or closing settings ends testing and cancels pending learning. Testing does not change the saved enable setting for normal remote actions.
+- **Button favorites** run the existing settings/action favorites. Car and remote pickers show each saved action's name; these are separate from saved destinations. Removing or moving a remote mapping frees its controller action slot once no other button uses it.
 - **openpilot's core switches** live in Speed & Steering › Assistance. Upstream's "Experimental mode" switch is gone; Smart Slowdowns switches modes automatically.
 
 ## Onroad, home and first-run setup
@@ -122,15 +125,14 @@ These are reached from a row or button, never as a tab:
     - While a route is active, the street name gives way to arrival time, what's left and End route. That reads `navInstruction` through the view's own subscriber, since `ui_state` doesn't subscribe to it.
   - **Status chip** (top right): one at a time, held 2 s, hidden during alerts. The rules are in `onroad/status.py`, pure and tested.
   - **Steering headroom arc:** replaces the torque bar and uses its estimate. It has three stages (under 60%, 60–85%, over 85% held for 0.5 s) and a faint preview of what the path needs 2.5 s ahead.
-  - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`; Ignore hides the card until StarPilot drops the offer.
+    - At limit, the lane lines turn orange, the border turns amber, and Help steer plays one soft warning chime through soundd. It uses the warning volume and steering-limit mute-speed settings. The warning clears below 80%, or when steering becomes inactive; existing alerts take priority. The small release margin prevents repeated chimes around 85%.
+  - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`. Ignore suppresses consecutive offers for that same limit, including after an offer expires or its source briefly disappears. An intervening higher or lower posted limit, or a new drive, allows it again.
   - **Removed:** the driving personality button, the experimental-mode wheel, and the paused and weather badges, which the chips replace. The driver monitor icon sits above the bar.
-- **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. Upstream's header, offroad alerts and update screen stay.
+- **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. The home cards use the full content height without the legacy header or its tap targets. Offroad alerts and update details retain upstream's header and navigation.
 - **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, comma connect, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.
 
 What these don't do yet:
-- **No sound for "Help steer":** at the limit, the arc and a "Help steer" banner show, but there's no chime. A chime needs a controls-side alert, which isn't built.
-- **Lane lines don't tint** at the limit.
 - **Developer View metrics** keep upstream's layout.
 
 ## Third-party

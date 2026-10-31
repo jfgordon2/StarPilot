@@ -11,20 +11,22 @@ Everything else, from the camera and path to the speed, alerts, turn signals and
 from __future__ import annotations
 
 import datetime
-import math
 import time
 
 import pyray as rl
 
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.selfdrive.ui.onroad.augmented_road_view import CAMERA_VIEW_DRIVER
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 from openpilot.selfdrive.ui.onroad.starpilot.widget_layout_manager import WidgetLayoutManager
-from openpilot.selfdrive.ui.ui_state import UIStatus, ui_state
+from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
-from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, ArcState, BarState, Headroom, HeadroomArc, HelpSteer,
+from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR,
+                                                         ArcState, BarState, Headroom, HeadroomArc, HelpSteer,
                                                          LimitCard, LimitOffer, OnroadBar, StatusChip)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
+from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
 PREVIEW_SECONDS = 2.5
@@ -55,12 +57,14 @@ class EssentialsOnroadView(StarPilotOnroadView):
       widget.set_visible(False)
 
     self._memory = Params(memory=True)
+    self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
     self._chips = ChipPicker()
     self._chip = None
     self._headroom = Headroom()
     self._arc_state = ArcState()
-    self._ignored_limit = 0.0
-    self._offer_since: float | None = None
+    self._headroom_warning = False
+    self._headroom_chimed = False
+    self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
     self._chip_view = StatusChip(lambda: self._chip)
     self._arc = HeadroomArc(lambda: self._arc_state)
@@ -78,14 +82,51 @@ class EssentialsOnroadView(StarPilotOnroadView):
     pass
 
   def _render_torque_bar(self) -> None:
-    self._torque_bar._update_state()   # upstream's estimate: lateral accel, path error and road roll over the car's maximum
-    now = time.monotonic()
-    usage = float(self._torque_bar._torque_filter.x)
-    active = ui_state.status == UIStatus.ENGAGED or ui_state.always_on_lateral_active
-    self._arc_state = ArcState(usage, self._preview(), active, self._headroom.stage(usage, now) if active else "comfortable")
     self._arc.render(self._above_bar())
-    if self._arc_state.stage == AT_LIMIT:
+    if self._headroom_warning:
       self._help.render(self._content_rect)
+
+  def _update_state(self) -> None:
+    super()._update_state()
+    self._update_headroom()
+
+  def _update_headroom(self) -> None:
+    # Compute before the model and border draw, so all warning layers share this frame's state.
+    sm = ui_state.sm
+    fresh = all(sm.valid.get(service, False) and sm.alive.get(service, False)
+                and sm.recv_frame[service] >= ui_state.started_frame
+                for service in ("carControl", "carOutput", "controlsState", "carState", "selfdriveState"))
+    active = bool(ui_state.started and fresh and sm["carControl"].latActive and not sm["carState"].steeringPressed
+                  and not self.is_in_reverse() and self._camera_view() != CAMERA_VIEW_DRIVER)
+    if active:
+      self._torque_bar._update_state()   # upstream's estimate, including angle-controlled cars
+    usage = float(self._torque_bar._torque_filter.x) if active else 0.0
+    now = time.monotonic()
+    stage = self._headroom.stage(usage, now, active)
+    self._arc_state = ArcState(usage, self._preview() if active else 0.0, active, stage)
+    # Stock/custom alerts, including their exit animation, retain visual priority.
+    clear = self.alert_renderer.get_alert(sm) is None and self.alert_renderer.will_render()[0] is None
+    warning = active and stage == AT_LIMIT and clear
+    self.model_renderer.lane_line_color_override = LIMIT_LANE_COLOR if warning else None
+    if warning and not self._headroom_chimed:
+      self._memory.put_nonblocking("SteeringHeadroomWarning", now)
+      self._headroom_chimed = True
+    elif self._headroom_warning and not warning:
+      self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
+    if stage != AT_LIMIT:
+      self._headroom_chimed = False
+    self._headroom_warning = warning
+
+  def _get_border_color(self):
+    return LIMIT_BORDER_COLOR if self._headroom_warning else super()._get_border_color()
+
+  def hide_event(self):
+    self._headroom.stage(0.0, time.monotonic(), active=False)
+    self._arc_state = ArcState()
+    self._headroom_warning = self._headroom_chimed = False
+    self.model_renderer.lane_line_color_override = None
+    self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
+    super().hide_event()
 
   # Our layers
 
@@ -95,6 +136,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _render(self, rect: rl.Rectangle):
     super()._render(rect)
+    self._offer()   # observe limit changes even when an alert is covering the card
     alert, _ = self.alert_renderer.will_render()
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
     self._chip = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
@@ -165,17 +207,23 @@ class EssentialsOnroadView(StarPilotOnroadView):
     if not ui_state.sm.valid.get("starpilotPlan", False):
       return None
     plan = ui_state.sm["starpilotPlan"]
+    now = time.monotonic()
+    pending_ms = float(plan.unconfirmedSlcSpeedLimit) if plan.speedLimitChanged else 0.0
+    self._limit_offer.observe(pending_ms, float(plan.slcSpeedLimit), str(plan.slcSpeedLimitSource), now)
     conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
-    pending = float(plan.unconfirmedSlcSpeedLimit) * conversion
+    pending = pending_ms * conversion
     current = float(plan.slcSpeedLimit) * conversion
-    if not (plan.speedLimitChanged and pending > 1 and pending > current + 0.5) or math.isclose(pending, self._ignored_limit):
-      self._offer_since = None
+    since = self._limit_offer.since
+    if since is None or not (plan.speedLimitChanged and pending > current + 0.5) or self._limit_offer.ignored:
       return None
-    self._offer_since = self._offer_since or time.monotonic()
     offset = float(plan.slcSpeedLimitOffset) * conversion
     return LimitOffer(pending, pending + offset, "km/h" if ui_state.is_metric else "mph",
                       str(plan.slcPresentedSpeedLimitSource or plan.slcSpeedLimitSource or "map"),
-                      CONFIRM_TIMEOUT - (time.monotonic() - self._offer_since))
+                      CONFIRM_TIMEOUT - (now - since))
+
+  def _offroad_transition(self) -> None:
+    super()._offroad_transition()
+    self._limit_offer = LimitOfferState()
 
   # Actions
 
@@ -205,4 +253,4 @@ class EssentialsOnroadView(StarPilotOnroadView):
   def _ignore_limit(self) -> None:
     offer = self._offer()
     if offer is not None:
-      self._ignored_limit = offer.limit
+      self._limit_offer.ignore()

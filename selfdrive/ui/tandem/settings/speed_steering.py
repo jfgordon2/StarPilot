@@ -143,7 +143,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
                Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes), height=row_height),
     SettingRow("Smart Slowdowns", "Slows for curves, stop lights and stopped traffic on its own",
                Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns), height=row_height),
-    SettingRow("Always-On Steering", "Keeps steering with cruise off. Pauses while you brake.",
+    SettingRow("Always-On Steering", "Keeps steering with cruise off.",
                Switch(lambda: model.always_on_steering, model.set_always_on_steering), height=row_height),
   ]
   return ListPanel(rows, title="Everyday", header_control=Label(lambda: f"{sum(r.is_visible for r in rows)} settings", T.SIZE_CAPTION,

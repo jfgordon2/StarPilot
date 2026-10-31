@@ -764,6 +764,78 @@ def test_cancelling_assignment_removes_a_learned_button():
   assert [m["id"] for m in source.maps] == ["a", "b"] and source.learning is None
 
 
+def test_bluetooth_page_tests_unmapped_buttons_and_cancels_learning_when_hidden():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth, FakeWheel
+  source = FakeWheel()
+  source.maps.clear()
+  source.state["testing"] = False
+  bt = FakeBluetooth()
+  window, _, _ = _window()
+  window._roots[Tab.BLUETOOTH] = lambda: BluetoothPage(WheelButtons(source), bt, window)
+  window.show_event()
+  window.select_tab(Tab.BLUETOOTH)
+  assert source.state["testing"] and bt.calls[-1] == ("active", True)
+
+  source.start_learning(3)
+  window.hide_event()
+  assert source.learning is None and not source.state["testing"]
+  assert bt.calls[-1] == ("active", False)
+
+
+def test_bluetooth_test_mode_suppresses_real_actions_only_while_the_page_is_shown():
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, UpstreamWheel, WheelButtons
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth
+  from openpilot.starpilot.common import controller_actions
+  from openpilot.starpilot.system.wheel_controls import wheel_controlsd
+  from openpilot.starpilot.system.wheel_controls.tests.test_wheel_controlsd import FakeParams, source
+
+  params = FakeParams({"IsOffroad": False, "IsOnroad": True})
+  memory = FakeParams()
+  wheel_controlsd.set_controller_action_slot(0, controller_actions.CONTROLLER_ACTION_BOOKMARK, "Save a clip", params)
+  wheel_controlsd.upsert_mapping(source(), 164, wheel_controlsd.FAVORITE_SLOT_COUNT, params)
+  daemon = wheel_controlsd.WheelControlsDaemon(params, memory)
+  wheel = UpstreamWheel.__new__(UpstreamWheel)
+  wheel._params, wheel._memory = params, memory
+  wheel._wc, wheel._ca = wheel_controlsd, controller_actions
+  wheel.favorite_slots = wheel_controlsd.FAVORITE_SLOT_COUNT
+  window, _, _ = _window()
+  window._roots[Tab.BLUETOOTH] = lambda: BluetoothPage(WheelButtons(wheel), FakeBluetooth(), window)
+  window.show_event()
+
+  def press(expected_clips):
+    daemon._handle_key(source(), 164)
+    assert memory.get_int("WheelButtonBookmarkCounter") == expected_clips
+
+  try:
+    press(1)
+    window.select_tab(Tab.BLUETOOTH)
+    press(1)
+    assert daemon.testing and daemon.last_tested["mapped"]
+
+    window.select_tab(Tab.NETWORK)
+    press(2)
+    assert not daemon.testing
+
+    window.select_tab(Tab.BLUETOOTH)
+    press(2)
+    window.push(Page("another page", []))
+    press(3)
+    window.pop()
+    press(3)
+
+    window.hide_event()
+    press(4)
+    window.show_event()
+    press(4)
+    window.hide_event()
+    press(5)
+    assert not memory.get_bool(wheel_controlsd.TEST_ACTIVE_PARAM)
+  finally:
+    window.hide_event()
+    daemon.close()
+
+
 def test_software_states_and_actions():
   from openpilot.selfdrive.ui.tandem.settings.software_tab import Software
   from openpilot.selfdrive.ui.tandem.tests.fakes import FakeUpdates
