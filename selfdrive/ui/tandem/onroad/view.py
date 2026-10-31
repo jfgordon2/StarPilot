@@ -3,7 +3,7 @@
 It subclasses StarPilotOnroadView and overrides only the parts Essentials replaces:
 - the torque bar becomes the headroom arc, above the bar;
 - the road name moves into the bar;
-- the paused and weather badges beside the driver monitor become status chips;
+- the paused and weather badges beside the driver monitor become a status chip, bottom left above the bar;
 - the current speed, the speed limit sign and the turn card are drawn in the Essentials style, with StarPilot still
   deciding when each shows; the speed pill carries Essentials' turn signal in place of StarPilot's animations;
 - the driving personality button, the experimental-mode wheel, the favorites menu, the side-camera bubble and the stopped
@@ -27,10 +27,9 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, SIGN_MARGIN, SIGN_TILE,
-                                                         ArcState, BarState, Headroom, HeadroomArc, HelpSteer,
-                                                         LimitCard, LimitOffer, OnroadBar, StatusChip, draw_speed, draw_speed_limit,
-                                                         draw_turn_card, sign_tile)
+from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
+                                                         Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
+                                                         draw_speed, draw_speed_limit, draw_turn_card, sign_tile)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
@@ -44,7 +43,8 @@ class BarAwareLayout(WidgetLayoutManager):
 
   def _layout_bottom(self, is_rhd: bool):
     full = self.content_rect
-    self.content_rect = rl.Rectangle(full.x, full.y, full.width, full.height - BAR_ZONE + 40)
+    # Above the bar and the status chip's line, so the driver monitor icon clears both.
+    self.content_rect = rl.Rectangle(full.x, full.y, full.width, full.height - BAR_ZONE + 40 - StatusChip.HEIGHT - StatusChip.GAP)
     try:
       super()._layout_bottom(is_rhd)
     finally:
@@ -115,7 +115,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._headroom_chimed = False
     self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
-    self._chip_view = StatusChip(lambda: self._chip, lambda: SIGN_MARGIN + SIGN_TILE[1] + T.px(12) if self._sign_right else T.px(22))
+    self._chip_view = StatusChip(lambda: self._chip)
     self._arc = HeadroomArc(lambda: self._arc_state)
     self._help = HelpSteer()
     self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit,
@@ -128,7 +128,6 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._favorite_radial_menu = _NoFavorites()
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()
-    self._sign_right = False
     self._layers_visible = False
     self._nav_sm = None
 
@@ -146,7 +145,6 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""
-    self._sign_right = False
     widget = self._unified_speed_widget
     if self._full_alert_showing():
       widget.collapse_sources()
@@ -155,8 +153,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     limit = widget._presentation.posted_speed_text
     if limit in ("", "–") or self._offer() is not None:
       return
-    self._sign_right = self._turn_card.box is not None
-    draw_speed_limit(sign_tile(self._content_rect, self._sign_right), limit, ui_state.ui_params.get_bool("UseVienna"))
+    draw_speed_limit(sign_tile(self._content_rect, self._turn_card.box is not None), limit, ui_state.ui_params.get_bool("UseVienna"))
 
   def _render_road_name(self):
     pass

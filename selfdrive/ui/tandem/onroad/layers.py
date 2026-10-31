@@ -121,25 +121,25 @@ class OnroadBar(Component):
 
 
 class StatusChip(Component):
-  """Top-right explanation of what the car is doing on its own."""
+  """What the car is doing on its own, bottom left just above the bar."""
   grow_touch_target = False
   INK = {ChipTone.INFO: T.ACCENT_TEXT, ChipTone.PAUSED: T.WARNING, ChipTone.WAITING: T.SUCCESS_TEXT}
+  HEIGHT, GAP = T.px(44), T.px(12)
 
-  def __init__(self, chip: Callable[[], Chip | None], top: Callable[[], float] = lambda: T.px(22)):
-    """top: how far down the chip sits, below the speed limit sign while that's top right (navigating)."""
+  def __init__(self, chip: Callable[[], Chip | None]):
     super().__init__()
     self._chip = chip
-    self._top = top
 
   def size(self, chip: Chip) -> tuple[float, float]:
-    return draw.text_width(chip.label, T.font_px(17), T.FONT_SEMIBOLD) + T.px(70), T.px(44)
+    return draw.text_width(chip.label, T.font_px(17), T.FONT_SEMIBOLD) + T.px(70), self.HEIGHT
 
   def _render(self, rect: rl.Rectangle):
     chip = self._chip()
     if chip is None:
       return
     w, h = self.size(chip)
-    box = rl.Rectangle(rect.x + rect.width - w - T.px(22), rect.y + self._top(), w, h)
+    bar_top = rect.y + rect.height - BAR_MARGIN - BAR_HEIGHT
+    box = rl.Rectangle(rect.x + BAR_MARGIN, bar_top - self.GAP - h, w, h)
     draw.fill(box, draw.alpha(T.BG, 0.8), T.px(12))
     body = inset(box, x=T.px(16))
     ink = self.INK[chip.tone]

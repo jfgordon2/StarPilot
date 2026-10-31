@@ -123,7 +123,7 @@ These are reached from a row or button, never as a tab:
   - **Bottom bar:** a scrim, not a panel. It holds menu (the sidebar), MAX − / + (StarPilot's `SLCForceCruiseSpeed`, only while engaged), the street name, and engage.
     - Engage and disengage go through the wheel controls' action counters.
     - While a route is active, the street name gives way to arrival time, what's left and End route. That reads `navInstruction` through the view's own subscriber, since `ui_state` doesn't subscribe to it.
-  - **Status chip** (top right): one at a time, held 2 s, hidden during alerts. The rules are in `onroad/status.py`, pure and tested.
+  - **Status chip** (bottom left, just above the bar, with the driver monitor icon lifted above it): one at a time, held 2 s, hidden during alerts. The rules are in `onroad/status.py`, pure and tested.
   - **Steering headroom arc:** replaces the torque bar and uses its estimate. It has three stages (under 60%, 60–85%, over 85% held for 0.5 s) and a faint preview of what the path needs 2.5 s ahead.
     - At limit, the lane lines turn orange, the border turns amber, and Help steer plays one soft warning chime through soundd. It uses the warning volume and steering-limit mute-speed settings. The warning clears below 80%, or when steering becomes inactive; existing alerts take priority. The small release margin prevents repeated chimes around 85%.
   - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`. Ignore suppresses consecutive offers for that same limit, including after an offer expires or its source briefly disappears. An intervening higher or lower posted limit, or a new drive, allows it again.
