@@ -30,7 +30,8 @@ from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad import alerts
-from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
+from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DeviceStats, draw_strip
+from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
@@ -154,6 +155,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._stopped_timer_widget = _NoStoppedTimer()
     self.alert_renderer = EssentialsAlertRenderer()
     self._layers_visible = False
+    self._dev_stats = DeviceStats()
+    self._dev_parts: list[tuple[str, str]] = []
     self._nav_sm = None
 
   # Upstream pieces replaced here
@@ -199,6 +202,10 @@ class EssentialsOnroadView(StarPilotOnroadView):
     if not (ui_state.started and self._draw_hud_controls) or self.alert_renderer.will_render()[0] is not None:
       return
     draw_driver_monitor(dm_tile(self._content_rect), dm._fade_filter.x, attentive, dm.is_active)
+
+  def _render_developer_metrics(self):
+    """StarPilot's device stats, gathered here and drawn as our strip above the bar (see _render)."""
+    self._dev_parts = self._dev_stats.parts(self._params)
 
   def _render_road_name(self):
     pass
@@ -270,9 +277,14 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._render_driver_monitor()
     if not self._layers_visible:
       return
-    self._chip_view.render(self._content_rect)
-    self._limit.render(self._content_rect)
-    self._bar.render(self._content_rect)
+    c = self._content_rect
+    lift = 0.0
+    if self._dev_parts:   # Developer View's device stats, just above the bar; the chip moves up over them
+      lift = STRIP_H + T.px(6)
+      draw_strip(rl.Rectangle(c.x, c.y + c.height - BAR_MARGIN - BAR_HEIGHT - lift, c.width, STRIP_H), self._dev_parts)
+    self._chip_view.render(rl.Rectangle(c.x, c.y, c.width, c.height - lift))
+    self._limit.render(c)
+    self._bar.render(c)
 
   def _handle_mouse_press(self, mouse_pos: MousePos):
     # Taps on our layers stay ours; anywhere else keeps upstream's behavior (toggling the sidebar).

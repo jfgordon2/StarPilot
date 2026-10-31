@@ -5,12 +5,11 @@ import cereal.messaging as messaging
 from openpilot.system.hardware import PC
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.sidebar import SIDEBAR_WIDTH
-from openpilot.selfdrive.ui.onroad.starpilot.developer_sidebar import DeveloperSidebar
 from openpilot.selfdrive.ui.layouts.settings.settings import PanelType
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.layouts.onboarding import OnboardingWindow
-from openpilot.selfdrive.ui.tandem.screens import MAIN_SIDEBAR_WIDTH, home_layout, onroad_view, settings_window, sidebar
+from openpilot.selfdrive.ui.tandem.screens import MAIN_SIDEBAR_WIDTH, developer_sidebar, home_layout, onroad_view, settings_window, sidebar
 
 
 class MainState(IntEnum):
@@ -26,7 +25,7 @@ class MainLayout(Widget):
     self._pm = messaging.PubMaster(['bookmarkButton'])
 
     self._sidebar = sidebar()
-    self._dev_sidebar = DeveloperSidebar()
+    self._dev_sidebar = developer_sidebar()
     self._current_mode = MainState.HOME
     self._prev_onroad = False
 

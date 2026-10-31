@@ -16,6 +16,8 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | `assets/` | `boot_logo.jpg`, Tandem's boot logo (2160×1080, from `boot_logo.html`). Choosing it copies the file into StarPilot's boot logos folder, where StarPilot's theme manager installs it like any other logo; the Essentials defaults choose it. |
 | `blocks.py` | Layout blocks for the mocks' card layouts: `Stack` (with `SPACER`s or a growing item), `Card`, `Columns`, `Grid`, `Label`, `ValueLine`, `IconTitle`, `InfoCard`, `Field`, `Icon`, `Inline`, `Sized`, `Surface` |
 | `overlays.py` | `Sheet` (slides up), `Dialog` (confirm; `Tone.DANGER` gives a destructive button), `Toast` |
+| Settings › Device › Developer (`settings/developer.py`) | openpilot's Developer panel in our rows: ADB, SSH, GitHub SSH keys (upstream's fetcher), joystick debug, alpha longitudinal (with our warning, only where offered) and UI debug. |
+| More for your car (`settings/vehicle.py`) | StarPilot's car-specific options for the detected car, on its params and handlers; restarts and panda flashing ask first in our dialogs. |
 | `overlays.py` dialogs over upstream actions | Restart, Power Off, Recalibrate and the driver monitoring reset ask in our `Dialog`, then run upstream's action (the confirm-only prompts are run with their dialog caught and answered, so upstream's checks still apply). Software's Release Channel and Uninstall (upstream's three steps), What's new and the Bluetooth sound test use our sheets and dialogs too. How It Works stays upstream's training guide: its steps are pre-drawn images. |
 | `keyboard.py` | `EssentialsKeyboard`: upstream's `Keyboard` (typing, shift and caps, the 123 and #+= layers, backspace repeat, password masking, minimum length) drawn as `design/keyboard.html`, with a named action key. Used by every text entry our screens open: Wi-Fi and hotspot passwords, APN, Report a Problem, the startup message and the Galaxy password. Destination search holds it in the page as a `KeyPad`. |
 
@@ -138,12 +140,13 @@ These are reached from a row or button, never as a tab:
   - The list: Home and Work tiles (a tile with nothing saved searches for one and sets it), Add favorite, other favorites, recents with a star, and the active route with End route. Offline maps ready shows when maps are downloaded.
   - Search: the keyboard sits in the page; results update 0.6 s after you stop typing (from 3 letters), and Search lists them all without the keyboard.
   - The preview: the place, what Essentials does on the way, and Favorite / Home / Work toggles, then Start. There is no map or arrival estimate before starting: StarPilot only routes once a destination is set. Renaming a favorite isn't offered.
+- **Home's alerts and update** (`home_alerts.py`, `design/homealerts.html`, `homeupdate.html`): upstream's OffroadAlert and UpdateAlert still read the params and own Snooze update, Acknowledge excessive actuation and Reboot and update; we draw alert cards by severity (with short titles for the alerts we know) and the release notes, and Home no longer shows upstream's header.
 - **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (`destinations.py`), and update status. The home cards use the full content height without the legacy header or its tap targets. Offroad alerts and update details retain upstream's header and navigation.
 - **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, comma connect, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.
 
 What these don't do yet:
-- **Developer View metrics** keep upstream's layout.
+- **Developer View** (`onroad/developer.py`, `design/onroaddev.html`): StarPilot's developer sidebar keeps its chosen metrics, their calculations and tuning colors, drawn as our tiles (one column at its 300 px width); its device stats (CPU, GPU, temperature, RAM, FPS) follow StarPilot's toggles as a strip above the bar, and the status chip moves up over it. `main.py` creates the sidebar through `screens.developer_sidebar()`.
 
 ## Third-party
 

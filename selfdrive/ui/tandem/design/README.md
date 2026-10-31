@@ -30,6 +30,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Keyboard | [keyboard.html](keyboard.html) |
 | Progress, blocked, done, empty | [feedback.html](feedback.html) |
 | Parked home | [home.html](home.html) |
+| Home: alerts, update ready | [homealerts.html](homealerts.html), [homeupdate.html](homeupdate.html) |
 | First-run setup | [setup.html](setup.html) |
 | Driving Model | [model.html](model.html) |
 | System | [system.html](system.html) |

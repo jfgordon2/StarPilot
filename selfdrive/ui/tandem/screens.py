@@ -34,6 +34,15 @@ def onroad_view() -> Widget:
   return EssentialsOnroadView()
 
 
+def developer_sidebar():
+  """StarPilot's developer sidebar (Developer View), drawn as our tiles; TANDEM_ONROAD=0 brings back StarPilot's."""
+  if not _enabled("TANDEM_ONROAD"):
+    from openpilot.selfdrive.ui.onroad.starpilot.developer_sidebar import DeveloperSidebar
+    return DeveloperSidebar()
+  from openpilot.selfdrive.ui.tandem.onroad.developer import developer_sidebar as essentials_developer_sidebar
+  return essentials_developer_sidebar()
+
+
 def sidebar() -> Widget:
   if not _enabled("TANDEM_SIDEBAR"):
     from openpilot.selfdrive.ui.layouts.sidebar import Sidebar
