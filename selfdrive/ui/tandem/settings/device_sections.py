@@ -201,7 +201,26 @@ class StorageBar(Component):
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     title = draw.line_height(T.font_px(18) if self._heading else T.SIZE_ROW_TITLE)
-    return max_width, self._padding[1] * 2 + title + T.px(14) + draw.line_height(T.SIZE_SUBTITLE) + T.px(20)
+    lines = len(self._legend(self._sizes(), max_width - self._padding[0] * 2))
+    return max_width, self._padding[1] * 2 + title + T.px(14) + T.px(20) + self._legend_height(lines)
+
+  @staticmethod
+  def _legend_height(lines: int) -> float:
+    return lines * draw.line_height(T.SIZE_SUBTITLE) + (lines - 1) * T.px(4)
+
+  def _legend(self, sizes: dict[str, float], width: float) -> list[list[tuple[str, rl.Color, float]]]:
+    """Legend entries (label, color, width) in lines, wrapping where a narrow card can't fit them on one."""
+    lines: list[list[tuple[str, rl.Color, float]]] = [[]]
+    x = 0.0
+    for kind, color in self.KINDS:
+      label = f"{kind} {_gb(sizes.get(kind, 0.0))}"
+      w = T.px(18) + draw.text_width(label, T.SIZE_SUBTITLE)
+      if lines[-1] and x + w > width:
+        lines.append([])
+        x = 0.0
+      lines[-1].append((label, color, w))
+      x += w + T.px(24)
+    return lines
 
   def _render(self, rect: rl.Rectangle):
     sizes = self._sizes()
@@ -234,12 +253,16 @@ class StorageBar(Component):
       else:
         draw.fill(segment, color)
       x += w
-    lx = legend.x
-    for kind, color in self.KINDS:
-      dot = rl.Rectangle(lx, legend.y + legend.height / 2 - T.px(5), T.px(10), T.px(10))
-      draw.fill(dot, color, T.px(5))
-      lx += T.px(18) + draw.text(rl.Rectangle(lx + T.px(18), legend.y, legend.width, legend.height),
-                                 f"{kind} {_gb(sizes.get(kind, 0.0))}", T.SIZE_SUBTITLE, T.TEXT_TERTIARY) + T.px(24)
+    lines = self._legend(sizes, legend.width)
+    line_h = draw.line_height(T.SIZE_SUBTITLE)
+    y = legend.y + (legend.height - self._legend_height(len(lines))) / 2
+    for entries in lines:
+      lx = legend.x
+      for label, color, w in entries:
+        draw.fill(rl.Rectangle(lx, y + line_h / 2 - T.px(5), T.px(10), T.px(10)), color, T.px(5))
+        draw.text(rl.Rectangle(lx + T.px(18), y, w, line_h), label, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
+        lx += w + T.px(24)
+      y += line_h + T.px(4)
 
 
 def _gb(size: float) -> str:
@@ -337,16 +360,21 @@ def report_panel(report: Report) -> Widget:
 
 
 class StorageSizes:
-  """Space used on /data by kind, measured on a background thread and shared by every page that shows it. Until a
-  measurement finishes it returns the last one (zeros at first); forget() re-measures after something is deleted."""
+  """Space used on /data by kind, measured on a background thread and shared by every page that shows it (Storage &
+  Data, Offline Maps, the model catalog). Until a measurement finishes it returns the last one (zeros at first);
+  forget() re-measures right away after something is deleted."""
+  REFRESH = 30.0
 
   def __init__(self):
     self._sizes: dict[str, float] = {}
     self._measuring = False
     self._generation = 0   # bumped by forget(), so a measurement that started before a delete is thrown away
+    self._measured_at = 0.0
 
   def sizes(self) -> dict[str, float]:
-    if not self._measuring and not self._sizes:
+    """Re-measured every REFRESH seconds while something shows it, so model and map downloads show up too."""
+    import time
+    if not self._measuring and (not self._sizes or time.monotonic() - self._measured_at > self.REFRESH):
       import threading
       self._measuring = True
       threading.Thread(target=self._measure, args=(self._generation,), daemon=True).start()
@@ -358,6 +386,7 @@ class StorageSizes:
 
   def _measure(self, generation: int) -> None:
     import shutil
+    import time
     from pathlib import Path
 
     def size(*paths: str) -> float:
@@ -375,6 +404,7 @@ class StorageSizes:
                      "Total": float(usage.total), "Free": float(usage.free)}
       if generation == self._generation:
         self._sizes = sizes
+        self._measured_at = time.monotonic()
     finally:
       self._measuring = False
 

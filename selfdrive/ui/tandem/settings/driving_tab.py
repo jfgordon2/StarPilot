@@ -108,7 +108,7 @@ def driving_hub(window) -> Widget:
     HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: alerts_page(alerts, window)),
             icon="volume"),
     HubTile("Driving Model", [lambda: models.get().summary(), lambda: models.get().update_summary()],
-            opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get())))), icon="model"),
+            opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get(), window.device_data().storage)))), icon="model"),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
             opener(lambda: vehicle_page(vehicle.get(), window, opener(starpilot("VEHICLE")))), icon="car"),
   ], rows=[3, 2], strip=strip)

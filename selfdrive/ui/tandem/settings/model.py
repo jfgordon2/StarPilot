@@ -19,6 +19,7 @@ from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, 
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.settings.device_sections import STORAGE, StorageBar
 from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
@@ -42,8 +43,6 @@ class ModelSource(Protocol):
   def downloading_key(self) -> str | None: ...
   def progress(self) -> str: ...
   def egpu_available(self) -> bool: ...
-  def free_space(self) -> str: ...
-  def disk_used(self) -> float | None: ...   # share of the device's storage in use
   def use(self, key: str) -> None: ...
   def download(self, key: str) -> None: ...
   def cancel(self) -> None: ...
@@ -297,7 +296,7 @@ class CatalogPage(Component):
   grow_touch_target = False
   TABS = ["All models", "Community picks", "On device"]   # the mock's "For your car": StarPilot lists every model for every car
 
-  def __init__(self, models: Models):
+  def __init__(self, models: Models, sizes: Callable[[], dict[str, float]]):
     super().__init__()
     self._models = models
     self._tab = 0
@@ -307,14 +306,12 @@ class CatalogPage(Component):
       lambda: ListPanel([model_row(models, m) for m in models.tab(self._tab)] or [Text("No models here yet.")]),
       models.source.tick))
     remove = Button(lambda: f"Remove unused models ({len(models.unused())})" if models.unused() else "Remove unused models",
-                    models.remove_unused, height=T.px(46), font_size=T.font_px(15))
+                    lambda: (models.remove_unused(), STORAGE.forget()), height=T.px(46), font_size=T.font_px(15))
     remove.set_enabled(lambda: bool(models.unused()))
     note = lambda text: Text(text, T.SIZE_SUBTITLE, T.TEXT_SECONDARY, padding=(0, 0))  # noqa: E731
     self._side = self._child(Stack([
       Card([
-        Label("STORAGE", caption=True),
-        Label(models.source.free_space, T.font_px(18)),
-        DiskBar(models.source.disk_used),
+        StorageBar(sizes, heading="Storage", padding=(0, 0)),
         remove,
       ], gap=T.px(10), padding=(T.px(18), T.px(16)), background=T.SURFACE_2),
       Card([
@@ -338,28 +335,6 @@ class CatalogPage(Component):
     left, right = row(content, [FILL, T.px(280)], T.px(14))
     self._list.render(left)
     self._side.render(right)
-
-
-class DiskBar(Component):
-  """How full the device's storage is."""
-  grow_touch_target = False
-
-  def __init__(self, used: Callable[[], float | None]):
-    super().__init__()
-    self._used = used
-
-  def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(10) if self._used() is not None else 0
-
-  def _render(self, rect: rl.Rectangle):
-    used = self._used()
-    if used is None:
-      return
-    draw.fill(rect, T.TRACK, T.px(5))
-    draw.fill(rl.Rectangle(rect.x, rect.y, max(rect.height, rect.width * min(1.0, used)), rect.height), STORAGE_INK, T.px(5))
-
-
-STORAGE_INK = rl.Color(0x3B, 0x56, 0x77, 255)
 
 
 class UpstreamModels:
@@ -399,21 +374,6 @@ class UpstreamModels:
 
   def egpu_available(self) -> bool:
     return bool(self._dm.external_gpu_available())
-
-  def free_space(self) -> str:
-    import shutil
-    try:
-      return f"{shutil.disk_usage(self._layout._model_dir).free / 1e9:.1f} GB free"
-    except OSError:
-      return "Free space unknown"
-
-  def disk_used(self) -> float | None:
-    import shutil
-    try:
-      usage = shutil.disk_usage(self._layout._model_dir)
-      return usage.used / usage.total if usage.total else None
-    except OSError:
-      return None
 
   def use(self, key: str) -> None:
     self._layout.select_model(key)

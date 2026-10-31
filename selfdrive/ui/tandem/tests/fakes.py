@@ -35,12 +35,6 @@ class FakeModels:
   def egpu_available(self):
     return False
 
-  def free_space(self):
-    return "12.4 GB free"
-
-  def disk_used(self):
-    return 0.62
-
   def use(self, key):
     self.current = key
 

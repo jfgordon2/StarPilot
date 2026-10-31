@@ -87,7 +87,7 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 | | Offline Maps and the region picker | `maps.py` | Maps screen controller; removal is StarPilot's (parked, not mid-download), confirmed in our dialog |
 | | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
 | Device | This Device | `device.py` | `DeviceLayout` handlers |
-| | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps, which can also be deleted here |
+| | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps and the model catalog; offline maps can also be deleted here |
 | Network | Wi-Fi, Cellular, and Roaming, APN and IP address | `network_tab.py` | `WifiManager` |
 | Bluetooth | Wheel Buttons, car audio, nearby devices | `bluetooth_tab.py` | Wheel controls service, `BluetoothManager` |
 | Software | Updates, release channel, Reset Settings, Uninstall | `software_tab.py`, `defaults.py` | `SoftwareLayout` actions |
