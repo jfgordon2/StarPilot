@@ -1,0 +1,151 @@
+"""The parked home screen: readiness and the current setup, Where to?, and update status.
+
+EssentialsHome subclasses upstream's HomeLayout and replaces only its home content. The header, the offroad
+alerts and the update screen are upstream's, and so is the sidebar beside it.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+import pyray as rl
+
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.controls import Button
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+
+
+@dataclass
+class HomeState:
+  alerts: int = 0
+  ignition: bool = False
+  setup: str = ""              # "Standard style · Matching speed limits · Auto lane change"
+  update_ready: bool = False
+  version: str = ""
+
+
+def setup_line(speed) -> str:
+  """e.g. "Standard style · Matching speed limits · Auto lane change"."""
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import STYLES
+  lanes = "Auto lane change" if speed.lane_changes else "Nudge to change lanes"
+  return f"{STYLES[speed.style]} style · {speed.speed_limit_summary()} · {lanes}"
+
+
+def readiness(state: HomeState) -> tuple[str, str, rl.Color]:
+  """Caption, headline and caption color for the hero card."""
+  if state.alerts:
+    return "NEEDS ATTENTION", f"Check {state.alerts} alert{'s' if state.alerts != 1 else ''}", T.WARNING
+  return "READY", "Press cruise to engage" if state.ignition else "Start the car to drive", T.SUCCESS_TEXT
+
+
+class Hero(Component):
+  grow_touch_target = False
+
+  def __init__(self, state: Callable[[], HomeState], on_alerts: Callable[[], None]):
+    super().__init__()
+    self._state = state
+    self.set_click_callback(lambda: on_alerts() if self._state().alerts else None)
+
+  def _render(self, rect: rl.Rectangle):
+    draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
+    caption, headline, ink = readiness(self._state())
+    body = inset(rect, x=T.px(28))
+    lines = [T.px(24), draw.line_height(T.font_px(38)), draw.line_height(T.font_px(18))]
+    cap, title, setup = column(place(body, body.width, sum(lines) + T.px(20)), lines, T.px(10))
+    draw.caption(cap, caption, ink)
+    draw.text(title, headline, T.font_px(38), T.TEXT, T.FONT_EXTRABOLD)
+    draw.text(setup, self._state().setup, T.font_px(18), T.TEXT_TERTIARY)
+
+
+class Card(Component):
+  """An icon well, a title and a line; an optional button on the right. The whole card is tappable."""
+  grow_touch_target = False
+
+  def __init__(self, glyph_name: str, title: Callable[[], str], line: Callable[[], str], on_click: Callable[[], None] | None,
+               button: Button | None = None):
+    super().__init__()
+    self._glyph = glyph_name
+    self._title = title
+    self._line = line
+    self._button = self._child(button) if button is not None else None
+    self.set_click_callback(on_click)
+
+  def _render(self, rect: rl.Rectangle):
+    from openpilot.selfdrive.ui.tandem.onroad.glyphs import icon
+    draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
+    if self.is_pressed:
+      draw.pressed(rect, T.RADIUS_PANEL)
+    body = inset(rect, x=T.px(20))
+    well = place(body, T.ICON_WELL, T.ICON_WELL, Align.START)
+    draw.fill(well, T.ACCENT_SURFACE, T.px(16))
+    icon(self._glyph, well, T.ACCENT_TEXT, T.px(28))
+    body = inset(body, left=T.ICON_WELL + T.px(18))
+    if self._button is not None:
+      w, h = self._button.preferred_size(body.width / 3)
+      self._button.render(place(body, w, h, Align.END))
+      body = inset(body, right=w + T.px(14))
+    lines = [draw.line_height(T.font_px(22)), draw.line_height(T.font_px(15))]
+    title, line = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
+    draw.text(title, self._title(), T.font_px(22), T.TEXT, T.FONT_BOLD)
+    draw.text(line, self._line(), T.font_px(15), T.TEXT_TERTIARY)
+
+
+class HomeContent(Component):
+  """The hero card above, Where to? and the update card below."""
+  grow_touch_target = False
+
+  def __init__(self, state: Callable[[], HomeState], on_alerts: Callable[[], None], on_where_to: Callable[[], None],
+               on_notes: Callable[[], None]):
+    super().__init__()
+    self._state = state
+    self._hero = self._child(Hero(state, on_alerts))
+    self._where = self._child(Card("navigate", lambda: "Where to?", lambda: "Home · Work · Recent", on_where_to))
+    notes = Button("Notes", on_notes)
+    notes.set_visible(lambda: state().update_ready)
+    self._update = self._child(Card("download", lambda: "Update ready" if state().update_ready else "Software",
+                                    lambda: "Installs when you turn off the car" if state().update_ready else
+                                    (f"Up to date · {state().version}" if state().version else "Up to date"),
+                                    lambda: on_notes() if state().update_ready else None, notes))
+
+  def _render(self, rect: rl.Rectangle):
+    top, bottom = column(rect, [FILL, T.px(100)], T.px(14))
+    self._hero.render(top)
+    left, right = row(bottom, [FILL, FILL], T.px(14))
+    self._where.render(left)
+    self._update.render(right)
+
+
+def essentials_home():
+  """Upstream's HomeLayout with the Essentials home content. Imported only on the device."""
+  from openpilot.selfdrive.ui.layouts.home import HomeLayout, HomeLayoutState
+  from openpilot.selfdrive.ui.ui_state import ui_state
+  from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering
+
+  class EssentialsHome(HomeLayout):
+    def __init__(self):
+      super().__init__()
+      self._speed = SpeedSteering(SettingsStore())
+      self._setup_checked = False
+      self._content = HomeContent(self._state, lambda: self._set_state(HomeLayoutState.ALERTS), self._where_to,
+                                  lambda: self._set_state(HomeLayoutState.UPDATE))
+
+    def _state(self) -> HomeState:
+      speed = self._speed
+      return HomeState(alerts=self.alert_count, ignition=bool(ui_state.ignition), setup=setup_line(speed),
+                       update_ready=self.update_available, version=self._version_text)
+
+    def _render_home_content(self):
+      if not self._setup_checked:   # first-run setup, as soon as onboarding has closed
+        from openpilot.selfdrive.ui.tandem.setup import maybe_show_setup
+        self._setup_checked = maybe_show_setup()
+      self._content.render(self.content_rect)
+
+    def _where_to(self) -> None:
+      from openpilot.system.ui.lib.application import gui_app
+      from openpilot.selfdrive.ui.tandem.settings.upstream import StarPilotPage
+      page = StarPilotPage("NAVIGATION", on_exit=gui_app.pop_widget)
+      gui_app.push_widget(page)
+
+  return EssentialsHome()

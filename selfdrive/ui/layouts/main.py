@@ -6,13 +6,11 @@ from openpilot.system.hardware import PC
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.sidebar import Sidebar, SIDEBAR_WIDTH
 from openpilot.selfdrive.ui.onroad.starpilot.developer_sidebar import DeveloperSidebar
-from openpilot.selfdrive.ui.layouts.home import HomeLayout
 from openpilot.selfdrive.ui.layouts.settings.settings import PanelType
-from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.layouts.onboarding import OnboardingWindow
-from openpilot.selfdrive.ui.tandem.settings import settings_window
+from openpilot.selfdrive.ui.tandem.screens import home_layout, onroad_view, settings_window
 
 
 class MainState(IntEnum):
@@ -32,7 +30,7 @@ class MainLayout(Widget):
     self._current_mode = MainState.HOME
     self._prev_onroad = False
 
-    self._layouts = {MainState.HOME: HomeLayout(), MainState.SETTINGS: settings_window(), MainState.ONROAD: StarPilotOnroadView()}
+    self._layouts = {MainState.HOME: home_layout(), MainState.SETTINGS: settings_window(), MainState.ONROAD: onroad_view()}
 
     self._sidebar_rect = rl.Rectangle(0, 0, 0, 0)
     self._dev_sidebar_rect = rl.Rectangle(0, 0, 0, 0)
