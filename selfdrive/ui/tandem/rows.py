@@ -261,3 +261,29 @@ class Banner(Component):
   def _render(self, rect: rl.Rectangle):
     draw.fill(rect, self._background)
     draw.text(inset(rect, x=T.PANEL_HEADER_INSET), resolve(self._message), T.font_px(15), self._color)
+
+
+class Padded(Component):
+  """A component with padding around it, e.g. cards placed between rows of a list panel."""
+  grow_touch_target = False
+
+  def __init__(self, child: Widget, x: float = T.PANEL_HEADER_INSET, y: float = T.px(14)):
+    super().__init__()
+    self._content = self._child(child)
+    self._x = x
+    self._y = y
+
+  def set_touch_valid_callback(self, touch_callback) -> None:
+    super().set_touch_valid_callback(touch_callback)
+    self._content.set_touch_valid_callback(touch_callback)
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._content.set_parent_rect(parent_rect)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    _, h = size_of(self._content, max_width - self._x * 2)
+    return max_width, h + self._y * 2
+
+  def _render(self, rect: rl.Rectangle):
+    self._content.render(inset(rect, x=self._x, y=self._y))

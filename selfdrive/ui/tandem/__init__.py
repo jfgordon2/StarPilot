@@ -18,16 +18,17 @@ Tokens and drawing helpers are in `tokens` and `draw`; see design/tokens.md.
 from openpilot.selfdrive.ui.tandem import draw, layout, tokens
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
 from openpilot.selfdrive.ui.tandem.chrome import BottomNav, HubGrid, HubTile, PageHeader, SettingsPage, Sidebar, SidebarItem, close_glyph
-from openpilot.selfdrive.ui.tandem.controls import (Badge, Button, ButtonRow, ButtonStyle, Chip, ProgressBar, Segmented, Slider, Stepper, Switch,
-                                                        Tone, ValueButton, back_glyph)
+from openpilot.selfdrive.ui.tandem.controls import (Badge, Button, ButtonRow, ButtonStyle, ChoiceCards, Chip, ProgressBar, Segmented,
+                                                    Slider, Stepper, Switch, ToggleButton, Tone, ValueButton, back_glyph)
 from openpilot.selfdrive.ui.tandem.overlays import Dialog, Sheet, Toast
-from openpilot.selfdrive.ui.tandem.rows import Banner, ListPanel, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.rows import Banner, ListPanel, Padded, SectionHeader, SettingRow, Text
 
 __all__ = [
   "draw", "layout", "tokens",
   "Bindable", "Component", "resolve", "size_of",
   "BottomNav", "HubGrid", "HubTile", "PageHeader", "SettingsPage", "Sidebar", "SidebarItem", "close_glyph",
-  "Badge", "Button", "ButtonRow", "ButtonStyle", "Chip", "ProgressBar", "Segmented", "Slider", "Stepper", "Switch", "Tone", "ValueButton", "back_glyph",
+  "Badge", "Button", "ButtonRow", "ButtonStyle", "ChoiceCards", "Chip", "ProgressBar", "Segmented", "Slider", "Stepper", "Switch",
+  "ToggleButton", "Tone", "ValueButton", "back_glyph",
   "Dialog", "Sheet", "Toast",
-  "Banner", "ListPanel", "SectionHeader", "SettingRow", "Text",
+  "Banner", "ListPanel", "Padded", "SectionHeader", "SettingRow", "Text",
 ]

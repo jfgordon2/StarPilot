@@ -9,7 +9,7 @@ import pyray as rl
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, grid, inset, place, row
 
 
 class Tone(Enum):
@@ -146,6 +146,86 @@ class ButtonRow(Component):
     visible = [b for b in self._buttons if b.is_visible]
     for button, cell in zip(visible, row(rect, [FILL] * len(visible), self._gap), strict=True):
       button.render(cell)
+
+
+class ToggleButton(Component):
+  """A compact on/off button: label, then On or Off. Used where a full row would be too much, e.g. the power-user strip."""
+
+  def __init__(self, label: str, value: Bindable[bool], on_change: Callable[[bool], None], height: float = T.px(44)):
+    super().__init__()
+    self._label = label
+    self._value = value
+    self._height = height
+    self.set_click_callback(lambda: on_change(not resolve(value)))
+
+  def _state(self) -> str:
+    return "On" if resolve(self._value) else "Off"
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    width = draw.text_width(self._label, T.font_px(16), T.FONT_SEMIBOLD) + T.px(10) + draw.text_width("Off", T.font_px(14), T.FONT_MEDIUM)
+    return min(max_width, width + T.px(36)), self._height  # 4 px of slack so rounding never ellipsizes the state
+
+  def _render(self, rect: rl.Rectangle):
+    on = resolve(self._value)
+    draw.fill(rect, T.ACCENT_SURFACE if on else T.SURFACE_3, T.RADIUS_CONTROL)
+    if self.is_pressed:
+      draw.pressed(rect, T.RADIUS_CONTROL)
+    body = inset(rect, x=T.px(16))
+    w = draw.text(body, self._label, T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
+    draw.text(inset(body, left=w + T.px(10)), self._state(), T.font_px(14), T.ACCENT_TEXT if on else T.TEXT_MUTED, T.FONT_MEDIUM)
+
+
+class ChoiceCards(Component):
+  """Pick one of a few options shown as cards, each with a title and a line explaining it."""
+  grow_touch_target = False
+
+  def __init__(self, options: list[tuple[str, str]], selected: Bindable[int], on_change: Callable[[int], None],
+               columns: int = 2, card_height: float = T.px(92)):
+    super().__init__()
+    self._options = options
+    self._selected = selected
+    self._on_change = on_change
+    self._columns = columns
+    self._card_height = card_height
+    self._pressed_card: int | None = None
+
+  def _rows(self) -> int:
+    return -(-len(self._options) // self._columns)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    rows = self._rows()
+    return max_width, rows * self._card_height + (rows - 1) * T.px(12)
+
+  def card_rects(self) -> list[rl.Rectangle]:
+    return grid(self._rect, self._columns, self._rows(), T.px(12))[:len(self._options)]
+
+  def _hit(self, pos: MousePos) -> int | None:
+    return next((i for i, r in enumerate(self.card_rects()) if rl.check_collision_point_rec(pos, r)), None)
+
+  def _handle_mouse_press(self, mouse_pos: MousePos) -> None:
+    self._pressed_card = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos: MousePos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed_card and hit != resolve(self._selected):
+      self._on_change(hit)
+    self._pressed_card = None
+
+  def _render(self, rect: rl.Rectangle):
+    selected = resolve(self._selected)
+    for i, ((title, subtitle), r) in enumerate(zip(self._options, self.card_rects(), strict=True)):
+      chosen = i == selected
+      draw.fill(r, T.ACCENT_SELECTED if chosen else T.SURFACE_4, T.RADIUS_CARD)
+      if chosen:
+        draw.stroke(r, T.ACCENT, T.RADIUS_CARD, T.px(2))
+      elif self.is_pressed and i == self._pressed_card:
+        draw.pressed(r, T.RADIUS_CARD)
+      body = inset(r, x=T.px(18))
+      lines = [draw.line_height(T.font_px(19)), draw.line_height(T.SIZE_SUBTITLE)]
+      title_rect, sub_rect = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
+      draw.text(title_rect, title, T.font_px(19), T.TEXT, T.FONT_BOLD)
+      draw.text(sub_rect, subtitle, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
 
 class ValueButton(Button):

@@ -7,8 +7,8 @@ from dataclasses import dataclass
 import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
-from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.base import Bindable, Component
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
 from openpilot.selfdrive.ui.tandem.chrome import HubGrid, HubTile, PageHeader, Sidebar, SidebarItem
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, row
 
@@ -28,19 +28,52 @@ def body_rect(rect: rl.Rectangle) -> rl.Rectangle:
 
 
 class HubPage(Component):
-  """Title and subtitle, then a grid of tiles."""
+  """Title and subtitle, a grid of tiles, then an optional strip (e.g. the power-user switches)."""
   grow_touch_target = False
 
-  def __init__(self, title: str, subtitle: str, tiles: list[HubTile], columns: int = 3):
+  def __init__(self, title: str, subtitle: str, tiles: list[HubTile], rows: list[int] | None = None, strip: Component | None = None):
     super().__init__()
     self._header = self._child(PageHeader(title, subtitle))
-    self._grid = self._child(HubGrid(tiles, columns))
+    self._grid = self._child(HubGrid(tiles, rows=rows))
+    self._strip = self._child(strip) if strip is not None else None
 
   def _render(self, rect: rl.Rectangle):
     body = body_rect(rect)
-    header, grid, _ = column(body, [self._header.preferred_height(body.width), self._grid.preferred_height(body.width), FILL], T.px(14))
+    sizes = [self._header.preferred_height(body.width), self._grid.preferred_height(body.width)]
+    if self._strip is not None:
+      sizes.append(self._strip.preferred_height(body.width))
+    header, grid, *rest = column(body, sizes, T.px(14))
     self._header.render(header)
     self._grid.render(grid)
+    if self._strip is not None:
+      self._strip.render(rest[0])
+
+
+class Strip(Component):
+  """A tinted bar: caption, a short line, and controls on the right."""
+  grow_touch_target = False
+
+  def __init__(self, caption: str, text: str, controls: list[Widget]):
+    super().__init__()
+    self._caption = caption
+    self._text = text
+    self._controls = [self._child(c) for c in controls]
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(60)
+
+  def _render(self, rect: rl.Rectangle):
+    draw.fill(rect, T.SURFACE_1, T.RADIUS_CARD)
+    draw.stroke(rect, T.STRIP_EDGE, T.RADIUS_CARD)
+    body = inset(rect, left=T.px(20), right=T.px(10), y=T.px(8))
+    x = body.x + body.width
+    for control in reversed(self._controls):
+      w, h = size_of(control, body.width / 3)
+      x -= w
+      control.render(rl.Rectangle(x, body.y + (body.height - h) / 2, w, h))
+      x -= T.px(12)
+    w = draw.caption(body, self._caption, T.TEXT_MUTED)
+    draw.text(rl.Rectangle(body.x + w + T.px(12), body.y, x - body.x - w - T.px(12), body.height), self._text, T.font_px(15), T.TEXT_TERTIARY)
 
 
 @dataclass
@@ -48,6 +81,7 @@ class Section:
   label: str
   page: Callable[[], Widget]
   value: Bindable[str] | None = None
+  visible: Bindable[bool] = True
 
 
 class SectionPage(Component):
@@ -60,7 +94,7 @@ class SectionPage(Component):
     self._pages: dict[int, Widget] = {}
     self._selected = selected
     self._shown = False
-    items = [SidebarItem(s.label, on_select=lambda i=i: self.select(i), value=s.value) for i, s in enumerate(sections)]
+    items = [SidebarItem(s.label, on_select=lambda i=i: self.select(i), value=s.value, visible=s.visible) for i, s in enumerate(sections)]
     self._sidebar = self._child(Sidebar(caption, items, selected=lambda: self._selected))
 
   @property
@@ -97,6 +131,11 @@ class SectionPage(Component):
     super().hide_event()
     self._shown = False
     self.current.hide_event()
+
+  def _update_state(self):
+    # A section can hide (e.g. Tuner sections when Tuner Mode turns off); fall back to the first one.
+    if not resolve(self._sections[self._selected].visible):
+      self.select(0)
 
   def _render(self, rect: rl.Rectangle):
     side, content = row(body_rect(rect), [T.SIDEBAR_WIDTH, FILL], T.PANEL_GAP)

@@ -4,10 +4,11 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import OFFSET_KEYS, SpeedSteering
+from openpilot.selfdrive.ui.tandem.settings.live import FakeLive
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 from openpilot.selfdrive.ui.tandem.settings.window import SettingsWindow, Tab
 
-DEFAULTS = {"LongitudinalPersonality": 1, "ShowSpeedLimits": True, "SetSpeedLimit": False, "Offset1": 5.0,
+DEFAULTS = {"LongitudinalPersonality": 1, "ShowSpeedLimits": True, "SpeedLimitController": False, "Offset1": 5.0,
             "ConditionalExperimental": True, "CurveSpeedController": True, "MinimumLaneChangeSpeed": 20.0}
 
 
@@ -25,10 +26,13 @@ class FakeCache:
   def get_float(self, key, return_default=False):
     return float(self.values.get(key, 0.0))
 
+  def get(self, key, return_default=False):
+    return self.values.get(key)
+
   def put_bool(self, key, value):
     self.values[key] = value
 
-  put_int = put_float = put_bool
+  put = put_int = put_float = put_bool
 
   def invalidate(self):
     self.invalidations += 1
@@ -65,7 +69,7 @@ class Page(Widget):
 
 def _window():
   events = []
-  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None))
+  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None), live=FakeLive())
   window._roots = [lambda n=n: Page(n, events) for n in ("driving", "device", "network", "bluetooth", "software")]
   closed = []
   window.set_callbacks(on_close=lambda: closed.append(1))
@@ -98,9 +102,9 @@ def test_speed_limits_off_show_match():
   model, cache, _ = _model()
   assert model.speed_limits == 1 and not model.matching
   model.set_speed_limits(2)
-  assert cache.values["ShowSpeedLimits"] and cache.values["SetSpeedLimit"] and model.matching
+  assert cache.values["ShowSpeedLimits"] and cache.values["SpeedLimitController"] and cache.values["SetSpeedLimit"] and model.matching
   model.set_speed_limits(0)
-  assert not cache.values["ShowSpeedLimits"] and not cache.values["SetSpeedLimit"] and model.speed_limits == 0
+  assert not cache.values["ShowSpeedLimits"] and not cache.values["SpeedLimitController"] and model.speed_limits == 0
 
 
 def test_offset_applies_to_every_speed_range():
@@ -173,7 +177,7 @@ def test_opening_at_an_upstream_panel_starts_that_tab_from_its_first_page():
 
 def test_developer_opens_the_device_tab_on_its_developer_section():
   PanelType = IntEnum("PanelType", "DEVELOPER")
-  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None))
+  window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None), live=FakeLive())
   events = []
   window._roots[Tab.DEVICE] = lambda: SectionPage("DEVICE", [Section(n, lambda n=n: Page(n, events)) for n in ("a", "b", "dev")])
   window.set_current_panel(PanelType.DEVELOPER)
@@ -326,3 +330,81 @@ def test_this_device_hides_pair_once_paired_and_refreshes_on_show():
   panel.show_event()
   assert device.refreshes == 1
   assert not _rows(panel)["Regulatory"].is_visible
+
+
+# ── Driving sections and bundles ──
+
+def _store(values=None):
+  cache = FakeCache(values)
+  return SettingsStore(cache, lambda: None), cache
+
+
+def test_smart_slowdowns_turns_on_its_triggers_and_off_conditional_chill():
+  model, cache, _ = _model({"ConditionalChill": True, "CECurves": False})
+  model.set_smart_slowdowns(True)
+  assert cache.values["CECurves"] and cache.values["CEStopLights"] and not cache.values["ConditionalChill"]
+
+
+def test_vehicle_profile_towing_keeps_a_trailer_weight():
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import VehicleProfile
+  store, cache = _store()
+  profile = VehicleProfile(store)
+  assert profile.summary() == "Car"
+  profile.set_profile(3)
+  assert cache.values["TruckTuning"] and cache.values["TrailerLoad"] == 5000 and profile.towing
+  profile.set_trailer_load(2)
+  assert cache.values["TrailerLoad"] == 8000 and profile.trailer_load == 2
+  profile.set_profile(1)
+  assert cache.values["EVTuning"] and not cache.values["TruckTuning"] and cache.values["TrailerLoad"] == 0
+  assert profile.summary() == "EV"
+
+
+def test_weather_auto_writes_preset_amounts():
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import Weather
+  store, cache = _store()
+  weather = Weather(store)
+  assert weather.summary() == "Off"
+  weather.set_mode(0)
+  assert cache.values["WeatherPresets"] and cache.values["IncreaseFollowingSnow"] > cache.values["IncreaseFollowingRain"] > 0
+
+
+def test_navigation_reads_home_and_work_from_favorites():
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import Navigation
+  store, _ = _store({"FavoriteDestinations": [{"name": "12 Elm St", "is_home": True}, {"name": "Gym"}, {"name": "Cafe"}]})
+  nav = Navigation(store)
+  assert nav.home() == "12 Elm St" and nav.work() is None and nav.others() == 2
+
+
+def test_safe_mode_drives_relaxed_and_locks_driving_style():
+  from openpilot.selfdrive.ui.tandem.settings.live import FakeLive
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import Assistance
+  store, cache = _store({"ExperimentalMode": True})
+  Assistance(store, FakeLive()).set_safe_mode(True)
+  assert cache.values["SafeMode"] and not cache.values["ExperimentalMode"] and cache.values["LongitudinalPersonality"] == 2
+  assert SpeedSteering(store).safe_mode
+
+
+def test_bundles_switch_their_keys_together():
+  from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, TUNER_MODE
+  store, cache = _store()
+  assert not DEVELOPER_VIEW.is_on(store)
+  DEVELOPER_VIEW.set(store, True)
+  assert DEVELOPER_VIEW.is_on(store) and cache.values["ShowCPU"] and cache.values["DeveloperUI"]
+  DEVELOPER_VIEW.set(store, False)
+  assert not cache.values["ShowCPU"] and not cache.values["DeveloperSidebar"]
+  LEAD_INSIGHTS.set(store, True)
+  assert cache.values["LeadInfo"] and cache.values["RadarTracksUI"] and cache.values["DeveloperMetrics"]
+  TUNER_MODE.set(store, True)
+  assert TUNER_MODE.is_on(store) and cache.values["TuningLevel"] == 3
+  TUNER_MODE.set(store, False)
+  assert not TUNER_MODE.is_on(store)
+
+
+def test_tuner_sections_hide_with_tuner_mode():
+  events = []
+  shown = {"tuner": True}
+  page = SectionPage("X", [Section("A", lambda: Page("a", events)), Section("T", lambda: Page("t", events), visible=lambda: shown["tuner"])])
+  page.select(1)
+  shown["tuner"] = False
+  page._update_state()
+  assert page.selected == 0

@@ -11,7 +11,7 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Glyph, Tone, back_glyph
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, grid, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 
 
 def close_glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
@@ -207,22 +207,25 @@ class HubTile(Component):
 
 
 class HubGrid(Component):
+  """Tiles in rows. rows gives the tile count per row (e.g. [3, 2]); by default, rows of `columns`."""
   grow_touch_target = False
 
-  def __init__(self, tiles: list[HubTile], columns: int = 3, tile_height: float = T.px(128)):
+  def __init__(self, tiles: list[HubTile], columns: int = 3, tile_height: float = T.px(128), rows: list[int] | None = None):
     super().__init__()
     self._tiles = [self._child(t) for t in tiles]
-    self._columns = columns
+    self._rows = rows or [min(columns, len(tiles) - i) for i in range(0, len(tiles), columns)]
+    assert sum(self._rows) == len(tiles)
     self._tile_height = tile_height
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    rows = -(-len(self._tiles) // self._columns)
-    return max_width, rows * self._tile_height + (rows - 1) * T.px(14)
+    n = len(self._rows)
+    return max_width, n * self._tile_height + (n - 1) * T.px(14)
 
   def _render(self, rect: rl.Rectangle):
-    rows = -(-len(self._tiles) // self._columns)
-    for tile, cell in zip(self._tiles, grid(rect, self._columns, rows, T.px(14)), strict=False):
-      tile.render(cell)
+    tiles = iter(self._tiles)
+    for count, line in zip(self._rows, column(rect, [self._tile_height] * len(self._rows), T.px(14)), strict=True):
+      for cell in row(line, [FILL] * count, T.px(14)):
+        next(tiles).render(cell)
 
 
 class SettingsPage(Component):

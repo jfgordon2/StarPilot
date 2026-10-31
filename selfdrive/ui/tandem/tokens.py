@@ -33,6 +33,7 @@ SCRIM = _hex("050608")                  # behind sheets and dialogs
 NAV_BAR = _hex("0E1013")
 NAV_BAR_EDGE = _hex("1F242B")
 SURFACE_1 = _hex("13161A")              # grouped strips, sidebar sections, power-user rows
+STRIP_EDGE = _hex("252A31")             # outline of the power-user strip
 SURFACE_2 = _hex("16191D")              # panels and sheets
 SURFACE_3 = _hex("1A1D22")              # hub tiles, cards on BG
 SURFACE_4 = _hex("1E2227")              # cards inside a panel

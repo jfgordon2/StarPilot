@@ -27,10 +27,20 @@ class SettingsStore:
   def get_float(self, key: str) -> float:
     return float(self._cache.get_float(key, return_default=True))
 
-  def write(self, values: dict[str, bool | int | float]) -> None:
+  def get_str(self, key: str) -> str:
+    value = self._cache.get(key, return_default=True)
+    return value.decode() if isinstance(value, bytes) else str(value or "")
+
+  def get_json(self, key: str):
+    """JSON params come back parsed; returns None when unset."""
+    return self._cache.get(key, return_default=True)
+
+  def write(self, values: dict) -> None:
     """Write several params, then notify once. The type of each value picks the put method."""
     for key, value in values.items():
-      if isinstance(value, bool):
+      if isinstance(value, (str, list, dict)):
+        self._cache.put(key, value)
+      elif isinstance(value, bool):
         self._cache.put_bool(key, value)
       elif isinstance(value, int):
         self._cache.put_int(key, value)

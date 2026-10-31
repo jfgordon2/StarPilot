@@ -11,13 +11,13 @@ import pyray as rl
 
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
-from openpilot.selfdrive.ui.tandem.chrome import BottomNav, HubTile
-from openpilot.selfdrive.ui.tandem.controls import Glyph
+from openpilot.selfdrive.ui.tandem.chrome import BottomNav
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice
-from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, can_go_back, go_back
-from openpilot.selfdrive.ui.tandem.settings.speed_steering import SpeedSteering, everyday_panel
+from openpilot.selfdrive.ui.tandem.settings.driving_tab import driving_hub
+from openpilot.selfdrive.ui.tandem.settings.live import Live
+from openpilot.selfdrive.ui.tandem.settings.pages import Section, SectionPage, can_go_back, go_back
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
@@ -44,18 +44,11 @@ PANEL_TABS = {
 }
 
 
-def scribble(key: str) -> Glyph:
-  """StarPilot's vector icons (drawn on a 60 px canvas), as a glyph."""
-  def glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
-    from openpilot.selfdrive.ui.layouts.settings.starpilot.scribble import draw_custom_icon
-    draw_custom_icon(key, rect.x + (rect.width - size) / 2, rect.y + (rect.height - size) / 2, size / 60, color)
-  return glyph
-
-
 class SettingsWindow(Widget):
-  def __init__(self, store: SettingsStore | None = None):
+  def __init__(self, store: SettingsStore | None = None, live=None):
     super().__init__()
     self._store = store
+    self._live = live
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, upstream.network, upstream.bluetooth, upstream.software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]
@@ -99,6 +92,12 @@ class SettingsWindow(Widget):
     if self._store is None:
       self._store = SettingsStore()
     return self._store
+
+  @property
+  def live(self):
+    if self._live is None:
+      self._live = Live()
+    return self._live
 
   def _stack(self, tab: int) -> list[Widget]:
     stack = self._stacks[tab]
@@ -168,37 +167,7 @@ class SettingsWindow(Widget):
   # Tabs
 
   def _driving(self) -> Widget:
-    model = SpeedSteering(self.store)
-
-    def starpilot(panel: str) -> Callable[[], Widget]:
-      return lambda: upstream.StarPilotPage(panel, on_exit=self.pop)
-
-    def open_page(make: Callable[[], Widget]) -> Callable[[], None]:
-      return lambda: self.push(make())
-
-    def speed_steering() -> Widget:
-      return SectionPage("SPEED & STEERING", [
-        Section("Everyday", lambda: everyday_panel(model)),
-        Section("Navigation", lambda: upstream.StarPilotPage("NAVIGATION")),
-        Section("Gas & Brake", lambda: upstream.StarPilotPage("LONGITUDINAL")),
-        Section("Steering", lambda: upstream.StarPilotPage("LATERAL")),
-      ])
-
-    def display() -> Widget:
-      return SectionPage("DISPLAY", [
-        Section("Driving Screen", lambda: upstream.StarPilotPage("VISUALS")),
-        Section("Map Data", lambda: upstream.StarPilotPage("MAPS")),
-      ])
-
-    return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
-      HubTile("Speed & Steering", [model.summary, model.speed_limit_summary], open_page(speed_steering), scribble("steering")),
-      HubTile("Display", ["Driving screen and theme", "Offline map data"], open_page(display), scribble("display")),
-      HubTile("Alerts", ["Volumes and chimes"], open_page(starpilot("SOUNDS")), scribble("sound")),
-      HubTile("Driving Model", ["Choose and download models"], open_page(starpilot("DRIVING_MODEL")), scribble("aicar")),
-      HubTile("Vehicle", ["Features for your car"], open_page(starpilot("VEHICLE")), scribble("vehicle")),
-      HubTile("Driver Assistance", ["Experimental mode, driver camera", "and other core options"], open_page(upstream.toggles),
-              scribble("road")),
-    ])
+    return driving_hub(self)
 
   def _device(self) -> Widget:
     return SectionPage("DEVICE", [
