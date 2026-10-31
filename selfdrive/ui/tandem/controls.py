@@ -1,6 +1,7 @@
 """Buttons, switches, segmented choices, steppers, sliders, badges, chips and progress bars."""
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -69,7 +70,9 @@ def back_glyph(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
 class Button(Component):
   def __init__(self, label: Bindable[str] = "", on_click: Callable[[], None] | None = None, style: ButtonStyle = ButtonStyle.SECONDARY,
                glyph: Glyph | None = None, height: float = T.BUTTON_HEIGHT, width: float | None = None,
-               font_size: int = T.SIZE_BUTTON, radius: float = T.RADIUS_CONTROL, accessory: Glyph | None = None):
+               font_size: int = T.SIZE_BUTTON, radius: float = T.RADIUS_CONTROL, accessory: Glyph | None = None,
+               weight=None, padding: float = T.px(18)):
+    """weight overrides the style's weight (e.g. a bold secondary button, as Play sample is in the mock)."""
     super().__init__()
     self._label = label
     self._style = style
@@ -79,8 +82,8 @@ class Button(Component):
     self._width = width
     self._font_size = font_size
     self._radius = radius
-    self._padding = T.px(18)
-    self._weight_override = None
+    self._padding = padding
+    self._weight_override = weight
     self.set_click_callback(on_click)
 
   def restyle(self, height: float, font_size: int, padding: float, radius: float) -> None:
@@ -514,15 +517,23 @@ class Slider(Component):
     if self._floor is not None and self._floor > self._min:
       floor_x = self.x_for(self._floor)
       zone = rl.Rectangle(track.x, track.y, floor_x - track.x, track.height)
-      draw.fill(zone, T.DANGER_SURFACE, track.height / 2)
+      # The mock's 135° hatch: equal 6 px bands of two reds, measured across the stripes.
+      draw.fill(zone, T.DANGER_STRIPE, track.height / 2)
+      band = T.px(6)
+      step = band * 2 * math.sqrt(2)   # 12 px across the stripes is this far along the track at 45°
       rl.begin_scissor_mode(int(zone.x), int(zone.y), int(zone.width), int(zone.height))
-      for x in range(int(zone.x) - int(zone.height), int(zone.x + zone.width), T.px(6)):
-        rl.draw_line_ex(rl.Vector2(x, zone.y + zone.height), rl.Vector2(x + zone.height, zone.y), 3, T.DANGER_BORDER)
+      x = zone.x - zone.height - step
+      while x < zone.x + zone.width + step:
+        rl.draw_line_ex(rl.Vector2(x, zone.y + zone.height), rl.Vector2(x + zone.height, zone.y), band, T.DANGER_SURFACE)
+        x += step
       rl.end_scissor_mode()
       start = floor_x
     thumb_x = self.x_for(self.value)
-    draw.fill(rl.Rectangle(start, track.y, max(0.0, thumb_x - start), track.height), T.ACCENT if self.enabled else T.TEXT_MUTED,
-              track.height / 2)
+    ink = T.ACCENT if self.enabled else T.TEXT_MUTED
+    fill = rl.Rectangle(start, track.y, max(0.0, thumb_x - start), track.height)
+    draw.fill(fill, ink, track.height / 2)
+    if start > track.x and fill.width > track.height / 2:   # square where it meets the safety floor, as in the mock
+      draw.fill(rl.Rectangle(start, track.y, track.height / 2, track.height), ink)
 
     if self._floor_label and self._floor is not None:
       draw.text(rl.Rectangle(track.x, rect.y, rect.width, T.px(18)), self._floor_label, T.SIZE_CAPTION, T.DANGER_TEXT, T.FONT_SEMIBOLD)

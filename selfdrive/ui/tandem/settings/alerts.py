@@ -114,7 +114,8 @@ class VolumeEditor(Component):
     self._model = model
     self._group = group
     self._play = self._child(Button("Play sample", lambda: model.play(group), height=T.px(64), font_size=T.font_px(17),
-                                    glyph=lambda r, c, s: draw.icon(r, "play", T.ACCENT_TEXT, T.px(20))))
+                                    radius=T.px(18), weight=T.FONT_BOLD, padding=T.px(22),
+                                    glyph=lambda r, c, s: draw.icon(r, "play_filled", T.ACCENT_TEXT, T.px(22))))
     self._slider = self._child(Slider(lambda: self._value(), lambda v: model.set_level(group, v), 0, 100, step=5,
                                       floor=SAFETY_FLOOR if group.safety else None, height=T.px(64),
                                       floor_label=f"Minimum {SAFETY_FLOOR}% for safety alerts" if group.safety else None,
