@@ -14,13 +14,13 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.chrome import BottomNav
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
-from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice, pairing_page, regulatory_panel, remote_access_page
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
 from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
 from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel, open_language,
                                                                     report_panel, storage_panel)
+from openpilot.selfdrive.ui.tandem.settings.developer import Developer, DeveloperPage
 from openpilot.selfdrive.ui.tandem.settings.model import Models
 from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, NetworkPage, advanced_panel
 from openpilot.selfdrive.ui.tandem.settings.software_tab import Software, SoftwarePage
@@ -92,6 +92,11 @@ def _upstream_boot_logos():
   return UpstreamBootLogos()
 
 
+def _upstream_developer():
+  from openpilot.selfdrive.ui.tandem.settings.developer import UpstreamDeveloper
+  return UpstreamDeveloper()
+
+
 def _upstream_maps():
   from openpilot.selfdrive.ui.tandem.settings.maps import UpstreamMaps
   return UpstreamMaps()
@@ -104,7 +109,7 @@ def _upstream_cars():
 
 class SettingsWindow(Widget):
   def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None, device_data=None,
-               device=None, wifi=None, wheel=None, bluetooth=None, updates=None, maps_source=None, boot_logos=None):
+               device=None, wifi=None, wheel=None, bluetooth=None, updates=None, maps_source=None, boot_logos=None, developer_source=None):
     """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
@@ -118,6 +123,7 @@ class SettingsWindow(Widget):
     self.bluetooth = bluetooth or _upstream_bluetooth
     self.updates = updates or _upstream_updates
     self.maps_source = maps_source or _upstream_maps
+    self.developer_source = developer_source or _upstream_developer
     self.boot_logos = boot_logos or _upstream_boot_logos
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._network, self._bluetooth, self._software]
@@ -288,7 +294,8 @@ class SettingsWindow(Widget):
       Section("Backups", lambda: backups_panel(general, self)),
       Section("Storage & Data", lambda: storage_panel(general, self, Models(self.store, self.model_source()))),
       Section("Report a Problem", lambda: report_panel(report)),
-      Section("Developer", upstream.developer, visible=lambda: TUNER_MODE.is_on(self.store)),
+      Section("Developer", lambda: DeveloperPage(Developer(self.store, self.developer_source()), self),
+              visible=lambda: TUNER_MODE.is_on(self.store)),
     ])
 
   def _network(self) -> Widget:

@@ -463,3 +463,34 @@ class FakePlaces:
 
   def maps_ready(self):
     return self.maps
+
+
+class FakeDeveloperSource:
+  def __init__(self, offroad=True, engaged=False, alpha=True):
+    self._offroad, self._engaged, self._alpha = offroad, engaged, alpha
+    self.ui_debug: list[bool] = []
+    self.fetched: list[str] = []
+    self.pending = None
+    self.cleared = 0
+
+  def offroad(self):
+    return self._offroad
+
+  def engaged(self):
+    return self._engaged
+
+  def alpha_available(self):
+    return self._alpha
+
+  def set_ui_debug(self, on):
+    self.ui_debug.append(on)
+
+  def fetch_keys(self, username, done):
+    self.fetched.append(username)
+    self.pending = done
+
+  def clear_keys(self):
+    self.cleared += 1
+
+  def tick(self):
+    pass
