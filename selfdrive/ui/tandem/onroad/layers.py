@@ -15,7 +15,7 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
-from openpilot.selfdrive.ui.tandem.onroad.status import Chip, ChipTone
+from openpilot.selfdrive.ui.tandem.onroad.status import Chip, ChipTone, turn_icon
 
 BAR_HEIGHT = T.px(74)
 BAR_MARGIN = T.px(16)
@@ -421,20 +421,6 @@ def mix(a: rl.Color, b: rl.Color, t: float) -> rl.Color:
   """a at t=0, b at t=1."""
   t = min(1.0, max(0.0, t))
   return rl.Color(*(round(x + (y - x) * t) for x, y in zip((a.r, a.g, a.b, a.a), (b.r, b.g, b.b, b.a), strict=True)))
-
-
-def turn_icon(maneuver: str, modifier: str) -> str:
-  """A mock icon for a maneuver: turn arrows by side, an up arrow for straight on, a pin on arrival."""
-  if maneuver in ("arrive", "depart"):
-    return "pin"
-  if maneuver in ("roundabout", "rotary", "roundabout turn") or "uturn" in modifier.lower():
-    return "restart"
-  modifier = modifier.lower()
-  if "left" in modifier:
-    return "turn_left"
-  if "right" in modifier:
-    return "turn_right"
-  return "shift"   # straight
 
 
 TURN_CARD_WIDTH = T.px(330)

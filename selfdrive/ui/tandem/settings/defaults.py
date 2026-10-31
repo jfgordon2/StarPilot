@@ -33,7 +33,7 @@ def _apply(store: SettingsStore, boot_logos=None) -> None:
 
   display = Display(store, boot_logos)
   display.set_path_style(0)               # Standard
-  display.set_clean_screen(True)
+  display.set_driving_style_banner(False)
   display.set_blind_spot(True)
   display.set_camera_view(1)              # Standard
   display.set_boot_logo(TANDEM_LOGO)

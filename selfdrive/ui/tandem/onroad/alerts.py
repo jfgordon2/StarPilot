@@ -5,7 +5,7 @@ and timing; only the drawing changes.
 - Warning: an amber two-line card at the bottom and an amber border.
 - Critical: a full-screen dark red takeover with a steering wheel icon and a red border.
 
-Light Turned Green and Lead Departed are left to the status chips, which the design gives them.
+Light Turned Green, Lead Departed, lane changes and turn progress are left to the status chips.
 """
 from __future__ import annotations
 
@@ -49,12 +49,11 @@ def level(size: int, status: int, alert_type: str = "") -> str:
   return INFO
 
 
-CHIP_ALERTS = {"greenLight", "leadDeparting"}   # shown as the status chips "Light is green" and "Car ahead moved"
+CHIP_ALERTS = {"greenLight", "leadDeparting", "laneChange", "turningLeft", "turningRight"}
 
 
 def shown_as_chip(alert_type: str) -> bool:
-  """Alerts the status chips already say (design/statuschips.html, waiting on you): their chime still plays, but
-  the chip shows instead of a banner, so the bar stays usable while stopped."""
+  """Alerts the status chips already say: their chime still plays, but the chip replaces the banner."""
   return (alert_type or "").split("/", 1)[0] in CHIP_ALERTS
 
 

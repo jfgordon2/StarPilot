@@ -26,8 +26,16 @@ def test_border_only_for_warning_and_critical():
   assert alerts.border(alerts.CRITICAL) == alerts.CRITICAL_BORDER
 
 
-def test_green_light_and_lead_departed_go_to_chips():
+def test_routine_status_banners_go_to_chips():
   assert alerts.shown_as_chip("greenLight/permanent")
   assert alerts.shown_as_chip("leadDeparting/permanent")
+  assert alerts.shown_as_chip("laneChange/warning")
+  assert alerts.shown_as_chip("turningLeft/warning")
+  assert alerts.shown_as_chip("turningRight/warning")
+  assert not alerts.shown_as_chip("laneChangeBlocked/warning")
+  assert not alerts.shown_as_chip("laneChangeBlockedLoud/warning")
+  assert not alerts.shown_as_chip("preLaneChangeLeft/warning")
+  assert not alerts.shown_as_chip("preLaneChangeRight/warning")
+  assert not alerts.shown_as_chip("personalityChanged/warning")
   assert not alerts.shown_as_chip("promptDriverDistracted/permanent")
   assert not alerts.shown_as_chip("")

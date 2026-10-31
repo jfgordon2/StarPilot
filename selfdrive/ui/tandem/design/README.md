@@ -93,11 +93,13 @@ Defaults are in **bold**.
 | Control | Choices | Params |
 | --- | --- | --- |
 | Path Style | **Standard** · Thin · Rainbow · Acceleration | `PathColor` `PathWidth` `PathEdgeWidth` `PathEdgesColor` `LaneLinesColor` `LaneLinesWidth` `RoadEdgesWidth` `RainbowPath` `AccelerationPath` `DynamicPathWidth` |
-| Clean Screen | **On** · Off | `HideChangingLanesBanner` `HideTurningBanner` `HideDistanceProfileBanner` `QOLVisuals` |
+| Driving Style Banner | On · **Off** | `HideDistanceProfileBanner` (inverted) `AdvancedCustomUI` |
 | Blind Spot Highlights | **On** · Off | `BlindSpotPath` `BlindSpotMetrics` `SignalMetrics` `BorderWidth` |
 | Alert Volume | Quiet · **Normal** · Loud | `EngageVolume` `DisengageVolume` `PromptVolume` `PromptDistractedVolume` `RefuseVolume` `WarningSoftVolume` `WarningImmediateVolume` `BelowSteerSpeedVolume` |
 
 The four chime switches stay as they are: Green Light (**on**), Lead Departure (**on**), Speed Limit Change (off) and Loud Blind Spot (off). Warning volumes keep their existing 25% floor.
+
+Lane-change and turn progress always use the status chips; their full-width status banners stay hidden. Driving Style Banner only controls the personality message shown when the style changes.
 
 ### Power user
 
@@ -255,7 +257,7 @@ Values in square brackets are placeholders, not proposed defaults.
 
 ## Alerts and dialogs
 
-- **Three onroad alert levels.** Info is a small banner and the border stays green. Warning has an amber border and a two-line banner. Critical is a full-screen red takeover. Clean Screen never hides any of them.
+- **Three onroad alert levels.** Info is a small banner and the border stays green. Warning has an amber border and a two-line banner. Critical is a full-screen red takeover. Driving Style Banner only controls personality messages; safety alerts stay visible.
 - **New speed limits.** Under Match, a "Higher limits" choice offers **Tap to confirm** (the default) or **Update automatically**.
   - **Lower limits always apply on their own.** If a lower limit waited for a tap, ignoring the prompt would leave the car above the posted limit. In both modes `SLCConfirmationLower` stays off.
   - **Tap to confirm** sets `SLCConfirmation` and `SLCConfirmationHigher` on. A higher limit shows a card on the speed sign with Ignore and Match buttons, ignored after 8 seconds. Pressing Resume on the wheel also matches.

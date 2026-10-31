@@ -26,8 +26,6 @@ PATH_STYLES = [
   ("Rainbow", "A rainbow path", _STANDARD_PATH | {"RainbowPath": True}),
   ("Acceleration", "Green when speeding up, amber when slowing", _STANDARD_PATH | {"AccelerationPath": True}),
 ]
-CLEAN_SCREEN = ["HideChangingLanesBanner", "HideTurningBanner", "HideDistanceProfileBanner"]
-
 # CameraView values: 0 Auto, 1 Driver, 2 Standard, 3 Wide. Driver is left to upstream's developer screens.
 CAMERA_VIEWS = [("Auto", 0), ("Standard", 2), ("Wide", 3)]
 # (BootLogo slug, name). Tandem's is the Essentials default; StarPilot installs it from its boot logos folder like any other.
@@ -75,11 +73,11 @@ class Display:
     self._store.write(PATH_STYLES[index][2])
 
   @property
-  def clean_screen(self) -> bool:
-    return self._store.get_bool("AdvancedCustomUI") and all(self._store.get_bool(k) for k in CLEAN_SCREEN)
+  def driving_style_banner(self) -> bool:
+    return not (self._store.get_bool("AdvancedCustomUI") and self._store.get_bool("HideDistanceProfileBanner"))
 
-  def set_clean_screen(self, on: bool) -> None:
-    self._store.write({"AdvancedCustomUI": True} | dict.fromkeys(CLEAN_SCREEN, on))
+  def set_driving_style_banner(self, on: bool) -> None:
+    self._store.write({"AdvancedCustomUI": True, "HideDistanceProfileBanner": not on})
 
   @property
   def blind_spot(self) -> bool:
@@ -160,8 +158,7 @@ class Display:
     self._store.write({"NavigationUI": True, "UseVienna": index == 1})
 
   def summary(self) -> str:
-    clean = "Clean screen" if self.clean_screen else "All banners"
-    return clean
+    return "Style banner shown" if self.driving_style_banner else "Style banner hidden"
 
   def path_summary(self) -> str:
     return f"{PATH_STYLES[self.path_style][0]} path"
@@ -177,7 +174,8 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
   lead_get, lead_set = model.bundle(LEAD_INSIGHTS)
   return ListPanel([
     SettingRow("Path Style", "Color, width and edges as one preset", ValueButton(lambda: PATH_STYLES[model.path_style][0], path_sheet)),
-    SettingRow("Clean Screen", "Hides lane change, turn and profile banners", Switch(lambda: model.clean_screen, model.set_clean_screen)),
+    SettingRow("Driving Style Banner", "Shows the current style when it changes",
+               Switch(lambda: model.driving_style_banner, model.set_driving_style_banner)),
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",
                Switch(lambda: model.blind_spot, model.set_blind_spot)),
     SectionHeader("POWER USER"),

@@ -31,6 +31,7 @@ class Snapshot:
   lateral_paused: bool = False
   pause_lateral_speed: float = 0.0         # display units; 0 when the setting is off
   signal_on: bool = False
+  signal_direction: str = "none"           # left, right, both, none
   always_on_lateral: bool = False          # steering with cruise off
   lane_change: str = "off"                 # off, pre, starting, finishing
   lane_change_direction: str = "none"      # left, right, none
@@ -40,17 +41,34 @@ class Snapshot:
   stop_sign: bool = False
   slowing_for_lead: bool = False
   nav_turn: bool = False
+  nav_turn_maneuver: str = ""
+  nav_turn_modifier: str = ""
   limit_changed: bool = False
   speed_limit: float = 0.0                 # display units
   weather: str = ""                        # "Rain", "Snow", "Fog" ... when Weather is acting
   events: set[str] = field(default_factory=set)
 
 
+def turn_icon(maneuver: str, modifier: str) -> str:
+  """The same maneuver icon for navigation cards and turn-progress chips; unknown directions stay neutral."""
+  if maneuver in ("arrive", "depart"):
+    return "pin"
+  if maneuver in ("roundabout", "rotary", "roundabout turn") or "uturn" in modifier.lower():
+    return "restart"
+  modifier = modifier.lower()
+  if "left" in modifier:
+    return "turn_left"
+  if "right" in modifier:
+    return "turn_right"
+  return "shift" if modifier == "straight" else "map"
+
+
 def chip_for(s: Snapshot) -> Chip | None:
   """The one chip to show now, highest priority first: paused or blocked, stopping, slowing, then waiting."""
   unit = "km/h" if s.metric else "mph"
   if s.lateral_paused and s.signal_on:
-    return Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, "signal")
+    icon = {"left": "signal", "right": "signal_right", "both": "warning"}.get(s.signal_direction, "wheel_pause")
+    return Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon)
   if s.lateral_paused:
     below = f" · under {s.pause_lateral_speed:.0f} {unit}" if s.pause_lateral_speed else ""
     return Chip("pause_speed", f"Steering paused{below}", ChipTone.PAUSED, "wheel_pause")
@@ -65,13 +83,18 @@ def chip_for(s: Snapshot) -> Chip | None:
   if s.curve_control:
     return Chip("curve", "Slowing for curve", ChipTone.INFO, "curve")
   if s.nav_turn:
-    return Chip("turn", "Slowing for turn", ChipTone.INFO, "turn_right")
+    return Chip("turn", "Slowing for turn", ChipTone.INFO, turn_icon(s.nav_turn_maneuver, s.nav_turn_modifier))
+  # Turn events stand on their own, including steering-only turns with the driver on the pedals.
+  if "turningLeft" in s.events:
+    return Chip("turning", "Turning left", ChipTone.INFO, "turn_left")
+  if "turningRight" in s.events:
+    return Chip("turning", "Turning right", ChipTone.INFO, "turn_right")
   if s.slowing_for_lead:
     return Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car")
   if s.limit_changed and s.speed_limit:
     return Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge")
   if s.weather:
-    return Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, "rain")
+    return Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, {"Snow": "snow", "Fog": "fog"}.get(s.weather, "rain"))
   if "greenLight" in s.events:
     return Chip("green_light", "Light is green", ChipTone.WAITING, "light_green")
   if "leadDeparting" in s.events:
@@ -123,6 +146,10 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     cs = sm["carState"]
     s.standstill, s.speed = bool(cs.standstill), float(cs.vEgo)
     s.signal_on = bool(cs.leftBlinker or cs.rightBlinker)
+    if cs.leftBlinker and cs.rightBlinker:
+      s.signal_direction = "both"
+    elif s.signal_on:
+      s.signal_direction = "left" if cs.leftBlinker else "right"
     direction_left = cs.leftBlinker
     s.blindspot = bool(cs.leftBlindspot if direction_left else cs.rightBlindspot)
   if valid.get("modelV2", False):
@@ -141,7 +168,12 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     s.limit_changed = bool(plan.speedLimitChanged)
     s.speed_limit = float(plan.slcSpeedLimit) * speed_conversion
     s.slowing_for_lead = bool(plan.experimentalMode and plan.trackingLead and not s.red_light)
-    s.nav_turn = nav_active and bool(plan.experimentalMode) and not s.red_light and not s.slowing_for_lead and not s.curve_control
+    # A route or experimental mode alone does not mean the car is slowing for a turn.
+    s.nav_turn = bool(
+      nav_active and plan.navTurnControllingSpeed and valid.get("carState", False)
+      and sm["carState"].aEgo < -0.1 and s.speed > max(float(plan.vCruise), 0.1)
+    )
+    s.nav_turn_maneuver, s.nav_turn_modifier = str(plan.navTurnManeuver), str(plan.navTurnModifier)
     if toggles.get("weather_presets"):
       s.weather = weather_name(int(plan.weatherId))
     s.events = {str(e.name) for e in plan.starpilotEvents}

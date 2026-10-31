@@ -18,7 +18,6 @@ from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, pla
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
-from openpilot.selfdrive.ui.tandem.settings.display import CLEAN_SCREEN
 from openpilot.selfdrive.ui.tandem.settings.editors import NumberSpec, number_sheet
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import STYLE_PARAMS, SpeedSteering
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -86,16 +85,14 @@ ACCEL_PROFILES = [("Eco", 1), ("Standard", 0), ("Sport", 2), ("Sport+", 3)]
 DECEL_PROFILES = [("Eco", 1), ("Standard", 0), ("Sport", 2)]
 CRUISE_STEPS = [1, 5, 10]
 # Bundles listed under Bundle Overrides: name, the keys a driver can override, and the value each has with the bundle on.
-CLEAN_SCREEN_BUNDLE = Bundle("Clean Screen", "", CLEAN_SCREEN[0], dict.fromkeys(CLEAN_SCREEN, True), dict.fromkeys(CLEAN_SCREEN, False))
 ITEM_NAMES = {
   "DeveloperSidebar": "Developer sidebar", "FPSCounter": "FPS counter", "ShowCPU": "CPU load", "ShowGPU": "GPU load",
   "NumericalTemp": "Numeric temperature", "ShowMemoryUsage": "Memory use", "AdjacentPathMetrics": "Adjacent lane widths",
   "SpeedLimitSources": "Speed limit sources", "LeadInfo": "Lead distance and speed", "RadarTracksUI": "Radar points",
   "ShowStoppingPoint": "Stopping point", "ShowStoppingPointMetrics": "Stopping point distance", "AdjacentPath": "Adjacent paths",
-  "PedalsOnUI": "Pedals", "HideChangingLanesBanner": "Hide lane change banner", "HideTurningBanner": "Hide turn banner",
-  "HideDistanceProfileBanner": "Hide driving style banner",
+  "PedalsOnUI": "Pedals",
 }
-OVERRIDE_BUNDLES = [DEVELOPER_VIEW, LEAD_INSIGHTS, CLEAN_SCREEN_BUNDLE]
+OVERRIDE_BUNDLES = [DEVELOPER_VIEW, LEAD_INSIGHTS]
 
 
 class Tuner:
@@ -195,7 +192,7 @@ class Tuner:
     return [k for k in bundle.on if k in ITEM_NAMES]
 
   def bundle_on(self, bundle: Bundle) -> bool:
-    return bundle.is_on(self._store) if bundle is not CLEAN_SCREEN_BUNDLE else self._store.get_bool("AdvancedCustomUI")
+    return bundle.is_on(self._store)
 
   def item_differs(self, bundle: Bundle, key: str) -> bool:
     on = self.bundle_on(bundle)

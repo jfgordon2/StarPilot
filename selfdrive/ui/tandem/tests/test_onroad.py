@@ -1,5 +1,16 @@
+from types import SimpleNamespace
+
+import pytest
+from cereal import car, custom
+
 from openpilot.selfdrive.ui.tandem.onroad.layers import AT_LIMIT, COMFORTABLE, LIMIT_HOLD, WORKING, Headroom
-from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, ChipTone, Snapshot, chip_for, weather_name
+from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, ChipTone, Snapshot, chip_for, snapshot, weather_name
+
+
+class StatusMessages(dict):
+  @property
+  def valid(self):
+    return dict.fromkeys(self, True)
 
 
 def test_chip_priority_paused_then_stopping_then_slowing_then_waiting():
@@ -33,8 +44,99 @@ def test_chip_holds_two_seconds_and_hides_under_alerts():
   assert picker.update(Snapshot(curve_control=True), 3.0, True) is None
 
 
+@pytest.mark.parametrize("direction", ["left", "right"])
+@pytest.mark.parametrize("hide_turn_banner", [False, True])
+def test_turn_chip_follows_actual_slowdown_then_turn(direction, hide_turn_banner):
+  cs = car.CarState.new_message(vEgo=12.0, aEgo=0.0)
+  plan = custom.StarPilotPlan.new_message(experimentalMode=True, vCruise=8.0, navTurnManeuver="turn", navTurnModifier=direction)
+  state = SimpleNamespace(sm=StatusMessages(carState=cs, starpilotPlan=plan), engaged=True, is_metric=False,
+                          always_on_lateral_active=False, starpilot_toggles={"hide_turning_banner": hide_turn_banner})
+  picker = ChipPicker()
+
+  # Navigating in experimental mode alone is not a turn slowdown.
+  assert picker.update(snapshot(state, nav_active=True), 0.0, False) is None
+  cs.aEgo = -0.5
+  assert picker.update(snapshot(state, nav_active=True), 0.1, False) is None
+  plan.navTurnControllingSpeed = True
+  slowing = picker.update(snapshot(state, nav_active=True), 0.2, False)
+  assert (slowing.label, slowing.icon) == ("Slowing for turn", f"turn_{direction}")
+
+  # The model can request a turn during the approach: keep describing the slowdown first.
+  plan.starpilotEvents = [{"name": f"turning{direction.title()}"}]
+  assert picker.update(snapshot(state, nav_active=True), 0.3, False).label == "Slowing for turn"
+  cs.aEgo = 0.0
+  chip = picker.update(snapshot(state, nav_active=True), 0.4, False)
+  assert (chip.label, chip.icon, chip.tone) == (f"Turning {direction}", f"turn_{direction}", ChipTone.INFO)
+  assert picker.update(snapshot(state, nav_active=True), 0.5, True) is None
+
+  # Clear after the normal hold when the maneuver has ended.
+  plan.starpilotEvents = []
+  plan.navTurnControllingSpeed = False
+  assert picker.update(snapshot(state, nav_active=True), 2.6, False) is None
+
+  # Braking for something else below the turn's target is not a turn slowdown.
+  plan.navTurnControllingSpeed = True
+  cs.vEgo, cs.aEgo = 6.0, -0.5
+  assert not snapshot(state, nav_active=True).nav_turn
+
+
+@pytest.mark.parametrize("direction", ["left", "right"])
+@pytest.mark.parametrize("pedal, acceleration", [("gas", 0.5), ("brake", -0.5)])
+@pytest.mark.parametrize("nav_active", [False, True])
+def test_turn_chip_without_slowdown_when_driver_operates_pedals(direction, pedal, acceleration, nav_active):
+  cs = car.CarState.new_message(vEgo=8.0, aEgo=acceleration, gasPressed=pedal == "gas", brakePressed=pedal == "brake")
+  control = car.CarControl.new_message(enabled=False, latActive=True, longActive=False)
+  plan = custom.StarPilotPlan.new_message(experimentalMode=False, navTurnControllingSpeed=False)
+  state = SimpleNamespace(sm=StatusMessages(carState=cs, carControl=control, starpilotPlan=plan), engaged=False,
+                          is_metric=False, always_on_lateral_active=True, starpilot_toggles={"hide_turning_banner": True})
+  picker = ChipPicker()
+  assert picker.update(snapshot(state, nav_active=nav_active), 0.0, False).key == "steering_only"
+
+  # Go directly from steering-only to turning, without ever reporting a turn slowdown.
+  plan.starpilotEvents = [{"name": f"turning{direction.title()}"}]
+  current = snapshot(state, nav_active=nav_active)
+  assert not current.nav_turn
+  chip = picker.update(current, 0.1, False)
+  assert (chip.label, chip.icon) == (f"Turning {direction}", f"turn_{direction}")
+
+
+@pytest.mark.parametrize("higher_status, expected", [
+  ({"lateral_paused": True}, "pause_speed"),
+  ({"lane_change": "pre", "blindspot": True}, "lane_blocked"),
+  ({"lane_change": "starting", "lane_change_direction": "right"}, "lane_change"),
+  ({"stop_sign": True}, "stop_sign"),
+  ({"red_light": True}, "red_light"),
+  ({"curve_control": True}, "curve"),
+])
+def test_turn_progress_keeps_existing_chip_priorities(higher_status, expected):
+  assert chip_for(Snapshot(events={"turningLeft"}, **higher_status)).key == expected
+
+
 def test_weather_groups():
   assert [weather_name(i) for i in (211, 501, 502, 601, 741, 800)] == ["Heavy rain", "Rain", "Heavy rain", "Snow", "Fog", ""]
+
+
+@pytest.mark.parametrize("weather_id, expected", [(211, "rain"), (501, "rain"), (502, "rain"), (601, "snow"), (741, "fog")])
+def test_weather_chip_icon_matches_condition(weather_id, expected):
+  from openpilot.selfdrive.ui.tandem import draw
+  chip = chip_for(Snapshot(weather=weather_name(weather_id)))
+  assert chip.icon == expected
+  assert (draw.ICON_DIR / f"{chip.icon}.png").is_file()
+
+
+@pytest.mark.parametrize("left, right, expected", [
+  (True, False, "signal"), (False, True, "signal_right"), (True, True, "warning"), (False, False, "wheel_pause"),
+])
+def test_paused_chip_icon_matches_signals(left, right, expected):
+  from openpilot.selfdrive.ui.tandem import draw
+  cs = car.CarState.new_message(leftBlinker=left, rightBlinker=right)
+  plan = custom.StarPilotCarState.new_message(pauseLateral=True)
+  state = SimpleNamespace(sm=StatusMessages(carState=cs, starpilotCarState=plan), engaged=True, is_metric=False,
+                          always_on_lateral_active=False, starpilot_toggles={})
+  chip = chip_for(snapshot(state))
+  assert chip.icon == expected
+  assert (draw.ICON_DIR / f"{draw.MIRRORED.get(chip.icon, chip.icon)}.png").is_file()
+  assert draw.MIRRORED["signal_right"] == "signal"
 
 
 def test_headroom_stages_need_a_held_limit():
@@ -118,12 +220,13 @@ def test_every_icon_named_has_a_png():
   assert named and {draw.MIRRORED.get(n, n) for n in named} <= pngs
 
 
-def test_turn_card_icons_by_maneuver():
+def test_turn_card_and_chip_icons_by_maneuver():
   from openpilot.selfdrive.ui.tandem import draw
   from openpilot.selfdrive.ui.tandem.onroad.layers import turn_icon
   cases = {("turn", "right"): "turn_right", ("turn", "slightLeft"): "turn_left", ("turn", "straight"): "shift",
-           ("arrive", "straight"): "pin", ("roundabout", "right"): "restart", ("turn", "uturn"): "restart"}
+           ("arrive", "straight"): "pin", ("roundabout", "right"): "restart", ("turn", "uturn"): "restart", ("", ""): "map"}
   assert {key: turn_icon(*key) for key in cases} == cases
+  assert {key: chip_for(Snapshot(nav_turn=True, nav_turn_maneuver=key[0], nav_turn_modifier=key[1])).icon for key in cases} == cases
   pngs = {p.stem for p in draw.ICON_DIR.glob("*.png")}
   assert {draw.MIRRORED.get(name, name) for name in cases.values()} <= pngs
 

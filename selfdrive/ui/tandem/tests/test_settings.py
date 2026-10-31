@@ -428,14 +428,37 @@ def test_path_style_presets_round_trip():
   assert cache.values["PathWidth"] == 3.0 and not cache.values["AccelerationPath"]
 
 
-def test_clean_screen_needs_every_banner_hidden():
+def test_driving_style_banner_only_controls_the_profile_message():
   from openpilot.selfdrive.ui.tandem.settings.display import Display
-  store, cache = _store()
+  from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
+  store, cache = _store({"AdvancedCustomUI": True, "HideChangingLanesBanner": False, "HideTurningBanner": True,
+                         "HideDistanceProfileBanner": True})
   display = Display(store)
-  display.set_clean_screen(True)
-  assert display.clean_screen and cache.values["AdvancedCustomUI"]
-  cache.values["HideTurningBanner"] = False
-  assert not display.clean_screen
+  assert not display.driving_style_banner
+  assert display.summary() == "Style banner hidden"
+  display.set_driving_style_banner(True)
+  assert display.driving_style_banner and not cache.values["HideDistanceProfileBanner"]
+  assert display.summary() == "Style banner shown"
+  display.set_driving_style_banner(False)
+  assert not display.driving_style_banner and cache.values["HideDistanceProfileBanner"]
+  assert not cache.values["HideChangingLanesBanner"] and cache.values["HideTurningBanner"]
+
+  # Tuner resets must not invert this independent display preference.
+  Tuner(store).reset_all()
+  assert not display.driving_style_banner
+  display.set_driving_style_banner(True)
+  Tuner(store).reset_all()
+  assert display.driving_style_banner
+
+
+def test_driving_style_banner_respects_existing_visibility_settings():
+  from openpilot.selfdrive.ui.tandem.settings.display import Display
+  for advanced, hidden, shown in ((True, True, False), (True, False, True), (False, True, True), (False, False, True)):
+    store, cache = _store({"AdvancedCustomUI": advanced, "HideDistanceProfileBanner": hidden})
+    display = Display(store)
+    assert display.driving_style_banner == shown
+    display.set_driving_style_banner(False)
+    assert not display.driving_style_banner and cache.values["AdvancedCustomUI"]
 
 
 def test_volume_presets_and_custom_levels():
