@@ -1,4 +1,4 @@
-"""The sidebar beside home and the onroad view: Settings, then a status card (network, temperature, vehicle, maps).
+"""The sidebar beside home and the onroad view: Settings, then a status card (network, comma connect, temperature, vehicle, maps).
 
 EssentialsSidebar subclasses upstream's Sidebar. Upstream still tracks the device state and owns the callbacks;
 this redraws it in the Essentials style and adds a Maps row. Onroad, the bottom button saves a clip, as upstream's
@@ -81,10 +81,10 @@ class SidebarView(Component):
     row_h = T.px(33)
     for status in state.rows:
       line = rl.Rectangle(inner.x, y, inner.width, row_h)
-      dot, label, value = row(line, [T.px(10), FILL, FILL], T.px(14))
+      dot, text = row(line, [T.px(10), FILL], T.px(14))
       draw.fill(place(dot, T.px(10), T.px(10)), DOT[status.health], T.px(5))
-      draw.text(label, status.label, T.font_px(16), T.TEXT, T.FONT_MEDIUM)
-      draw.text(value, status.value, T.font_px(15), T.TEXT_TERTIARY, h=Align.END)
+      value_w = draw.text(text, status.value, T.font_px(15), T.TEXT_TERTIARY, h=Align.END)
+      draw.text(inset(text, right=value_w + T.px(10)), status.label, T.font_px(16), T.TEXT, T.FONT_MEDIUM)
       y += row_h
 
     bottom = rl.Rectangle(inner.x, inner.y + inner.height - T.px(60), inner.width, T.px(60))
@@ -95,6 +95,11 @@ class SidebarView(Component):
     else:
       draw.text(rl.Rectangle(inner.x, inner.y + inner.height - T.px(24), inner.width, T.px(24)), "Details move to Developer View",
                 T.font_px(13), T.TEXT_MUTED)
+
+
+def connect_status(health: Health) -> Status:
+  """comma connect: online, offline (no ping yet), or an error (no ping for 80 s), as upstream decides."""
+  return Status("comma connect", {Health.GOOD: "Online", Health.WARN: "Offline", Health.BAD: "Error"}.get(health, "Offline"), health)
 
 
 def network_status(kind: str, strength: int) -> Status:
@@ -147,6 +152,7 @@ def essentials_sidebar():
       vehicle_ok = self._health(self._panda_status.color) == Health.GOOD
       return SidebarState(rows=[
         network_status(self._net_type, self._net_strength),
+        connect_status(self._health(self._connect_status.color)),
         Status("Temperature", temperature, self._health(temp.color)),
         Status("Vehicle", "Connected" if vehicle_ok else "Not connected", Health.GOOD if vehicle_ok else Health.BAD),
         self._maps_status(),

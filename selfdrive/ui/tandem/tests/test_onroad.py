@@ -101,3 +101,5 @@ def test_sidebar_network_status():
   assert (network_status("--", 0).value, network_status("--", 0).health) == ("Offline", Health.OFF)
   assert network_status("Wi-Fi", 4).health == Health.GOOD
   assert network_status("LTE", 1).health == Health.WARN
+  from openpilot.selfdrive.ui.tandem.sidebar import connect_status
+  assert [connect_status(h).value for h in (Health.GOOD, Health.WARN, Health.BAD)] == ["Online", "Offline", "Error"]

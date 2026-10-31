@@ -122,7 +122,7 @@ These are reached from a row or button, never as a tab:
   - **New-limit card:** asks before matching a higher limit. Match sends StarPilot's `SpeedLimitAccepted`; Ignore hides the card until StarPilot drops the offer.
   - **Removed:** the driving personality button, the experimental-mode wheel, and the paused and weather badges, which the chips replace. The driver monitor icon sits above the bar.
 - **Home** (`home.py`): upstream's HomeLayout with new home content: readiness and the current setup, Where to? (StarPilot's destination search), and update status. Upstream's header, offroad alerts and update screen stay.
-- **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
+- **Sidebar** (`sidebar.py`): subclasses upstream's Sidebar, which still tracks device state and owns the callbacks. It has a Settings button and a status card with Network, comma connect, Temperature, Vehicle and Maps, each with a colored dot. Onroad it adds Save a clip (upstream's flag button), and it shows a recording indicator while cabin audio is recorded.
 - **First-run setup** (`setup.py`): three questions, or Use defaults. Either way it applies the Essentials defaults first. Home shows it once, as soon as onboarding has closed; a marker file beside the params folder records that it's done, so no new param key is needed.
 
 What these don't do yet:
