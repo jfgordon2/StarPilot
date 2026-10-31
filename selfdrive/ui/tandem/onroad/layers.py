@@ -402,6 +402,39 @@ def draw_speed_limit(tile: rl.Rectangle, limit: str, vienna: bool) -> None:
   draw.text(number, limit, T.font_px(32), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
 
 
+DM_TILE = T.px(64)
+DM_RING = (T.px(50), T.px(3))     # diameter and width
+DM_GAP = T.px(12)                 # below the speed limit sign when they share the top right
+
+
+def dm_tile(rect: rl.Rectangle, below_sign: bool) -> rl.Rectangle:
+  """The driver monitor's place: top right, centered on the sign's column, under the sign when the sign is there too."""
+  x = rect.x + rect.width - SIGN_MARGIN - (SIGN_TILE[0] + DM_TILE) / 2
+  y = rect.y + SIGN_MARGIN + (SIGN_TILE[1] + DM_GAP if below_sign else 0)
+  return rl.Rectangle(x, y, DM_TILE, DM_TILE)
+
+
+def draw_driver_monitor(tile: rl.Rectangle, opacity: float, attentive: float, watching: bool) -> None:
+  """The driver on a dark tile, ringed green while attentive and amber as attention drops. Without a camera policy
+  (watching False) the ring is a quiet track and the whole tile is dimmed by the caller's opacity."""
+  if opacity <= 0.01:
+    return
+  draw.fill(tile, draw.alpha(rl.Color(0x0B, 0x0D, 0x10, 255), opacity), T.px(14))
+  ring = place(tile, DM_RING[0], DM_RING[0])
+  if watching:
+    color = mix(T.WARNING, T.SUCCESS_BRIGHT, attentive)
+  else:
+    color = draw.alpha(T.TEXT, 0.25)
+  draw.stroke(ring, draw.alpha(color, opacity), ring.width / 2, DM_RING[1])
+  draw.icon(tile, "driver", draw.alpha(T.TEXT, opacity), T.px(26))
+
+
+def mix(a: rl.Color, b: rl.Color, t: float) -> rl.Color:
+  """a at t=0, b at t=1."""
+  t = min(1.0, max(0.0, t))
+  return rl.Color(*(round(x + (y - x) * t) for x, y in zip((a.r, a.g, a.b, a.a), (b.r, b.g, b.b, b.a), strict=True)))
+
+
 def turn_icon(maneuver: str, modifier: str) -> str:
   """A mock icon for a maneuver: turn arrows by side, an up arrow for straight on, a pin on arrival."""
   if maneuver in ("arrive", "depart"):

@@ -8,7 +8,7 @@ It subclasses StarPilotOnroadView and overrides only the parts Essentials replac
   deciding when each shows; the speed pill carries Essentials' turn signal in place of StarPilot's animations;
 - the driving personality button, the experimental-mode wheel, the favorites menu, the side-camera bubble and the stopped
   timer are removed;
-- the bottom widgets (the driver monitor icon) sit above the bar.
+- the driver monitor icon moves top right, drawn as an Essentials tile from upstream's driver state.
 Everything else, from the camera and path to alerts, is upstream's.
 """
 from __future__ import annotations
@@ -22,33 +22,20 @@ from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.augmented_road_view import CAMERA_VIEW_DRIVER
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
-from openpilot.selfdrive.ui.onroad.starpilot.widget_layout_manager import WidgetLayoutManager
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
-                                                         draw_speed, draw_speed_limit, draw_turn_card, sign_tile)
+                                                         dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
+                                                         draw_turn_card, sign_tile)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
 PREVIEW_SECONDS = 2.5
 V_CRUISE_UNSET = 255
-
-
-class BarAwareLayout(WidgetLayoutManager):
-  """Upstream's layout, with the bottom zone lifted above the bar."""
-
-  def _layout_bottom(self, is_rhd: bool):
-    full = self.content_rect
-    # Above the bar and the status chip's line, so the driver monitor icon clears both.
-    self.content_rect = rl.Rectangle(full.x, full.y, full.width, full.height - BAR_ZONE + 40 - StatusChip.HEIGHT - StatusChip.GAP)
-    try:
-      super()._layout_bottom(is_rhd)
-    finally:
-      self.content_rect = full
 
 
 class EssentialsTurnCard(NavigationCardRenderer):
@@ -97,12 +84,11 @@ class _NoStoppedTimer:
 class EssentialsOnroadView(StarPilotOnroadView):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    layout = BarAwareLayout(self._content_rect)
-    layout.zones = self.layout_manager.zones
-    self.layout_manager = layout
-    for zone, widget in (("bottom", self._personality_button_widget), ("right", self._steering_wheel_widget)):
-      if widget in layout.zones[zone]:
-        layout.zones[zone].remove(widget)
+    zones = self.layout_manager.zones
+    for zone, widget in (("bottom", self._personality_button_widget), ("bottom", self._driver_monitor_widget),
+                         ("right", self._steering_wheel_widget)):
+      if widget in zones[zone]:
+        zones[zone].remove(widget)
       widget.set_visible(False)
 
     self._memory = Params(memory=True)
@@ -129,6 +115,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()
     self._layers_visible = False
+    self._speed_limit_shown = False
     self._nav_sm = None
 
   # Upstream pieces replaced here
@@ -146,6 +133,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""
     widget = self._unified_speed_widget
+    self._speed_limit_shown = False
     if self._full_alert_showing():
       widget.collapse_sources()
       return
@@ -153,7 +141,18 @@ class EssentialsOnroadView(StarPilotOnroadView):
     limit = widget._presentation.posted_speed_text
     if limit in ("", "–") or self._offer() is not None:
       return
+    self._speed_limit_shown = True
     draw_speed_limit(sign_tile(self._content_rect, self._turn_card.box is not None), limit, ui_state.ui_params.get_bool("UseVienna"))
+
+  def _render_driver_monitor(self) -> None:
+    """Upstream's driver state (its fades already hide it for alerts, stale data and the hide toggle), as our tile."""
+    dm = self.driver_state_renderer
+    dm._update_state()
+    attentive = dm._color_fade_filter.update(0.0 if dm._awareness_unfull else 1.0)
+    if not (ui_state.started and self._draw_hud_controls):
+      return
+    below_sign = self._turn_card.box is not None and self._speed_limit_shown
+    draw_driver_monitor(dm_tile(self._content_rect, below_sign), dm._fade_filter.x, attentive, dm.is_active)
 
   def _render_road_name(self):
     pass
@@ -220,6 +219,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     alert, _ = self.alert_renderer.will_render()
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
     self._chip = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
+    self._render_driver_monitor()
     if not self._layers_visible:
       return
     self._chip_view.render(self._content_rect)
