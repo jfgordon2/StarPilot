@@ -127,3 +127,21 @@ class StarPilotPage(Hosted):
       else:
         self._open()
 
+
+def confirmed(prompt: Callable[[], None]) -> None:
+  """Runs an upstream prompt as if its confirm dialog were answered yes, because our dialog has already asked. Its dialog
+  is caught instead of shown and its callback runs upstream's own action and checks (e.g. engaged). Anything the
+  action itself pushes (an "it's started" notice) is caught too; our screen says it instead."""
+  from openpilot.system.ui.lib.application import gui_app
+  from openpilot.system.ui.widgets import DialogResult
+  caught: list = []
+  push = gui_app.push_widget
+  gui_app.push_widget = caught.append
+  try:
+    prompt()
+    for dialog in list(caught):
+      callback = getattr(dialog, "_callback", None)
+      if callback is not None:
+        callback(DialogResult.CONFIRM)
+  finally:
+    gui_app.push_widget = push

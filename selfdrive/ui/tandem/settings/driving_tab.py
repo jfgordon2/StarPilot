@@ -9,13 +9,12 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.chrome import HubTile
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ToggleButton
-from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
 from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_page, sound_player
 from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner, tuner_page
 from openpilot.selfdrive.ui.tandem.settings.maps import Maps, MapsPage, RegionsPage
 from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
-from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_page
+from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, extras_page, vehicle_page
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
 from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, Strip
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import (Assistance, Navigation, SpeedSteering, VehicleProfile, Weather,
@@ -75,9 +74,6 @@ def driving_hub(window) -> Widget:
     if bundle is TUNER_MODE and on:
       open_tuner()
 
-  def starpilot(panel: str) -> Callable[[], Widget]:
-    return lambda: upstream.StarPilotPage(panel, on_exit=window.pop)
-
   def opener(make: Callable[[], Widget]) -> Callable[[], None]:
     return lambda: window.push(make())
 
@@ -116,5 +112,5 @@ def driving_hub(window) -> Widget:
     HubTile("Driving Model", [lambda: models.get().summary(), lambda: models.get().update_summary()],
             opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get(), window.device_data().storage)))), icon="model"),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
-            opener(lambda: vehicle_page(vehicle.get(), window, opener(starpilot("VEHICLE")))), icon="car"),
+            opener(lambda: vehicle_page(vehicle.get(), window, opener(lambda: extras_page(window.car_extras(), window)))), icon="car"),
   ], rows=[3, 2], strip=strip)

@@ -92,6 +92,11 @@ def _upstream_boot_logos():
   return UpstreamBootLogos()
 
 
+def _upstream_car_extras():
+  from openpilot.selfdrive.ui.tandem.settings.vehicle import UpstreamCarExtras
+  return UpstreamCarExtras()
+
+
 def _upstream_developer():
   from openpilot.selfdrive.ui.tandem.settings.developer import UpstreamDeveloper
   return UpstreamDeveloper()
@@ -109,7 +114,8 @@ def _upstream_cars():
 
 class SettingsWindow(Widget):
   def __init__(self, store: SettingsStore | None = None, live=None, model_source=None, car_catalog=None, device_data=None,
-               device=None, wifi=None, wheel=None, bluetooth=None, updates=None, maps_source=None, boot_logos=None, developer_source=None):
+               device=None, wifi=None, wheel=None, bluetooth=None, updates=None, maps_source=None, boot_logos=None, developer_source=None,
+               car_extras=None):
     """The arguments replace device-backed state and StarPilot data in tests; each defaults to the real one."""
     super().__init__()
     self._store = store
@@ -124,6 +130,7 @@ class SettingsWindow(Widget):
     self.updates = updates or _upstream_updates
     self.maps_source = maps_source or _upstream_maps
     self.developer_source = developer_source or _upstream_developer
+    self.car_extras = car_extras or _upstream_car_extras
     self.boot_logos = boot_logos or _upstream_boot_logos
     self._tab = Tab.DRIVING
     self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._network, self._bluetooth, self._software]

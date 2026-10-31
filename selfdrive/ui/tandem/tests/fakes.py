@@ -494,3 +494,38 @@ class FakeDeveloperSource:
 
   def tick(self):
     pass
+
+
+class FakeCarExtras:
+  """A Toyota without stop and go: auto-unlock, the lock timer and the SNG hack, plus the stock-cruise switch."""
+
+  def __init__(self):
+    from openpilot.selfdrive.ui.tandem.settings.vehicle import CarExtra
+    self._list = [CarExtra("DisableOpenpilotLongitudinal", "Use the car's own cruise control", "Turns off openpilot's gas and brake control",
+                           warn="openpilot stops controlling gas and brakes."),
+                  CarExtra("UnlockDoors", "Auto-unlock doors", "Unlocks when you shift into park"),
+                  CarExtra("LockDoorsTimer", "Lock doors after", "Locks the doors a while after you turn off the car", "timer"),
+                  CarExtra("SNGHack", "Stop and go", "Keep going after a stop on Toyotas that don't do it themselves"),
+                  CarExtra("IgnoreIgnitionLine", "CAN ignition only", "Start only from the car's CAN ignition", "flash")]
+    self.values = {"UnlockDoors": True}
+    self.seconds = 30
+    self.calls = []
+
+  def extras(self):
+    return self._list
+
+  def value(self, key):
+    return self.values.get(key, False)
+
+  def toggle(self, key):
+    self.calls.append(("toggle", key))
+    self.values[key] = not self.values.get(key, False)
+
+  def flash(self, key):
+    self.calls.append(("flash", key))
+
+  def timer(self):
+    return self.seconds
+
+  def set_timer(self, seconds):
+    self.seconds = seconds

@@ -52,3 +52,23 @@ def test_offroad_only_switches_and_key_fetch():
   assert dev.fetching and dev.source.fetched == ["octocat"]
   dev.source.pending("No SSH keys found for user 'octocat'")
   assert not dev.fetching and "No SSH keys" in dev.error
+
+
+def test_car_extras_ask_before_restarting_or_flashing():
+  from openpilot.selfdrive.ui.tandem.settings.vehicle import extras_page
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeCarExtras
+  extras, window = FakeCarExtras(), Window()
+  page = extras_page(extras, window)
+  rows = _rows(page._panel)
+  rows["Auto-unlock doors"]._control._on_change(False)
+  assert extras.calls == [("toggle", "UnlockDoors")]                      # plain switches act at once
+  rows["Use the car's own cruise control"]._control._on_change(True)
+  assert len(extras.calls) == 1
+  window.shown._finish(DialogResult.CONFIRM)
+  assert extras.calls[-1] == ("toggle", "DisableOpenpilotLongitudinal")
+  rows["CAN ignition only"]._control._on_change(True)
+  window.shown._finish(DialogResult.CONFIRM)
+  assert extras.calls[-1] == ("flash", "IgnoreIgnitionLine")
+  rows["Lock doors after"]._control._click_callback()
+  window.shown._body._on_change(4)
+  assert extras.timer() == 120

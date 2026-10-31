@@ -17,6 +17,7 @@ from openpilot.selfdrive.ui.tandem.blocks import Card, Columns, Label
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonRow, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.settings.upstream import confirmed
 
 
 class Calibration:
@@ -252,24 +253,6 @@ def remote_access_page(device: Device, window):
   return TitledPage("Remote Access", "Reach this device from the Galaxy web app", Columns([steps, code], [1.25, 1]))
 
 
-def _confirmed(prompt: Callable[[], None]) -> None:
-  """Runs an upstream prompt as if its confirm dialog were answered yes: our dialog has already asked. The prompt's
-  dialog is caught instead of shown, and its callback runs upstream's own action (and its checks, e.g. engaged)."""
-  from openpilot.system.ui.lib.application import gui_app
-  from openpilot.system.ui.widgets import DialogResult
-  caught: list = []
-  push = gui_app.push_widget
-  gui_app.push_widget = caught.append
-  try:
-    prompt()
-  finally:
-    gui_app.push_widget = push
-  for dialog in caught:
-    callback = getattr(dialog, "_callback", None)
-    if callback is not None:
-      callback(DialogResult.CONFIRM)
-
-
 class UpstreamDevice:
   """Device backed by upstream's DeviceLayout and ui_state. Imported only on the device."""
 
@@ -346,7 +329,7 @@ class UpstreamDevice:
     gui_app.push_widget(self._camera)
 
   def recalibrate(self) -> None:
-    _confirmed(self._layout._reset_calibration_prompt)
+    confirmed(self._layout._reset_calibration_prompt)
 
   def review_guide(self) -> None:
     self._layout._on_review_training_guide()
@@ -400,7 +383,7 @@ class UpstreamDevice:
     self._layout._unpair_galaxy(DialogResult.CONFIRM)   # our page has already asked
 
   def reset_driver_monitoring(self) -> None:
-    _confirmed(self._layout._reset_driver_monitoring_prompt)
+    confirmed(self._layout._reset_driver_monitoring_prompt)
 
   def change_language(self) -> None:
     self._layout._show_language_dialog()

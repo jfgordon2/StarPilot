@@ -1,7 +1,7 @@
 """Vehicle: the detected car, choosing it by hand, auto-lock, and what the steering wheel buttons do.
 
-Car-specific extras (Toyota, Subaru, Bolt, Jeep, panda flashing ...) stay on StarPilot's vehicle screen,
-one tap away under "More for your car".
+"More for your car" lists StarPilot's car-specific options (GM, Subaru, Toyota, Bolt, Jeep, Hyundai/Kia CAN FD, panda
+flashing) for the detected car only, on StarPilot's params and handlers.
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, 
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SettingRow
-from openpilot.selfdrive.ui.tandem.settings.pages import FillPage
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.settings.pages import FillPage, PanelPage
 from openpilot.selfdrive.ui.tandem.settings.favorites import favorite_action_names
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
@@ -229,9 +229,147 @@ class UpstreamCars:
     if not cs.isSubaru:
       buttons.append(WheelButton("LKAS", "Press", "LKASButtonControl"))
     buttons.append(WheelButton("Cruise main", "Press", "MainCruiseButtonControl", cruise_main=True))
+    if cs.isBolt and cs.hasPedal and self._state.params.get_bool("RemapCancelToDistance"):
+      buttons.append(WheelButton("Cancel", "Press", "CancelButtonControl"))   # "Use Cancel as a button" in More for your car
     if cs.hasModeStarButtons:
       buttons += [WheelButton("Mode", "Press", "ModeButtonControl"), WheelButton("Star", "Press", "StarButtonControl")]
     return buttons
 
   def has_auto_lock(self) -> bool:
     return bool(self._state.car_state.isToyota)
+
+
+# ── More for your car: StarPilot's car-specific options, shown only for the cars they apply to ──
+
+@dataclass(frozen=True)
+class CarExtra:
+  key: str
+  title: str
+  line: str
+  kind: str = "toggle"     # "toggle", "flash" (needs a panda firmware update, then a restart) or "timer"
+  warn: str = ""           # turning it on asks first with this message
+
+
+LOCK_TIMES = [(0, "Never"), (10, "10 s"), (30, "30 s"), (60, "1 min"), (120, "2 min"), (300, "5 min")]
+
+
+class CarExtras(Protocol):
+  def extras(self) -> list[CarExtra]: ...
+  def value(self, key: str) -> bool: ...
+  def toggle(self, key: str) -> None: ...     # upstream's toggle, with its side effects (a restart, a migration)
+  def flash(self, key: str) -> None: ...      # upstream's panda firmware toggle: flashes, then restarts
+  def timer(self) -> int: ...
+  def set_timer(self, seconds: int) -> None: ...
+
+
+def extras_page(extras: CarExtras, window) -> Widget:
+  """More for your car: a switch per option, a timer as a picker; options that restart or flash ask first."""
+  from openpilot.selfdrive.ui.tandem.overlays import Dialog
+  from openpilot.selfdrive.ui.tandem.controls import Tone
+  from openpilot.system.ui.widgets import DialogResult
+
+  def ask(title: str, message: str, label: str, then: Callable[[], None], danger: bool = False) -> None:
+    def done(result) -> None:
+      window.dismiss()
+      if result == DialogResult.CONFIRM:
+        then()
+    window.present(Dialog(title, message, label, done, tone=Tone.DANGER if danger else Tone.ACCENT,
+                          glyph=lambda r, c, s: draw.icon(r, "warning", c, s)))
+
+  def flipped(extra: CarExtra) -> Callable[[bool], None]:
+    def change(on: bool) -> None:
+      if extra.kind == "flash":
+        def flash() -> None:
+          extras.flash(extra.key)
+          window.present(Dialog("Updating the panda", "The device restarts when it's done. Keep the car on until then.", "OK",
+                                lambda r: window.dismiss(), cancel_label=None))
+        ask(f"{'Turn on' if on else 'Turn off'} {extra.title.lower()}?",
+            "This needs a panda firmware update, and the device restarts when it's done.", "Update and restart", flash)
+      elif on and extra.warn:
+        ask(f"{extra.title}?", extra.warn, "Turn On", lambda: extras.toggle(extra.key), danger=True)
+      else:
+        extras.toggle(extra.key)
+    return change
+
+  def timer_sheet() -> None:
+    times = list(LOCK_TIMES)
+    if extras.timer() not in [s for s, _ in times]:
+      times.append((extras.timer(), f"{extras.timer()} s"))
+
+    def pick(index: int) -> None:
+      extras.set_timer(times[index][0])
+      window.dismiss()
+    window.present(Sheet("Lock doors after", OptionList([label for _, label in times],
+                                                         lambda: next((i for i, (s, _) in enumerate(times) if s == extras.timer()), 0), pick),
+                         subtitle="How long after you turn off the car", on_dismiss=window.dismiss))
+
+  def timer_label() -> str:
+    return next((label for s, label in LOCK_TIMES if s == extras.timer()), f"{extras.timer()} s")
+
+  rows: list[Widget] = []
+  for extra in extras.extras():
+    if extra.kind == "timer":
+      rows.append(SettingRow(extra.title, extra.line, ValueButton(timer_label, timer_sheet)))
+    else:
+      rows.append(SettingRow(extra.title, extra.line, Switch(lambda k=extra.key: extras.value(k), flipped(extra))))
+  if not rows:
+    rows.append(Text("Nothing extra for this car. Everything it supports is on the Vehicle page."))
+  return PanelPage(ListPanel(rows, title="More for your car", subtitle="Options only some makes and models have"))
+
+
+class UpstreamCarExtras:
+  """CarExtras from StarPilot's vehicle screen: the same conditions on the detected car, the same params and handlers."""
+
+  def __init__(self):
+    from openpilot.selfdrive.ui.layouts.settings.starpilot.vehicle import StarPilotVehicleSettingsLayout
+    from openpilot.selfdrive.ui.lib.starpilot_state import starpilot_state
+    self._layout = StarPilotVehicleSettingsLayout()
+    self._state = starpilot_state
+
+  def extras(self) -> list[CarExtra]:
+    cs, params = self._state.car_state, self._layout._params
+    out = [CarExtra("DisableOpenpilotLongitudinal", "Use the car's own cruise control",
+                    "Turns off openpilot's gas and brake control. openpilot restarts if the car is on.",
+                    warn="openpilot stops controlling gas and brakes; the car's adaptive cruise takes over. openpilot restarts if the car is on.")]
+    if cs.isGM and (cs.hasPedal or cs.canUsePedal):
+      out += [CarExtra("GMPedalLongitudinal", "Pedal for gas and brake", "Use the comma pedal for openpilot's speed control"),
+              CarExtra("GMDashSpoofOffsets", "Offsets on the dash", "Show set-speed offsets on the dashboard")]
+    if cs.isGM and cs.hasOpenpilotLongitudinal:
+      out += [CarExtra("IgnoreIgnitionLine", "CAN ignition only", "Start only from the car's CAN ignition, not the ignition wire", "flash"),
+              CarExtra("RemoteStartBootsComma", "Remote start wakes the device", "Starting the car remotely starts openpilot too", "flash")]
+    if cs.isGM and cs.isVolt and not cs.hasSNG:
+      out.append(CarExtra("VoltSNG", "Stop and go", "Keep going after a stop on Volts that don't do it themselves"))
+    if cs.isJeep:
+      out.append(CarExtra("JeepBrakeHold", "Brake hold", "Hold after cruise times out at a stop, and go again when traffic moves"))
+    if cs.isSubaru:
+      out.append(CarExtra("SubaruSNG", "Stop and go", "Keep going after a stop"))
+      if params.get_bool("SubaruSNG"):
+        out.append(CarExtra("SubaruSNGManualParkingBrake", "Stop and go with a manual parking brake", "For cars with a hand brake"))
+    if cs.isToyota:
+      out += [CarExtra("UnlockDoors", "Auto-unlock doors", "Unlocks when you shift into park"),
+              CarExtra("LockDoorsTimer", "Lock doors after", "Locks the doors a while after you turn off the car", "timer")]
+    if cs.isToyota and not cs.hasSNG:
+      out.append(CarExtra("SNGHack", "Stop and go", "Keep going after a stop on Toyotas that don't do it themselves"))
+    if cs.isBolt and cs.hasPedal:
+      out.append(CarExtra("RemapCancelToDistance", "Use Cancel as a button", "Map the Cancel button like the other steering wheel buttons"))
+    if cs.isHKGCanFd and cs.hasOpenpilotLongitudinal:
+      out += [CarExtra("HKGRemoteStartBootsComma", "EV remote climate wakes the device", "Remote climate starts openpilot too", "flash"),
+              CarExtra("NostalgiaMode", "Nostalgia mode", "The left paddle pauses openpilot's gas and brake control")]
+    return out
+
+  def value(self, key: str) -> bool:
+    return self._layout._params.get_bool(key)
+
+  def toggle(self, key: str) -> None:
+    from openpilot.selfdrive.ui.tandem.settings.upstream import confirmed
+    confirmed(lambda: self._layout._on_toggle(key))   # our dialog asked first where upstream would
+
+  def flash(self, key: str) -> None:
+    from openpilot.selfdrive.ui.tandem.settings.upstream import confirmed
+    confirmed(lambda: self._layout._on_panda_firmware_toggle(key, ""))
+
+  def timer(self) -> int:
+    return self._layout._params.get_int("LockDoorsTimer")
+
+  def set_timer(self, seconds: int) -> None:
+    self._layout._params.put_int("LockDoorsTimer", int(seconds))
