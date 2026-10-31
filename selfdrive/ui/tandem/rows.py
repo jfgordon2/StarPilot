@@ -151,7 +151,7 @@ class ListPanel(Component):
   def __init__(self, items: list[Widget], title: Bindable[str] | None = None, subtitle: Bindable[str] | None = None,
                header_control: Widget | None = None, banner: Widget | None = None, footnote: Bindable[str] | None = None,
                background: rl.Color = T.SURFACE_2, dividers: bool = True, footer: Widget | None = None,
-               title_size: int = T.SIZE_PANEL_TITLE):
+               title_size: int = T.SIZE_PANEL_TITLE, header_divider: bool = True):
     super().__init__()
     self._items = items
     self._title = title
@@ -161,6 +161,7 @@ class ListPanel(Component):
     self._footnote = Text(footnote) if footnote is not None else None
     self._footer = footer
     self._title_size = title_size
+    self._header_divider = header_divider
     self._background = background
     self._dividers = dividers
     self._scroll = GuiScrollPanel2(horizontal=False)
@@ -215,7 +216,8 @@ class ListPanel(Component):
         title_rect = body
       draw.text(title_rect, resolve(self._title), self._title_size, T.TEXT, T.FONT_BOLD)
       y += header.height
-      draw.hline(rect.x, y - T.DIVIDER, rect.width)
+      if self._header_divider:
+        draw.hline(rect.x, y - T.DIVIDER, rect.width)
     if self._banner is not None:
       h = self._height_of(self._banner, rect.width)
       self._banner.render(rl.Rectangle(rect.x, y, rect.width, h))

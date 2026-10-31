@@ -11,13 +11,13 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ToggleButton
 from openpilot.selfdrive.ui.tandem.settings import upstream
 from openpilot.selfdrive.ui.tandem.settings.bundles import BUNDLES, TUNER_MODE
-from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_panel, sound_player
+from openpilot.selfdrive.ui.tandem.settings.alerts import Alerts, alerts_page, sound_player
 from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner, tuner_page
 from openpilot.selfdrive.ui.tandem.settings.maps import Maps, MapsPage, RegionsPage
 from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
-from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_panel
+from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, vehicle_page
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
-from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, PanelPage, Section, SectionPage, Strip
+from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, Strip
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import (Assistance, Navigation, SpeedSteering, VehicleProfile, Weather,
                                                                    assistance_panel, everyday_panel, navigation_panel,
                                                                    vehicle_profile_panel, weather_panel)
@@ -105,10 +105,10 @@ def driving_hub(window) -> Widget:
   return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
     HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), icon="wheel"),
     HubTile("Display", [screen.summary, screen.path_summary], opener(display), icon="display"),
-    HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: PanelPage(alerts_panel(alerts, window))),
+    HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: alerts_page(alerts, window)),
             icon="volume"),
     HubTile("Driving Model", [lambda: models.get().summary(), lambda: models.get().update_summary()],
-            opener(lambda: PanelPage(model_page(models.get(), opener(lambda: CatalogPage(models.get()))))), icon="model"),
+            opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get())))), icon="model"),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
-            opener(lambda: PanelPage(vehicle_panel(vehicle.get(), window, opener(starpilot("VEHICLE"))))), icon="car"),
+            opener(lambda: vehicle_page(vehicle.get(), window, opener(starpilot("VEHICLE")))), icon="car"),
   ], rows=[3, 2], strip=strip)

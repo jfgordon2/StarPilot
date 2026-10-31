@@ -7,11 +7,14 @@ from dataclasses import dataclass
 import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Slider, Switch, ValueButton
+from openpilot.selfdrive.ui.tandem.blocks import Card, Columns, Label, Stack, ValueLine
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Slider, Switch
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow
+from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 AUTO = 101          # StarPilot's "Auto": the level follows cabin noise
@@ -137,21 +140,27 @@ class VolumeEditor(Component):
     self._reset.render(rl.Rectangle(button.x, button.y, w, button.height))
 
 
-def alerts_panel(model: Alerts, window) -> ListPanel:
+def alerts_page(model: Alerts, window) -> Widget:
+  """Volume on the left (presets, then each group's level), chimes on the right."""
   def editor(group: VolumeGroup) -> Callable[[], None]:
     return lambda: window.present(Sheet(group.name, VolumeEditor(model, group), subtitle=group.subtitle,
                                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
-  volume = [SettingRow(g.name, g.subtitle, ValueButton(lambda g=g: model.level_label(g), editor(g)), indent=True) for g in GROUPS]
-  chimes = [SettingRow(title, subtitle, Switch(lambda k=key: model.chime(k), lambda on, k=key: model.set_chime(k, on)))
-            for title, subtitle, key in CHIMES]
-  return ListPanel([
-    SettingRow("Volume", lambda: "Custom levels" if model.preset == CUSTOM else "Auto follows cabin noise",
-               Segmented(PRESETS, lambda: model.preset, model.set_preset)),
-    *volume,
-    SectionHeader("CHIMES"),
-    *chimes,
-  ], title="Alerts", subtitle="One volume for everything. Safety warnings never go below 25%.")
+  def note() -> str:
+    if model.preset == 0:
+      return "Auto follows cabin noise. Tap a level to set it yourself."
+    return "Custom levels. Pick a preset to reset them." if model.preset == CUSTOM else "Tap a level to fine-tune it."
+
+  volume = Card([
+    Label("Volume", T.font_px(20)),
+    Segmented(PRESETS, lambda: model.preset, model.set_preset, height=T.px(72), font_size=T.font_px(18), equal=True),
+    Stack([ValueLine(g.name, lambda g=g: model.level_label(g), editor(g)) for g in GROUPS], gap=T.px(4)),
+    Label(note, T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
+  ], gap=T.px(16))
+  chimes = ListPanel([SettingRow(title, subtitle, Switch(lambda k=key: model.chime(k), lambda on, k=key: model.set_chime(k, on)),
+                                 height=T.px(66)) for title, subtitle, key in CHIMES],
+                     title="Chimes", title_size=T.font_px(20), header_divider=False)
+  return TitledPage("Alerts", "One volume for everything. Safety warnings never go below 25%.", Columns([volume, chimes]))
 
 
 def sound_player() -> Callable[[str], None]:

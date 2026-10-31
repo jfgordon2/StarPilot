@@ -488,18 +488,20 @@ class Slider(Component):
 class Badge(Component):
   """ACTIVE / OVERRIDE / DEFAULT / LEARNED labels."""
 
-  def __init__(self, label: Bindable[str], tone: Bindable[Tone] = Tone.NEUTRAL):
+  def __init__(self, label: Bindable[str], tone: Bindable[Tone] = Tone.NEUTRAL, solid: bool = False):
+    """solid fills with the accent itself (the ACTIVE badge on an active card)."""
     super().__init__()
     self._label = label
     self._tone = tone
+    self._solid = solid
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     return draw.text_width(resolve(self._label).upper(), T.SIZE_BADGE, T.FONT_BOLD) + T.px(20), T.px(26)
 
   def _render(self, rect: rl.Rectangle):
     tone = resolve(self._tone)
-    draw.fill(rect, _TONE_COLORS[tone][0], T.RADIUS_BADGE)
-    draw.text(rect, resolve(self._label).upper(), T.SIZE_BADGE, _TONE_INK[tone], T.FONT_BOLD, Align.CENTER)
+    draw.fill(rect, T.ACCENT if self._solid else _TONE_COLORS[tone][0], T.RADIUS_BADGE)
+    draw.text(rect, resolve(self._label).upper(), T.SIZE_BADGE, T.ACCENT_INK if self._solid else _TONE_INK[tone], T.FONT_BOLD, Align.CENTER)
 
 
 class Chip(Component):

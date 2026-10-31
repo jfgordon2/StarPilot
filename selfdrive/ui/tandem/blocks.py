@@ -12,7 +12,7 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Bindable, Component, resolve, size_of
-from openpilot.selfdrive.ui.tandem.layout import Align, Fill, inset, row
+from openpilot.selfdrive.ui.tandem.layout import Align, Fill, inset, place, row
 
 SPACER = None
 
@@ -20,9 +20,11 @@ SPACER = None
 class Stack(Component):
   grow_touch_target = False
 
-  def __init__(self, items: list[Widget | None], gap: float = T.px(12)):
+  def __init__(self, items: list[Widget | None], gap: float = T.px(12), grow: int | None = None):
+    """grow: index of an item that takes the leftover height instead of a spacer (a card that fills its column)."""
     super().__init__()
     self._items = items
+    self._grow = grow
     for w in items:
       if w is not None:
         self._child(w)
@@ -50,7 +52,8 @@ class Stack(Component):
 
   def _render(self, rect: rl.Rectangle):
     items = self._visible()
-    heights = [None if w is None else size_of(w, rect.width)[1] for w in items]
+    grow = self._items[self._grow] if self._grow is not None else None
+    heights = [None if w is None or w is grow else size_of(w, rect.width)[1] for w in items]
     fixed = sum(h for h in heights if h is not None) + max(0, len(items) - 1) * self._gap
     spacers = sum(1 for h in heights if h is None)
     spare = max(0.0, rect.height - fixed) / spacers if spacers else 0.0
@@ -106,18 +109,24 @@ class Columns(Component):
 
 
 class Label(Component):
-  """One line of text sized to its font: a card's title, a big name, a caption."""
+  """One line of text sized to its font: a card's title, a big name, a caption. icon draws a mock icon before it."""
   grow_touch_target = False
 
   def __init__(self, text: Bindable[str], size: int = T.SIZE_PANEL_TITLE, color: Bindable[rl.Color] = T.TEXT, weight=T.FONT_BOLD,
-               caption: bool = False, h: Align = Align.START):
+               caption: bool = False, h: Align = Align.START, icon: Bindable[str | None] = None, icon_color: rl.Color | None = None):
     super().__init__()
     self._text, self._size, self._color, self._weight, self._caption, self._h = text, size, color, weight, caption, h
+    self._icon, self._icon_color = icon, icon_color
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     return max_width, draw.line_height(T.SIZE_CAPTION if self._caption else self._size)
 
   def _render(self, rect: rl.Rectangle):
+    name = resolve(self._icon)
+    if name:
+      size = round(self._size * 1.1)
+      draw.icon(rl.Rectangle(rect.x, rect.y, size, rect.height), name, self._icon_color or resolve(self._color), size)
+      rect = inset(rect, left=size + T.px(8))
     if self._caption:
       draw.caption(rect, resolve(self._text), resolve(self._color), self._h)
     else:
@@ -183,3 +192,24 @@ class Surface(Component):
   def _render(self, rect: rl.Rectangle):
     draw.fill(rect, self._background, self._radius)
     self._content.render(inset(rect, self._padding) if self._padding else rect)
+
+
+class Inline(Component):
+  """A widget at its own width in a stack (a badge, a link button), aligned left by default."""
+  grow_touch_target = False
+
+  def __init__(self, child: Widget, h: Align = Align.START):
+    super().__init__()
+    self._content = self._child(child)
+    self._h = h
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, size_of(self._content, max_width)[1]
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._content.set_parent_rect(parent_rect)
+
+  def _render(self, rect: rl.Rectangle):
+    w, h = size_of(self._content, rect.width)
+    self._content.render(place(rect, w, h, self._h))

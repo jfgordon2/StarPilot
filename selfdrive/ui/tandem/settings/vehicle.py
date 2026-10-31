@@ -12,11 +12,14 @@ from typing import Protocol
 import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Sized, Stack
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.layout import FILL, column, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SettingRow
+from openpilot.selfdrive.ui.tandem.settings.pages import FillPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
@@ -142,7 +145,7 @@ class CarPicker(Component):
       widget.render(body)
 
 
-def vehicle_panel(vehicle: Vehicle, window, open_more: Callable[[], None]) -> ListPanel:
+def vehicle_page(vehicle: Vehicle, window, open_more: Callable[[], None]) -> Widget:
   def choose_car():
     picker = CarPicker(vehicle)
 
@@ -167,21 +170,28 @@ def vehicle_panel(vehicle: Vehicle, window, open_more: Callable[[], None]) -> Li
                            subtitle="What this button does while driving", on_dismiss=window.dismiss))
     return show
 
-  car = SettingRow(vehicle.car, lambda: "Chosen manually" if vehicle.manual else "Detected automatically",
-                   Button(lambda: "Use detection" if vehicle.manual else "Wrong car?",
-                          lambda: vehicle.use_detection() if vehicle.manual else choose_car()), height=T.px(96))
-  lock = SettingRow("Auto-Lock Doors", "Locks when you shift out of park", Switch(lambda: vehicle.auto_lock, vehicle.set_auto_lock))
+  car = Card([
+    Label("YOUR CAR", color=T.ACCENT_TEXT, caption=True),
+    Label(vehicle.car, T.font_px(26), weight=T.FONT_EXTRABOLD),
+    Label(lambda: "Chosen manually" if vehicle.manual else "Detected automatically", T.font_px(15),
+          lambda: T.TEXT_TERTIARY if vehicle.manual else T.SUCCESS_TEXT, T.FONT, icon=lambda: None if vehicle.manual else "check"),
+    SPACER,
+    Inline(Button(lambda: "Use detection instead" if vehicle.manual else "Wrong car? Choose it manually",
+                  lambda: vehicle.use_detection() if vehicle.manual else choose_car(), ButtonStyle.GHOST, height=T.px(40),
+                  font_size=T.font_px(16))),
+  ], gap=T.px(10), padding=(T.px(22), T.px(22)))
+  lock = Sized(ListPanel([SettingRow("Auto-Lock Doors", "Locks when you shift out of park", Switch(lambda: vehicle.auto_lock,
+                                                                                                   vehicle.set_auto_lock), height=T.px(76))]),
+               T.px(76))
   lock.set_visible(vehicle.catalog.has_auto_lock)
-  buttons = [SettingRow(f"{b.name}", b.press, ValueButton(lambda b=b: vehicle.action_name(b), pick_action(b)))
+  buttons = [SettingRow(f"{b.name}", b.press, ValueButton(lambda b=b: vehicle.action_name(b), pick_action(b)), height=T.px(64))
              for b in vehicle.catalog.buttons()]
-  return ListPanel([
-    SectionHeader("YOUR CAR"),
-    car,
-    lock,
-    SectionHeader("STEERING WHEEL BUTTONS"),
+  wheel = ListPanel([
     *buttons,
-    SettingRow("More for your car", "Features specific to your make and model", on_click=open_more),
-  ], title="Vehicle")
+    SettingRow("More for your car", "Features specific to your make and model", on_click=open_more, height=T.px(64)),
+  ], title="Steering Wheel Buttons", subtitle="Preset for your car. Tap a button to change what it does.", title_size=T.font_px(20),
+     header_divider=False)
+  return FillPage(Columns([Stack([car, lock], gap=T.px(14), grow=0), wheel], [1, 1.35]))
 
 
 class UpstreamCars:

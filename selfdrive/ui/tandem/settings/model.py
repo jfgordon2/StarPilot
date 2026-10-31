@@ -14,9 +14,11 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Inline, Label, Surface
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch, Tone
 from openpilot.selfdrive.ui.tandem.layout import FILL, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 
@@ -130,7 +132,7 @@ def model_row(models: Models, model: ModelInfo) -> SettingRow:
   button.set_enabled(lambda: models.status(model) != "unavailable" and (models.status(model) != "on_device" or not models.use_recommended))
   badge = Badge("ACTIVE", Tone.SUCCESS)
   badge.set_visible(lambda: models.status(model) == "active")
-  return SettingRow(model.name, subtitle, Pair(badge, button))
+  return SettingRow(model.name, subtitle, Pair(badge, button), height=T.px(66))
 
 
 class Pair(Component):
@@ -202,20 +204,33 @@ class Rebuilding(Component):
 
 
 def model_page(models: Models, open_catalog: Callable[[], None]) -> Widget:
-  def build() -> ListPanel:
+  """The active model on an accent card at the left; other models on the device at the right."""
+  def build() -> Widget:
     current = models.source.current_key()
-    others = [m for m in models.source.models() if m.installed and m.key != current][:3]
-    return ListPanel([
-      SettingRow(lambda: models.current_name(), lambda: "Chosen for your car. Swaps to newer recommended models automatically."
-                 if models.use_recommended else "Picked by you", Badge("ACTIVE", Tone.SUCCESS), height=T.px(96)),
-      SettingRow("Use recommended", "Turn off to pick your own", Switch(lambda: models.use_recommended, models.set_use_recommended)),
-      SectionHeader("OTHER MODELS", trailing=Button("Browse all", open_catalog, ButtonStyle.GHOST, height=T.px(32))),
+    # Models on the device first, then community picks to download.
+    others = sorted((m for m in models.source.models() if m.key != current and (m.installed or m.community_pick)),
+                    key=lambda m: not m.installed)[:3]
+    active = Card([
+      Inline(Badge("ACTIVE", solid=True)),
+      Label(models.current_name, T.font_px(26), weight=T.FONT_EXTRABOLD),
+      Text(lambda: "Chosen for your car. Swaps to newer recommended models automatically." if models.use_recommended
+           else "Picked by you", T.font_px(16), T.TEXT_TERTIARY, padding=(0, 0)),
+      SPACER,
+      Surface(SettingRow("Use recommended", "Turn off to pick your own", Switch(lambda: models.use_recommended,
+                                                                              models.set_use_recommended), height=T.px(66)),
+              T.ACCENT_INSET, T.px(16)),
+    ], padding=(T.px(22), T.px(22)), tone="accent")
+    browse = Button("Browse all", open_catalog, ButtonStyle.GHOST, height=T.px(32))
+    other = ListPanel([
+      SectionHeader("OTHER MODELS", trailing=browse),
       *[model_row(models, m) for m in others],
       Text("Available when Use recommended is off. Model randomizer and blacklist are in Tuner Mode.", T.SIZE_SUBTITLE),
-    ], title="Driving Model", subtitle="The neural network that steers and judges speed")
+    ])
+    return Columns([active, other], [1, 1.2])
 
-  return Rebuilding(lambda: (models.source.current_key(), tuple(m.key for m in models.source.models() if m.installed)), build,
-                    models.source.tick, on_show=models.source.refresh)
+  return TitledPage("Driving Model", "The neural network that steers and judges speed",
+                    Rebuilding(lambda: (models.source.current_key(), tuple((m.key, m.installed) for m in models.source.models())), build,
+                               models.source.tick, on_show=models.source.refresh))
 
 
 class CatalogPage(Component):
