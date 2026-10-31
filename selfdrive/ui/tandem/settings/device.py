@@ -48,7 +48,6 @@ class Device(Protocol):
   def set_up_remote_access(self) -> None: ...
   def unpair_remote_access(self) -> None: ...
   def reset_driver_monitoring(self) -> None: ...
-  def change_language(self) -> None: ...
   def regulatory(self) -> None: ...
   def restart(self) -> None: ...
   def power_off(self) -> None: ...
@@ -56,9 +55,8 @@ class Device(Protocol):
 
 class ThisDevicePanel(ListPanel):
   def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None,
-               ask: Callable | None = None, open_language: Callable[[], None] | None = None,
-               open_regulatory: Callable[[], None] | None = None):
-    """open_pairing, open_remote_access and open_language show our pages and sheet. ask(title, message, label, action, danger,
+               ask: Callable | None = None, open_regulatory: Callable[[], None] | None = None):
+    """open_pairing and open_remote_access show our pages. ask(title, message, label, action, danger,
     icon) shows our confirm dialog before Restart, Power Off, Recalibrate and the driver monitoring reset; the device then
     runs upstream's action without its own dialog."""
     self._device = device
@@ -100,7 +98,6 @@ class ThisDevicePanel(ListPanel):
       SettingRow("How It Works", "Rules, features and limits", action("Review", device.review_guide, offroad_only=True)),
       SectionHeader("MORE"),
       SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on", reset_dm),
-      SettingRow("Language", None, action("Change", open_language or device.change_language)),
       regulatory := SettingRow("Regulatory", None, action("View", open_regulatory or device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
     ], title="This Device", footer=ButtonRow([restart, power_off]))
@@ -384,9 +381,6 @@ class UpstreamDevice:
 
   def reset_driver_monitoring(self) -> None:
     confirmed(self._layout._reset_driver_monitoring_prompt)
-
-  def change_language(self) -> None:
-    self._layout._show_language_dialog()
 
   def regulatory(self) -> None:
     self._layout._on_regulatory()

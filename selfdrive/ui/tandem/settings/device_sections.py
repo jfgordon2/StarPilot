@@ -123,7 +123,7 @@ def confirm(window, title: str, message: str, label: str, action: Callable[[], N
 
 
 def open_language(data: DeviceData, window) -> None:
-  """The language sheet, from General and from This Device."""
+  """The language sheet, opened from General."""
   languages = data.languages()
 
   def pick(index: int):
