@@ -5,8 +5,8 @@ from openpilot.selfdrive.ui.tandem.settings.vehicle import CarOption, WheelButto
 
 class FakeModels:
   def __init__(self):
-    self.items = [ModelInfo("rdf43", "Recommended Model", True), ModelInfo("vtx", "Vortex", True, community_pick=True),
-                  ModelInfo("nlp", "North Loop", False, community_pick=True), ModelInfo("big", "Big Model", False, needs_egpu=True)]
+    self.items = [ModelInfo("rdf43", "Tidewater", True), ModelInfo("vtx", "Vortex", True, community_pick=True),
+                  ModelInfo("nlp", "North Loop", False, community_pick=True), ModelInfo("big", "Highland XL", False, needs_egpu=True)]
     self.current = "rdf43"
     self.downloading = None
     self.calls = []
