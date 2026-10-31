@@ -38,6 +38,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Status chips | [statuschips.html](statuschips.html) |
 | Device tab | [devicetab.html](devicetab.html) |
 | Pair the phone app | [pairing.html](pairing.html) |
+| Driver camera preview | [drivercamera.html](drivercamera.html) |
 | Remote Access (Galaxy) | [remoteaccess.html](remoteaccess.html), set up: [remoteaccessqr.html](remoteaccessqr.html) |
 | Network tab | [networktab.html](networktab.html) |
 | Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |

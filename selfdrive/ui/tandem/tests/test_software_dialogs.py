@@ -60,3 +60,12 @@ def test_sound_test_counts_down_in_our_dialog():
   assert not window.top._cancel.is_visible           # a notice with one button
   from openpilot.selfdrive.ui.tandem.base import resolve
   assert resolve(window.top._message) == "A sound plays in 3…"
+
+
+def test_face_box_follows_upstreams_mapping():
+  import pyray as rl
+  from openpilot.selfdrive.ui.tandem.drivercamera import face_box
+  box = face_box(0.0, 0.109, rl.Rectangle(0, 0, 2160, 1080))
+  assert (round(box.x), round(box.y), box.width) == (970, 390, 220)   # centered at upstream's (1080, 500)
+  half = face_box(0.0, 0.109, rl.Rectangle(0, 0, 1080, 540))
+  assert half.width == 110                                              # scales with the view

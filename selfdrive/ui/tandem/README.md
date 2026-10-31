@@ -16,6 +16,7 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | `assets/` | `boot_logo.jpg`, Tandem's boot logo (2160×1080, from `boot_logo.html`). Choosing it copies the file into StarPilot's boot logos folder, where StarPilot's theme manager installs it like any other logo; the Essentials defaults choose it. |
 | `blocks.py` | Layout blocks for the mocks' card layouts: `Stack` (with `SPACER`s or a growing item), `Card`, `Columns`, `Grid`, `Label`, `ValueLine`, `IconTitle`, `InfoCard`, `Field`, `Icon`, `Inline`, `Sized`, `Surface` |
 | `overlays.py` | `Sheet` (slides up), `Dialog` (confirm; `Tone.DANGER` gives a destructive button), `Toast` |
+| `overlays.py` dialogs over upstream actions | Restart, Power Off, Recalibrate and the driver monitoring reset ask in our `Dialog`, then run upstream's action (the confirm-only prompts are run with their dialog caught and answered, so upstream's checks still apply). Software's Release Channel and Uninstall (upstream's three steps), What's new and the Bluetooth sound test use our sheets and dialogs too. How It Works stays upstream's training guide: its steps are pre-drawn images. |
 | `keyboard.py` | `EssentialsKeyboard`: upstream's `Keyboard` (typing, shift and caps, the 123 and #+= layers, backspace repeat, password masking, minimum length) drawn as `design/keyboard.html`, with a named action key. Used by every text entry our screens open: Wi-Fi and hotspot passwords, APN, Report a Problem, the startup message and the Galaxy password. Destination search holds it in the page as a `KeyPad`. |
 
 ## Building a screen
@@ -87,7 +88,7 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
 | | Vehicle and the car picker | `vehicle.py` | Fingerprint catalog, button actions |
 | | Offline Maps and the region picker | `maps.py` | Maps screen controller; removal is StarPilot's (parked, not mid-download), confirmed in our dialog |
 | | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
-| Device | This Device, the pairing page and Remote Access | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh). Remote Access uses upstream's Galaxy keyboard, files, link and `GalaxyQRDialog` code, and its unpair; the password setup writes the same three files upstream's handler does, without its QR dialog |
+| Device | This Device, the pairing page, Remote Access, Regulatory and the driver camera (`drivercamera.py`) | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh). Remote Access uses upstream's Galaxy keyboard, files, link and `GalaxyQRDialog` code, and its unpair; the password setup writes the same three files upstream's handler does, without its QR dialog |
 | | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps and the model catalog; offline maps and unused models can also be removed here |
 | Network | Wi-Fi, Cellular, and Roaming, APN and IP address | `network_tab.py` | `WifiManager` |
 | Bluetooth | Wheel Buttons, car audio, nearby devices | `bluetooth_tab.py` | Wheel controls service, `BluetoothManager` |

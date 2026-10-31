@@ -284,6 +284,7 @@ class UpstreamDevice:
     self._calibration = Calibration.UNKNOWN
     self._ids = ""
     self._pairing = None   # upstream PairingDialog, made on first use
+    self._camera = None    # our driver camera, made on first use
     self._galaxy_qr = None   # (link, upstream GalaxyQRDialog) for the current link
     self.refresh()
 
@@ -337,7 +338,12 @@ class UpstreamDevice:
     return self._pairing.qr_texture
 
   def driver_camera(self) -> None:
-    self._layout._show_driver_camera()
+    """Upstream's camera with our overlay; one instance, as upstream keeps one (it registers a timeout callback)."""
+    from openpilot.system.ui.lib.application import gui_app
+    if self._camera is None:
+      from openpilot.selfdrive.ui.tandem.drivercamera import driver_camera
+      self._camera = driver_camera()
+    gui_app.push_widget(self._camera)
 
   def recalibrate(self) -> None:
     _confirmed(self._layout._reset_calibration_prompt)
