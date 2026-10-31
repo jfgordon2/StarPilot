@@ -464,6 +464,19 @@ class FakePlaces:
   def maps_ready(self):
     return self.maps
 
+  def route(self):
+    from openpilot.selfdrive.ui.tandem.routemap import NOT_SET_UP, RoutePlan
+    if not self.routing:
+      return None, NOT_SET_UP
+    if self.chosen is None:
+      return None, ""
+    path = ((45.512, -122.658), (45.512, -122.650), (45.518, -122.650), (45.521, -122.642), (45.523, -122.636), (45.527, -122.636),
+            (45.527, -122.628))
+    return RoutePlan(path, 5310.0, 1080.0), ""
+
+  def metric(self):
+    return False
+
 
 class FakeDeveloperSource:
   def __init__(self, offroad=True, engaged=False, alpha=True):

@@ -77,3 +77,16 @@ def test_back_walks_out_and_closes():
   assert screen._view == D.LIST and places.draft() is None
   screen._back()
   assert closed
+
+
+def test_preview_star_saves_and_start_follows_routing():
+  screen, places, closed = _screen()
+  screen._pick(places.recents()[0])
+  assert places.route()[0] is not None
+  screen._star._click_callback()
+  assert places.saved_as()[0]
+  screen._start_button._click_callback()
+  assert closed and places.active() is not None
+  screen, places, _ = _screen(routing=False)
+  screen._pick(places.recents()[0])
+  assert not screen._start_button.enabled and places.route() == (None, "Routing isn't set up on this device")

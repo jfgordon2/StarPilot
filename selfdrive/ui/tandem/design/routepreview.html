@@ -14,40 +14,40 @@ body{margin:0}
 a{color:#7DBBF9}a:hover{color:#A9D3FB}
 </style>
 
-<div style="width: 1125px; height: 563px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden;">
-  <div style="flex-grow: 1; display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; padding: 20px 20px 14px; min-height: 0;">
-    <div style="background: #16191D; border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <span style="width: 60px; height: 60px; border-radius: 16px; background: #1F2E45; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg></span>
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;"><span style="font-size: 30px; font-weight: 800;">[Destination name]</span><span style="font-size: 16px; color: #AEB6C2;">[Street address, city]</span></div>
-      </div>
-      <div style="flex-grow: 1;"></div>
-      <span style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; color: #8FA0B5;">ON THE WAY</span>
-      <span style="display: flex; align-items: center; gap: 10px; font-size: 16px; color: #C9D0DA;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Slows ahead of turns on the route</span>
-      <span style="display: flex; align-items: center; gap: 10px; font-size: 16px; color: #C9D0DA;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Uses route speed limits when signs are missing</span>
-      <span style="display: flex; align-items: center; gap: 10px; font-size: 16px; color: #C9D0DA;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Arrival time and what's left show in the bar</span>
+<div style="width: 1125px; height: 563px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; display: flex; gap: 14px; padding: 14px; overflow: hidden;">
+  <div style="flex-grow: 1; min-width: 0; border-radius: 22px; overflow: hidden; position: relative; background: #111821;">
+    <svg width="660" height="535" viewBox="0 0 660 535" style="position: absolute; left: 0; top: 0;" aria-hidden="true">
+      <g stroke="#1C2733" stroke-width="10" fill="none">
+        <path d="M0 90H660M0 230H660M0 380H660M0 490H660"></path>
+        <path d="M110 0V535M260 0V535M420 0V535M560 0V535"></path>
+      </g>
+      <g stroke="#253343" stroke-width="18" fill="none"><path d="M0 300C200 300 300 160 660 150"></path></g>
+      <path d="M110 470V380H260V230C330 230 380 190 420 175V90H560" stroke="#5AAAF8" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+      <circle cx="110" cy="470" r="13" fill="#0A0C0F" stroke="#5AAAF8" stroke-width="5"></circle>
+      <path d="M560 62c-10 0-17 8-17 17 0 13 17 28 17 28s17-15 17-28c0-9-7-17-17-17z" fill="#F2F5F9"></path>
+    </svg>
+    <a href="destinations.html" aria-label="Back" style="position: absolute; left: 14px; top: 14px; width: 60px; height: 60px; border-radius: 16px; background: #0B0D10E6; display: flex; align-items: center; justify-content: center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F2F5F9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+  </div>
+  <div style="width: 400px; flex-shrink: 0; background: #16191D; border-radius: 22px; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <h1 style="margin: 0; font-size: 28px; font-weight: 800;">[Destination name]</h1>
+      <span style="font-size: 16px; color: #AEB6C2;">[Street address, city]</span>
     </div>
-    <div style="background: #16191D; border-radius: 22px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
-      <span style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; color: #7DBBF9;">SAVE THIS PLACE</span>
-        <button type="button" aria-pressed="true" style="font-family: inherit; color: inherit; text-align: left; height: 66px; box-sizing: border-box; border-radius: 16px; border: 2px solid #5AAAF8; background: #182434; display: flex; align-items: center; gap: 14px; padding: 0 16px;">
-          <span style="width: 42px; height: 42px; border-radius: 12px; background: #1F2E45; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg></span>
-          <span style="flex-grow: 1; font-size: 18px; font-weight: 700;">Favorite</span><span style="display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; color: #7DBBF9;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Saved</span>
-        </button>
-        <button type="button" aria-pressed="false" style="font-family: inherit; color: inherit; text-align: left; height: 66px; box-sizing: border-box; border-radius: 16px; border: 2px solid transparent; background: #1A1D22; display: flex; align-items: center; gap: 14px; padding: 0 16px;">
-          <span style="width: 42px; height: 42px; border-radius: 12px; background: #1F2E45; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"></path><path d="M10 20v-5h4v5"></path></svg></span>
-          <span style="flex-grow: 1; font-size: 18px; font-weight: 700;">Home</span><span style="font-size: 15px; color: #8FA0B5;">Set as Home</span>
-        </button>
-        <button type="button" aria-pressed="false" style="font-family: inherit; color: inherit; text-align: left; height: 66px; box-sizing: border-box; border-radius: 16px; border: 2px solid transparent; background: #1A1D22; display: flex; align-items: center; gap: 14px; padding: 0 16px;">
-          <span style="width: 42px; height: 42px; border-radius: 12px; background: #1F2E45; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></span>
-          <span style="flex-grow: 1; font-size: 18px; font-weight: 700;">Work</span><span style="font-size: 15px; color: #8FA0B5;">Set as Work</span>
-        </button>
+    <div style="display: flex; gap: 10px;">
+      <div style="flex-grow: 1; background: #1E2227; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; color: #9FAABA;">Arrive</span><span style="font-size: 22px; font-weight: 700;">[ETA]</span></div>
+      <div style="flex-grow: 1; background: #1E2227; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; color: #9FAABA;">Time</span><span style="font-size: 22px; font-weight: 700;">[min]</span></div>
+      <div style="flex-grow: 1; background: #1E2227; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 13px; color: #9FAABA;">Distance</span><span style="font-size: 22px; font-weight: 700;">[mi]</span></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 15px; color: #C9D0DA;">
+      <div style="display: flex; gap: 10px; align-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Slows ahead of turns on the route</div>
+      <div style="display: flex; gap: 10px; align-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Uses route speed limits when signs are missing</div>
+    </div>
+    <div style="flex-grow: 1;"></div>
+    <div style="display: flex; gap: 10px;">
+      <button type="button" aria-label="Save as favorite" style="width: 64px; height: 64px; border: 0; border-radius: 16px; background: #23272E; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2F5F9" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path></svg></button>
+      <a href="onroadnav.html" style="flex-grow: 1; text-decoration: none; height: 64px; border-radius: 16px; background: #5AAAF8; color: #0B1A2B; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center;">Start</a>
     </div>
   </div>
-  <nav style="height: 102px; flex-shrink: 0; border-top: 1px solid #1F242B; background: #0E1013; display: flex; align-items: center; gap: 10px; padding: 0 16px;">
-    <a href="destinations.html" aria-label="Back" style="width: 74px; height: 74px; border-radius: 18px; background: #1F2328; display: flex; align-items: center; justify-content: center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F2F5F9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
-    <span style="flex-grow: 1; font-size: 16px; color: #8FA0B5; padding-left: 10px;">Routes come from Mapbox and need a connection to start</span>
-    <a href="onroadnav.html" style="text-decoration: none; height: 74px; width: 260px; border-radius: 18px; background: #5AAAF8; color: #0B1A2B; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center;">Start</a>
-  </nav>
 </div>
 
 </body>

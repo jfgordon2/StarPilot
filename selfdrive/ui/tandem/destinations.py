@@ -3,7 +3,7 @@
 StarPilot's navigation controller (StarPilotNavigationLayout) still does the work: Mapbox search and resolving a result,
 favorites with Home and Work, recent places, starting and ending a route. UpstreamPlaces reaches into it; this module
 only draws. One full-screen widget moves between three views: the list, search (with the Essentials keyboard built
-in), and the preview of a picked place.
+in), and the preview of a picked place: its route on a map (routemap.py) with when you'd arrive, then Start.
 """
 from __future__ import annotations
 
@@ -19,13 +19,17 @@ from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import Icon
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, back_glyph
 from openpilot.selfdrive.ui.tandem.keyboard import KeyPad
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.routemap import NOT_SET_UP, RouteFetcher, RoutePlan, arrive_text, distance_text, draw_route_map, \
+  mapbox_route, time_text
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
 
 SEARCH_PAUSE = 0.6          # seconds after the last key before searching as you type
 MIN_QUERY = 3               # StarPilot's minimum
 FIELD_FILL = T._hex("1A1D22")
 ROW = T.px(58)              # the list's rows, as in the mock
+TAG_FILL = rl.Color(0x0B, 0x0D, 0x10, 0xE6)   # back over the map
+DATA_LABEL = T._hex("9FAABA")
 
 
 def place_name(place: dict[str, Any] | None) -> str:
@@ -63,6 +67,8 @@ class Places(Protocol):
   def start(self) -> bool: ...
   def end_route(self) -> None: ...
   def maps_ready(self) -> bool: ...
+  def route(self) -> tuple[RoutePlan | None, str]: ...   # the draft's route, or why there isn't one yet
+  def metric(self) -> bool: ...
 
 
 class UpstreamPlaces:
@@ -71,6 +77,7 @@ class UpstreamPlaces:
   def __init__(self):
     from openpilot.selfdrive.ui.layouts.settings.starpilot.navigation import StarPilotNavigationLayout
     self._nav = StarPilotNavigationLayout()
+    self._routes = RouteFetcher(mapbox_route)
 
   def tick(self) -> None:
     self._nav._update_state()   # takes finished searches and refreshes favorites and recents
@@ -163,6 +170,15 @@ class UpstreamPlaces:
       return bool(load_maps_storage_cache(Params().get(MAPS_STORAGE_CACHE_PARAM, encoding="utf-8") or "").maps_present)
     except Exception:
       return False
+
+  def route(self):
+    if not self.can_start():
+      return None, NOT_SET_UP
+    return self._routes.route(self.draft())
+
+  def metric(self) -> bool:
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    return bool(ui_state.is_metric)
 
 
 # ── Pieces ──
@@ -279,38 +295,6 @@ class ResultCard(Component):
                 T.font_px(13), T.TEXT_TERTIARY)
 
 
-class SaveToggle(Component):
-  """Favorite, Home or Work in the preview: selected wears the accent edge and a check."""
-  grow_touch_target = False
-
-  def __init__(self, icon: str, label: str, idle: str, on: Callable[[], bool], on_click: Callable[[], None]):
-    super().__init__()
-    self._icon, self._label, self._idle, self._on = icon, label, idle, on
-    self.set_click_callback(on_click)
-
-  def _render(self, rect: rl.Rectangle):
-    on = self._on()
-    draw.fill(rect, T.ACCENT_SELECTED if on else FIELD_FILL, T.px(16))
-    if on:
-      draw.stroke(rect, T.ACCENT, T.px(16), T.px(2))
-    if self.is_pressed:
-      draw.pressed(rect, T.px(16))
-    body = inset(rect, x=T.px(16))
-    well, label, state = row(body, [T.px(42), FILL, T.px(170)], T.px(14))
-    well = place(well, T.px(42), T.px(42))
-    draw.fill(well, T.ACCENT_SURFACE, T.px(12))
-    draw.icon(well, self._icon, T.ACCENT_TEXT, T.px(22))
-    draw.text(label, self._label, T.font_px(18), T.TEXT, T.FONT_BOLD)
-    if on:
-      words = "Saved" if self._icon == "star" else f"Your {self._label}"
-      width = draw.text_width(words, T.font_px(15), T.FONT_BOLD)
-      check = rl.Rectangle(state.x + state.width - width - T.px(24), state.y, T.px(18), state.height)
-      draw.icon(check, "check", T.ACCENT_TEXT, T.px(18))
-      draw.text(state, words, T.font_px(15), T.ACCENT_TEXT, T.FONT_BOLD, Align.END)
-    else:
-      draw.text(state, self._idle, T.font_px(15), T.TEXT_MUTED, T.FONT, Align.END)
-
-
 # ── The screen ──
 
 LIST, SEARCH, RESULTS, PREVIEW = "list", "search", "results", "preview"
@@ -360,15 +344,14 @@ class DestinationsScreen(Component):
     self._results_key: object = None
 
     # Preview
-    start = Button("Start", self._start, ButtonStyle.PRIMARY, height=T.NAV_BUTTON, width=T.px(260), font_size=T.font_px(20),
-                   radius=T.RADIUS_CARD, weight=T.FONT_EXTRABOLD)
-    start.set_enabled(places.can_start)
-    self._preview_footer = self._child(Footer(self._back, lambda: "Routes come from Mapbox and need a connection to start"
-                                              if places.can_start() else "Routing isn't set up on this device", start))
-    flags = places.saved_as
-    self._toggles = [self._child(SaveToggle("star", "Favorite", "Save", lambda: flags()[0], lambda: places.toggle("favorite"))),
-                     self._child(SaveToggle("home", "Home", "Set as Home", lambda: flags()[1], lambda: places.toggle("home"))),
-                     self._child(SaveToggle("work", "Work", "Set as Work", lambda: flags()[2], lambda: places.toggle("work")))]
+    self._preview_back = self._child(Button(on_click=self._back, style=ButtonStyle.GHOST, width=T.px(60), height=T.px(60),
+                                            radius=T.px(16), glyph=lambda r, c, s: back_glyph(r, T.TEXT, T.px(26))))
+    self._star = self._child(Button(on_click=lambda: places.toggle("favorite"), style=ButtonStyle.SECONDARY, width=T.px(64),
+                                    height=T.px(64), radius=T.px(16), glyph=lambda r, c, s: draw.icon(
+                                      r, "star", T.ACCENT if places.saved_as()[0] else T.TEXT, T.px(24))))
+    self._start_button = self._child(Button("Start", self._start, ButtonStyle.PRIMARY, height=T.px(64), font_size=T.font_px(20),
+                                            radius=T.px(16), weight=T.FONT_EXTRABOLD))
+    self._start_button.set_enabled(places.can_start)
 
   # Navigation between views
 
@@ -553,41 +536,53 @@ class DestinationsScreen(Component):
     return self._results_panel
 
   def _render_preview(self, rect: rl.Rectangle) -> None:
-    body, footer = column(rect, [FILL, T.NAV_HEIGHT])
-    self._preview_footer.render(footer)
-    body = inset(body, left=T.px(20), right=T.px(20), top=T.px(20), bottom=T.px(14))
-    left, right = row(body, [(body.width - T.px(14)) * 1.25 / 2.25, FILL], T.px(14))
-    self._render_place(left)
-    draw.fill(right, T.SURFACE_2, T.RADIUS_PANEL)
-    inner = inset(right, x=T.px(22), y=T.px(20))
-    caption, *toggles = column(inner, [draw.line_height(T.SIZE_CAPTION), T.px(66), T.px(66), T.px(66)], T.px(12))
-    draw.caption(caption, "Save this place", T.ACCENT_TEXT)
-    for toggle, cell in zip(self._toggles, toggles, strict=True):
-      toggle.render(cell)
+    """The map on the left with back over it; the place, its arrival estimate and Start on the right."""
+    plan, status = self._places.route()
+    body = inset(rect, T.px(14))
+    map_rect, side = row(body, [FILL, T.px(400)], T.px(14))
+    draw_route_map(map_rect, plan, status)
+    back = rl.Rectangle(map_rect.x + T.px(14), map_rect.y + T.px(14), T.px(60), T.px(60))
+    draw.fill(back, TAG_FILL, T.px(16))
+    self._preview_back.render(back)
+    self._render_place(side, plan)
 
-  def _render_place(self, rect: rl.Rectangle) -> None:
+  def _render_place(self, rect: rl.Rectangle, plan: RoutePlan | None) -> None:
     draft = self._places.draft()
     draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
     inner = inset(rect, T.px(24))
-    head, _, caption, *checks = column(inner, [T.px(60), FILL, draw.line_height(T.SIZE_CAPTION)] + [draw.line_height(T.font_px(16))] * 3,
-                                       T.px(14))
-    well, words = row(head, [T.px(60), FILL], T.px(16))
-    draw.fill(well, T.ACCENT_SURFACE, T.px(16))
-    draw.icon(well, "pin", T.ACCENT_TEXT, T.px(28))
     name, line = place_name(draft), place_line(draft)
-    title_h, line_h = draw.line_height(T.font_px(30)), draw.line_height(T.font_px(16))
-    block = place(words, words.width, title_h + (T.px(4) + line_h if line else 0))
-    draw.text(rl.Rectangle(block.x, block.y, block.width, title_h), draw.fit(name, T.font_px(30), T.FONT_EXTRABOLD, block.width),
-              T.font_px(30), T.TEXT, T.FONT_EXTRABOLD)
+    title_h, line_h = draw.line_height(T.font_px(28)), draw.line_height(T.font_px(16))
+    label_h, value_h = draw.line_height(T.font_px(13)), draw.line_height(T.font_px(22))
+    tile_h = T.px(12) * 2 + label_h + T.px(4) + value_h
+    check_h = draw.line_height(T.font_px(15))
+    head, tiles, checks, _, actions = column(inner, [title_h + (T.px(6) + line_h if line else 0), tile_h, check_h * 2 + T.px(10), FILL,
+                                                     T.px(64)], T.px(18))
+    draw.text(rl.Rectangle(head.x, head.y, head.width, title_h), draw.fit(name, T.font_px(28), T.FONT_EXTRABOLD, head.width),
+              T.font_px(28), T.TEXT, T.FONT_EXTRABOLD)
     if line:
-      draw.text(rl.Rectangle(block.x, block.y + title_h + T.px(4), block.width, line_h), draw.fit(line, T.font_px(16), T.FONT, block.width),
+      draw.text(rl.Rectangle(head.x, head.y + title_h + T.px(6), head.width, line_h), draw.fit(line, T.font_px(16), T.FONT, head.width),
                 T.font_px(16), T.TEXT_TERTIARY)
-    draw.caption(caption, "On the way")
-    for cell, words in zip(checks, ("Slows ahead of turns on the route", "Uses route speed limits when signs are missing",
-                                    "Arrival time and what's left show in the bar"), strict=True):
+    facts = (("Arrive", arrive_text(plan)), ("Time", time_text(plan)), ("Distance", distance_text(plan, self._places.metric())))
+    # As the mock's flex row: each tile is as wide as its words, then the spare room is shared
+    basis = [max(draw.text_width(label, T.font_px(13)), draw.text_width(value, T.font_px(22), T.FONT_BOLD)) + T.px(28)
+             for label, value in facts]
+    spare = (tiles.width - T.px(10) * 2 - sum(basis)) / 3
+    widths = [w + spare for w in basis] if spare > 0 else [FILL] * 3
+    for (label, value), cell in zip(facts, row(tiles, widths, T.px(10)), strict=True):
+      draw.fill(cell, T.SURFACE_4, T.px(14))
+      words = inset(cell, x=T.px(14), y=T.px(12))
+      top, bottom = column(words, [label_h, value_h], T.px(4))
+      draw.text(top, label, T.font_px(13), DATA_LABEL)
+      draw.text(bottom, draw.fit(value, T.font_px(22), T.FONT_BOLD, bottom.width), T.font_px(22), T.TEXT, T.FONT_BOLD)
+    for cell, words in zip(column(checks, [check_h, check_h], T.px(10)), ("Slows ahead of turns on the route",
+                                                                            "Uses route speed limits when signs are missing"), strict=True):
       icon, text = row(cell, [T.px(18), FILL], T.px(10))
-      draw.icon(icon, "check", T.SUCCESS_BRIGHT, T.px(18))
-      draw.text(text, words, T.font_px(16), T.TEXT_SECONDARY)
+      draw.icon(icon, "check", T.SUCCESS_TEXT, T.px(18))
+      size = next((z for z in (T.font_px(15), T.font_px(14)) if draw.text_width(words, z) <= text.width), T.font_px(14))
+      draw.text(text, words, size, T.TEXT_SECONDARY)
+    star, start = row(actions, [T.px(64), FILL], T.px(10))
+    self._star.render(star)
+    self._start_button.render(start)
 
 
 def destinations_screen(on_close: Callable[[], None], open_maps: Callable[[], None] | None = None,
