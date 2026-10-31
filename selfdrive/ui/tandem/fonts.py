@@ -2,7 +2,8 @@
 
 FontWeight (system/ui/lib/application.py) covers the shared Figtree weights, which load at startup.
 The design's extra faces live here instead, so upstream's enum only differs by file names, and they
-load on first use: ExtraBold for titles and big numbers, JetBrains Mono for Developer View and Tuner Mode.
+load on first use: ExtraBold for titles and big numbers, JetBrains Mono (Medium and Bold) for Developer View.
+The JetBrains Mono atlases are built with process.py's characters plus "−", "·" and "—", which Developer View shows.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from openpilot.system.ui.lib.application import FONT_DIR, FontWeight, gui_app
 class ExtraFont(StrEnum):
   EXTRA_BOLD = "Figtree-ExtraBold.fnt"
   MONO = "JetBrainsMono-Medium.fnt"
+  MONO_BOLD = "JetBrainsMono-Bold.fnt"
 
 
 Face = FontWeight | ExtraFont

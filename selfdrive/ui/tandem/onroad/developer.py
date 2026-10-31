@@ -26,6 +26,7 @@ LABEL = T._hex("9FAABA")
 BAR_INK = T.ACCENT_TEXT
 STRIP_FILL = rl.Color(0x0B, 0x0D, 0x10, 0x99)
 TAG_FILL = rl.Color(0x0B, 0x0D, 0x10, 0xE6)
+MONO, BOLD = T.FONT_MONO, T.FONT_MONO_BOLD   # the mock sets the panel, strip and tag in JetBrains Mono
 
 
 @dataclass
@@ -67,8 +68,8 @@ def _section(rect: rl.Rectangle, y: float, title: str) -> float:
 def _pair(rect: rl.Rectangle, y: float, label: str, value: str) -> float:
   h = draw.line_height(T.font_px(14))
   line = rl.Rectangle(rect.x, y, rect.width, h)
-  draw.text(line, label, T.font_px(14), LABEL)
-  draw.text(line, value, T.font_px(14), T.TEXT, T.FONT_MEDIUM, Align.END)
+  draw.text(line, label, T.font_px(14), LABEL, MONO)
+  draw.text(line, value, T.font_px(14), T.TEXT, MONO, Align.END)
   return y + h + T.px(7)
 
 
@@ -97,8 +98,8 @@ def draw_panel(rect: rl.Rectangle, data: DevData) -> None:
       draw.fill(cell, TILE_FILL, T.px(10))
       inner = inset(cell, x=T.px(10), y=T.px(7))
       top, bottom = column(inner, [draw.line_height(T.font_px(11)), FILL], T.px(3))
-      draw.text(top, label, T.font_px(11), LABEL)
-      draw.text(bottom, draw.fit(value, T.font_px(18), T.FONT_BOLD, bottom.width), T.font_px(18), ink or T.TEXT, T.FONT_BOLD)
+      draw.text(top, label, T.font_px(11), LABEL, MONO)
+      draw.text(bottom, draw.fit(value, T.font_px(18), BOLD, bottom.width), T.font_px(18), ink or T.TEXT, BOLD)
     y += tile_h + T.px(6)
   y = _section(body, y + T.px(6), "Device")
   cpu = f"{round(data.cpu * 100)}%" + (f" · {data.cpu_temp}" if data.cpu_temp else "")
@@ -117,17 +118,17 @@ def draw_strip(rect: rl.Rectangle, data: DevData) -> None:
   draw.fill(rect, STRIP_FILL)
   parts = [("accel", data.accel), ("want", data.want), ("jerk", data.jerk), ("lat", data.lat), ("delay", data.delay)]
   for (label, value), cell in zip(parts, row(inset(rect, x=T.px(20)), [FILL] * len(parts), T.px(12)), strict=True):
-    lw = draw.text_width(label + " ", T.font_px(13))
-    vw = draw.text_width(value, T.font_px(13), T.FONT_BOLD)
+    lw = draw.text_width(label + " ", T.font_px(13), MONO)
+    vw = draw.text_width(value, T.font_px(13), BOLD)
     x = cell.x + (cell.width - lw - vw) / 2
-    draw.text(rl.Rectangle(x, cell.y, lw, cell.height), label + " ", T.font_px(13), T.TEXT_SECONDARY)
-    draw.text(rl.Rectangle(x + lw, cell.y, vw, cell.height), value, T.font_px(13), T.TEXT, T.FONT_BOLD)
+    draw.text(rl.Rectangle(x, cell.y, lw, cell.height), label + " ", T.font_px(13), T.TEXT_SECONDARY, MONO)
+    draw.text(rl.Rectangle(x + lw, cell.y, vw, cell.height), value, T.font_px(13), T.TEXT, BOLD)
 
 
 def draw_lead_tag(center_x: float, top_y: float, lead: Lead) -> None:
   """The tag above the lead car: distance, gap, then relative speed in amber when closing."""
-  parts = [(lead.distance, T.TEXT, T.FONT_BOLD), (lead.gap, T.TEXT_TERTIARY, T.FONT_MEDIUM),
-           (lead.rel_speed, T.WARNING if lead.closing else T.TEXT_SECONDARY, T.FONT_BOLD)]
+  parts = [(lead.distance, T.TEXT, BOLD), (lead.gap, LABEL, BOLD),
+           (lead.rel_speed, T.WARNING if lead.closing else T.TEXT_SECONDARY, BOLD)]
   size, gap, pad = T.font_px(14), T.px(12), T.px(12)
   widths = [draw.text_width(text, size, weight) for text, _, weight in parts]
   w = sum(widths) + gap * 2 + pad * 2

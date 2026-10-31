@@ -110,7 +110,8 @@ FONT_MEDIUM = FontWeight.MEDIUM
 FONT_SEMIBOLD = FontWeight.SEMI_BOLD            # row titles, buttons, nav
 FONT_BOLD = FontWeight.BOLD                     # panel titles, selected segments
 FONT_EXTRABOLD = ExtraFont.EXTRA_BOLD           # screen titles, speed, big values (loaded on first use)
-FONT_MONO = ExtraFont.MONO                      # numbers in Developer View and Tuner Mode (loaded on first use)
+FONT_MONO = ExtraFont.MONO                      # Developer View (loaded on first use)
+FONT_MONO_BOLD = ExtraFont.MONO_BOLD
 FONT_UNIFONT = FontWeight.UNIFONT               # names in other scripts, e.g. the language list
 
 SIZE_VALUE = font_px(72)                # value editors
