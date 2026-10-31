@@ -14,7 +14,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Stepper, Switch, Tone
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, inset, place, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.display import CLEAN_SCREEN
@@ -193,8 +193,11 @@ class Tuner:
   def bundle_items(self, bundle: Bundle) -> list[str]:
     return [k for k in bundle.on if k in ITEM_NAMES]
 
+  def bundle_on(self, bundle: Bundle) -> bool:
+    return bundle.is_on(self._store) if bundle is not CLEAN_SCREEN_BUNDLE else self._store.get_bool("AdvancedCustomUI")
+
   def item_differs(self, bundle: Bundle, key: str) -> bool:
-    on = bundle.is_on(self._store) if bundle is not CLEAN_SCREEN_BUNDLE else self._store.get_bool("AdvancedCustomUI")
+    on = self.bundle_on(bundle)
     expected = bundle.on[key] if on else bundle.off.get(key, bundle.on[key])
     return self._store.get_bool(key) != expected
 
@@ -316,37 +319,61 @@ def following_panel(tuner: Tuner, window) -> ListPanel:
 
 
 class BundleOverrides(Component):
-  """A tab per bundle; one switch per param it sets, marked OVERRIDE where it differs from the bundle."""
+  """One panel: the bundle tabs and whether that bundle is on, then a switch per param it sets in two columns, marked
+  OVERRIDE where it differs from the bundle."""
   grow_touch_target = False
+  HEADER = T.px(64)
+  ROW = T.px(50)
 
   def __init__(self, tuner: Tuner):
     super().__init__()
     self._tuner = tuner
     self._tab = 0
-    self._panels = [self._panel(b) for b in OVERRIDE_BUNDLES]
-    self._tabs = Segmented([b.name for b in OVERRIDE_BUNDLES], lambda: self._tab, self._select)
-    self._outer = [self._child(p) for p in self._panels]
+    self._tabs = self._child(Segmented([b.name for b in OVERRIDE_BUNDLES], lambda: self._tab, self._select, height=T.px(48),
+                                       font_size=T.font_px(15)))
+    self._items = []
+    for bundle in OVERRIDE_BUNDLES:
+      rows = []
+      for key in tuner.bundle_items(bundle):
+        badge = self._child(Badge("Override", Tone.WARNING))
+        switch = self._child(Switch(lambda k=key: tuner.switch(k), lambda on, k=key: tuner.set_switch(k, on), width=T.px(52), height=T.px(30)))
+        rows.append((key, badge, switch))
+      self._items.append(rows)
 
   def _select(self, index: int) -> None:
     self._tab = index
 
-  def _panel(self, bundle: Bundle) -> ListPanel:
-    tuner = self._tuner
-
-    def item(key: str) -> SettingRow:
-      return SettingRow(ITEM_NAMES[key], lambda: "Override: differs from the bundle" if tuner.item_differs(bundle, key) else None,
-                        Switch(lambda: tuner.switch(key), lambda on: tuner.set_switch(key, on)), subtitle_color=T.WARNING)
-
-    def footnote() -> str:
-      return f"{tuner.bundle_changes(bundle)} of {len(tuner.bundle_items(bundle))} items differ from the bundle."
-
-    return ListPanel([item(k) for k in tuner.bundle_items(bundle)], title="Bundle Overrides", footnote=footnote)
-
   def _render(self, rect: rl.Rectangle):
-    tabs_h = T.SEGMENT_HEIGHT
-    w, _ = self._tabs.preferred_size(rect.width)
-    self._tabs.render(rl.Rectangle(rect.x, rect.y, w, tabs_h))
-    self._panels[self._tab].render(rl.Rectangle(rect.x, rect.y + tabs_h + T.px(12), rect.width, rect.height - tabs_h - T.px(12)))
+    tuner, bundle = self._tuner, OVERRIDE_BUNDLES[self._tab]
+    draw.fill(rect, T.SURFACE_2, T.RADIUS_PANEL)
+    header = inset(rl.Rectangle(rect.x, rect.y, rect.width, self.HEADER), left=T.px(22), right=T.px(16), y=T.px(8))
+    w, h = self._tabs.preferred_size(header.width)
+    self._tabs.render(place(header, w, h, Align.START))
+    on = tuner.bundle_on(bundle)
+    draw.text(header, "Bundle on" if on else "Bundle off", T.SIZE_SUBTITLE, T.SUCCESS_TEXT if on else T.TEXT_MUTED, T.FONT_SEMIBOLD,
+              Align.END)
+    draw.hline(rect.x, rect.y + self.HEADER, rect.width)
+
+    note_h = draw.line_height(T.SIZE_SUBTITLE) + T.px(28)
+    grid = inset(rl.Rectangle(rect.x, rect.y + self.HEADER, rect.width, rect.height - self.HEADER - note_h), x=T.px(10), y=T.px(6))
+    col_w = (grid.width - T.px(10)) / 2
+    for i, (key, badge, switch) in enumerate(self._items[self._tab]):
+      col, line = i % 2, i // 2
+      cell = rl.Rectangle(grid.x + col * (col_w + T.px(10)), grid.y + line * (self.ROW + T.DIVIDER), col_w, self.ROW)
+      if line > 0:
+        draw.hline(cell.x, cell.y - T.DIVIDER, cell.width)
+      body = inset(cell, x=T.px(10))
+      sw, sh = switch.preferred_size(body.width)
+      switch.render(place(body, sw, sh, Align.END))
+      text = inset(body, right=sw + T.px(10))
+      if tuner.item_differs(bundle, key):   # only the shown tab's widgets render, so only they take taps
+        bw, bh = badge.preferred_size(text.width)
+        badge.render(place(text, bw, bh, Align.END))
+        text = inset(text, right=bw + T.px(10))
+      draw.text(text, ITEM_NAMES[key], T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
+    note = f"{tuner.bundle_changes(bundle)} of {len(tuner.bundle_items(bundle))} items differ from the bundle."
+    draw.text(rl.Rectangle(rect.x + T.px(22), rect.y + rect.height - note_h, rect.width - T.px(44), note_h), note, T.SIZE_SUBTITLE,
+              T.TEXT_TERTIARY)
 
 
 def tuner_page(tuner: Tuner, window):
