@@ -1011,3 +1011,40 @@ def test_device_actions_ask_first_with_our_dialog():
   for _, action, _ in asked:
     action()
   assert device.calls == ["restart", "power_off", "recalibrate", "reset_driver_monitoring"]
+
+
+def test_bar_metrics_pick_up_to_five_in_catalog_order_and_reset_to_the_mock():
+  from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_DEFAULT, STRIP_PARAM
+  from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner
+  store, cache = _store()
+  tuner = Tuner(store)
+  assert tuner.strip() == list(STRIP_DEFAULT)            # unset: the mock's five
+  tuner.toggle_strip("steer")                            # already five: nothing changes
+  assert tuner.strip() == list(STRIP_DEFAULT)
+  tuner.toggle_strip("jerk")
+  tuner.toggle_strip("steer")
+  assert tuner.strip() == ["accel", "want", "lat", "delay", "steer"]
+  for key in list(tuner.strip()):
+    tuner.toggle_strip(key)
+  assert tuner.strip() == [] and cache.values[STRIP_PARAM] == "none"
+  tuner.reset_all()
+  assert tuner.strip() == list(STRIP_DEFAULT)
+
+
+def test_bar_metrics_sheet_opens_from_developer_view_overrides():
+  from openpilot.selfdrive.ui.tandem.overlays import Sheet
+  from openpilot.selfdrive.ui.tandem.settings.tuner import BundleOverrides, StripPicker, Tuner
+
+  class Window:
+    overlay = None
+
+    def present(self, overlay):
+      self.overlay = overlay
+
+    def dismiss(self):
+      self.overlay = None
+
+  store, _ = _store()
+  tuner, window = Tuner(store), Window()
+  BundleOverrides(tuner, window)._choose._click_callback()
+  assert isinstance(window.overlay, Sheet) and isinstance(window.overlay._body, StripPicker)

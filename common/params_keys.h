@@ -316,6 +316,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DeveloperSidebarMetric5", {PERSISTENT, INT, "5", "0", 3}},
     {"DeveloperSidebarMetric6", {PERSISTENT, INT, "6", "0", 3}},
     {"DeveloperSidebarMetric7", {PERSISTENT, INT, "7", "0", 3}},
+    {"DeveloperStripMetrics", {PERSISTENT, STRING, "accel,want,jerk,lat,delay", "accel,want,jerk,lat,delay", 3}},
     {"DeveloperUI", {PERSISTENT, BOOL, "0", "0", 3}},
     {"GalaxyDeveloperMode", {PERSISTENT | DONT_LOG, BOOL, "0", "0", 0, SETTINGS_SIMPLE}},
     {"GalaxyDeviceName", {PERSISTENT | DONT_LOG, STRING, "", "", 0}},

@@ -14,7 +14,8 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Stepper, Switch, Tone
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.display import CLEAN_SCREEN
@@ -204,6 +205,22 @@ class Tuner:
   def bundle_changes(self, bundle: Bundle) -> int:
     return sum(self.item_differs(bundle, k) for k in self.bundle_items(bundle))
 
+  # Developer View's strip: up to STRIP_MAX metrics, kept in STRIP_METRICS order
+
+  def strip(self) -> list[str]:
+    from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_PARAM, strip_keys
+    return strip_keys(self._store.get_str(STRIP_PARAM) or None)   # unset reads as the default; picking none saves "none"
+
+  def toggle_strip(self, key: str) -> None:
+    """Adds or removes a metric. Adding one past the limit does nothing; the picker shows it as unavailable."""
+    from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_MAX, STRIP_METRICS, STRIP_PARAM
+    picked = self.strip()
+    if key in picked:
+      picked.remove(key)
+    elif len(picked) < STRIP_MAX and key in STRIP_METRICS:
+      picked.append(key)
+    self._store.write({STRIP_PARAM: ",".join(k for k in STRIP_METRICS if k in picked) or "none"})
+
   # Counts and reset
 
   def changed(self, tunables: list[Tunable]) -> int:
@@ -228,6 +245,8 @@ class Tuner:
     for bundle in OVERRIDE_BUNDLES:
       on = bundle.is_on(self._store)
       values |= {k: v for k, v in (bundle.on if on else bundle.off).items() if k in ITEM_NAMES}
+    from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_DEFAULT, STRIP_PARAM
+    values[STRIP_PARAM] = ",".join(STRIP_DEFAULT)
     self._store.write(values)
 
 
@@ -318,6 +337,69 @@ def following_panel(tuner: Tuner, window) -> ListPanel:
   ], title="Following & Stops")
 
 
+class StripPicker(Component):
+  """Developer View's bar metrics: a grid of tiles, each picked or not. Once five are picked the rest dim until one is
+  taken away."""
+  grow_touch_target = False
+  COLUMNS, TILE, GAP = 3, T.px(78), T.px(10)
+
+  def __init__(self, tuner: Tuner):
+    from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_METRICS
+    super().__init__()
+    self._tuner = tuner
+    self._keys = list(STRIP_METRICS)
+    self._pressed: str | None = None
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    rows = -(-len(self._keys) // self.COLUMNS)
+    return max_width, rows * self.TILE + (rows - 1) * self.GAP
+
+  def _cells(self, rect: rl.Rectangle) -> list[tuple[str, rl.Rectangle]]:
+    w = (rect.width - self.GAP * (self.COLUMNS - 1)) / self.COLUMNS
+    return [(k, rl.Rectangle(rect.x + (i % self.COLUMNS) * (w + self.GAP), rect.y + (i // self.COLUMNS) * (self.TILE + self.GAP), w, self.TILE))
+            for i, k in enumerate(self._keys)]
+
+  def _hit(self, pos) -> str | None:
+    return next((k for k, cell in self._cells(self._rect) if rl.check_collision_point_rec(pos, cell)), None)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed:
+      self._tuner.toggle_strip(hit)
+    self._pressed = None
+
+  def _render(self, rect: rl.Rectangle):
+    from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_MAX, STRIP_METRICS
+    picked = self._tuner.strip()
+    full = len(picked) >= STRIP_MAX
+    for key, cell in self._cells(rect):
+      on = key in picked
+      draw.fill(cell, T.ACCENT_SELECTED if on else T.SURFACE_4, T.px(14))
+      if on:
+        draw.stroke(cell, T.ACCENT, T.px(14), T.px(2))
+      elif self.is_pressed and key == self._pressed:
+        draw.pressed(cell, T.px(14))
+      body = inset(cell, x=T.px(16), y=T.px(12))
+      label, line = column(body, [draw.line_height(T.font_px(17)), FILL], T.px(2))
+      dim = full and not on
+      draw.text(label, STRIP_METRICS[key][0], T.font_px(17), T.TEXT_MUTED if dim else T.TEXT, T.FONT_MONO_BOLD)
+      draw.text(line, draw.fit(STRIP_METRICS[key][1], T.font_px(14), T.FONT, line.width - T.px(26)), T.font_px(14),
+                T.TEXT_MUTED if dim else T.TEXT_TERTIARY, v=Align.START)
+      if on:
+        draw.check(rl.Rectangle(body.x + body.width - T.px(18), label.y, T.px(18), label.height), T.ACCENT_TEXT, T.px(18))
+
+
+def strip_sheet(tuner: Tuner, window) -> Sheet:
+  from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_MAX
+  return Sheet("Bar metrics", StripPicker(tuner),
+               subtitle=lambda: f"{len(tuner.strip())} of {STRIP_MAX} picked. They spread evenly across the bar; pick none to hide it.",
+               actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss)
+
+
 class BundleOverrides(Component):
   """One panel: the bundle tabs and whether that bundle is on, then a switch per param it sets in two columns, marked
   OVERRIDE where it differs from the bundle."""
@@ -325,10 +407,12 @@ class BundleOverrides(Component):
   HEADER = T.px(64)
   ROW = T.px(50)
 
-  def __init__(self, tuner: Tuner):
+  def __init__(self, tuner: Tuner, window=None):
     super().__init__()
     self._tuner = tuner
     self._tab = 0
+    self._choose = self._child(Button("Choose", lambda: window.present(strip_sheet(tuner, window)) if window else None,
+                                      ButtonStyle.SECONDARY, height=T.px(40), font_size=T.font_px(15), weight=T.FONT_BOLD))
     self._tabs = self._child(Segmented([b.name for b in OVERRIDE_BUNDLES], lambda: self._tab, self._select, height=T.px(48),
                                        font_size=T.font_px(15)))
     self._items = []
@@ -371,6 +455,17 @@ class BundleOverrides(Component):
         badge.render(place(text, bw, bh, Align.END))
         text = inset(text, right=bw + T.px(10))
       draw.text(text, ITEM_NAMES[key], T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
+    if OVERRIDE_BUNDLES[self._tab] is DEVELOPER_VIEW:   # the strip's metrics, under the switches
+      lines = -(-len(self._items[self._tab]) // 2)
+      cell = rl.Rectangle(grid.x, grid.y + lines * (self.ROW + T.DIVIDER), grid.width, self.ROW)
+      draw.hline(cell.x, cell.y - T.DIVIDER, cell.width)
+      body = inset(cell, x=T.px(10))
+      bw, bh = self._choose.preferred_size(body.width)
+      self._choose.render(place(body, bw, bh, Align.END))
+      title_w = draw.text(body, "Bar metrics", T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
+      picked = ", ".join(tuner.strip()) or "None: the bar is hidden"
+      words = inset(body, left=title_w + T.px(14), right=bw + T.px(14))
+      draw.text(words, draw.fit(picked, T.SIZE_SUBTITLE, T.FONT, words.width), T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
     note = f"{tuner.bundle_changes(bundle)} of {len(tuner.bundle_items(bundle))} items differ from the bundle."
     draw.text(rl.Rectangle(rect.x + T.px(22), rect.y + rect.height - note_h, rect.width - T.px(44), note_h), note, T.SIZE_SUBTITLE,
               T.TEXT_TERTIARY)
@@ -392,6 +487,6 @@ def tuner_page(tuner: Tuner, window):
             value_tone=Tone.WARNING),
     Section("Following & Stops", lambda: following_panel(tuner, window), lambda: _changed_label(tuner.following_changes()),
             value_tone=Tone.WARNING),
-    Section("Bundle Overrides", lambda: BundleOverrides(tuner),
+    Section("Bundle Overrides", lambda: BundleOverrides(tuner, window),
             lambda: _changed_label(sum(tuner.bundle_changes(b) for b in OVERRIDE_BUNDLES)), value_tone=Tone.WARNING),
   ], tone=Tone.WARNING, footer=[Button("Reset all tuning", reset_all, ButtonStyle.DANGER_SOFT, width=T.SIDEBAR_WIDTH)])

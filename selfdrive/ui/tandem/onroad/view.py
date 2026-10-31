@@ -205,7 +205,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _sign_note(self) -> str:
     """Developer View's line under the sign: where the limit came from and the offset ("MAP · +3")."""
-    if self._dev is None or not ui_state.sm.valid.get("starpilotPlan", False):
+    if self._dev is None or not self._dev.show_source or not ui_state.sm.valid.get("starpilotPlan", False):
       return ""
     plan = ui_state.sm["starpilotPlan"]
     offset = round(plan.slcSpeedLimitOffset * (CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH))
@@ -296,7 +296,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
       return
     c = self._content_rect
     lift = 0.0
-    if self._dev is not None:   # Developer View's control readout, just above the bar; the chip moves up over it
+    if self._dev is not None and self._dev.strip:   # the picked metrics, just above the bar; the chip moves up over it
       lift = STRIP_H + T.px(6)
       draw_strip(rl.Rectangle(c.x, c.y + c.height - BAR_MARGIN - BAR_HEIGHT - lift, c.width, STRIP_H), self._dev)
     self._chip_view.render(rl.Rectangle(c.x, c.y, c.width, c.height - lift))

@@ -3,8 +3,12 @@
 - A panel on the right: LEAD (distance, gap, relative speed, radar or vision), DEVICE (CPU and temperature, GPU, RAM with
   bars, FPS) and CONTROLS (curve speed, limit source, lane widths). It replaces StarPilot's developer sidebar, which
   still decides when the panel shows (its DeveloperSidebar setting).
-- A strip above the bar: accel, want, jerk, lateral accel and steering delay.
+- A strip above the bar: up to five metrics the driver picks (STRIP_METRICS, kept in DeveloperStripMetrics), spread
+  evenly across it. The mock's five are the default; picking none hides the strip.
 - A tag above the lead car: distance, gap and relative speed.
+
+Each Device and Controls row follows StarPilot's own switch for it (ShowCPU, ShowGPU, NumericalTemp, ShowMemoryUsage,
+FPSCounter, AdjacentPathMetrics, SpeedLimitSources), so Bundle Overrides decides what shows.
 
 read() gathers every value from openpilot's and StarPilot's messages; the draw functions only draw, so they render
 without a car.
@@ -27,6 +31,32 @@ BAR_INK = T.ACCENT_TEXT
 STRIP_FILL = rl.Color(0x0B, 0x0D, 0x10, 0x99)
 TAG_FILL = rl.Color(0x0B, 0x0D, 0x10, 0xE6)
 MONO, BOLD = T.FONT_MONO, T.FONT_MONO_BOLD   # the mock sets the panel, strip and tag in JetBrains Mono
+
+
+# The strip's choices: key, its label on the strip, and what it is (for the picker), in the order they're drawn.
+STRIP_METRICS: dict[str, tuple[str, str]] = {
+  "accel": ("accel", "Acceleration now"),
+  "want": ("want", "Acceleration openpilot asks for"),
+  "jerk": ("jerk", "Planned jerk"),
+  "lat": ("lat", "Lateral acceleration"),
+  "delay": ("delay", "Steering delay"),
+  "steer": ("steer", "Steering wheel angle"),
+  "torque": ("torque", "Steering torque used"),
+  "danger": ("danger", "Following danger factor"),
+  "ratio": ("ratio", "Steer ratio"),
+}
+STRIP_PARAM = "DeveloperStripMetrics"
+STRIP_DEFAULT = ("accel", "want", "jerk", "lat", "delay")
+STRIP_MAX = 5
+
+
+def strip_keys(raw: str | bytes | None) -> list[str]:
+  """The picked metrics from the param, known ones only, at most STRIP_MAX, in STRIP_METRICS order."""
+  text = raw.decode() if isinstance(raw, bytes) else str(raw or "")
+  if not text:
+    return list(STRIP_DEFAULT)      # unset (an empty pick is saved as "none")
+  picked = {k.strip() for k in text.split(",")}
+  return [k for k in STRIP_METRICS if k in picked][:STRIP_MAX]
 
 
 @dataclass
@@ -55,6 +85,22 @@ class DevData:
   jerk: str = "0.0"
   lat: str = "0.0 m/s²"
   delay: str = "0.00 s"
+  steer: str = "0°"
+  torque: str = "0%"
+  danger: str = "0%"
+  ratio: str = "—"
+  strip: tuple[str, ...] = STRIP_DEFAULT      # which metrics the strip shows
+  # StarPilot's switches for each row
+  show_cpu: bool = True
+  show_temp: bool = True
+  show_gpu: bool = True
+  show_ram: bool = True
+  show_fps: bool = True
+  show_lanes: bool = True
+  show_source: bool = True
+
+  def strip_values(self) -> list[tuple[str, str]]:
+    return [(STRIP_METRICS[k][0], getattr(self, k)) for k in self.strip]
 
 
 # ── Drawing ──
@@ -101,22 +147,34 @@ def draw_panel(rect: rl.Rectangle, data: DevData) -> None:
       draw.text(top, label, T.font_px(11), LABEL, MONO)
       draw.text(bottom, draw.fit(value, T.font_px(18), BOLD, bottom.width), T.font_px(18), ink or T.TEXT, BOLD)
     y += tile_h + T.px(6)
-  y = _section(body, y + T.px(6), "Device")
-  cpu = f"{round(data.cpu * 100)}%" + (f" · {data.cpu_temp}" if data.cpu_temp else "")
-  y = _meter(body, _pair(body, y, "CPU", cpu), data.cpu)
-  y = _meter(body, _pair(body, y, "GPU", f"{round(data.gpu * 100)}%"), data.gpu)
-  y = _meter(body, _pair(body, y, "RAM", data.ram_text), data.ram)
-  y = _pair(body, y, "FPS", data.fps)
+  if data.show_cpu or data.show_temp or data.show_gpu or data.show_ram or data.show_fps:
+    y = _section(body, y + T.px(6), "Device")
+    if data.show_cpu or data.show_temp:
+      load = f"{round(data.cpu * 100)}%" if data.show_cpu else ""
+      temp = data.cpu_temp if data.show_temp else ""
+      y = _pair(body, y, "CPU" if data.show_cpu else "Temp", " · ".join(v for v in (load, temp) if v))
+      if data.show_cpu:
+        y = _meter(body, y, data.cpu)
+    if data.show_gpu:
+      y = _meter(body, _pair(body, y, "GPU", f"{round(data.gpu * 100)}%"), data.gpu)
+    if data.show_ram:
+      y = _meter(body, _pair(body, y, "RAM", data.ram_text), data.ram)
+    if data.show_fps:
+      y = _pair(body, y, "FPS", data.fps)
   y = _section(body, y + T.px(6), "Controls")
   y = _pair(body, y, "curve spd", data.curve)
-  y = _pair(body, y, "limit src", data.limit_source)
-  _pair(body, y, "lanes L/R", data.lanes)
+  if data.show_source:
+    y = _pair(body, y, "limit src", data.limit_source)
+  if data.show_lanes:
+    _pair(body, y, "lanes L/R", data.lanes)
 
 
 def draw_strip(rect: rl.Rectangle, data: DevData) -> None:
-  """accel, want, jerk, lat and delay in one dark band, spread evenly."""
+  """The picked metrics in one dark band: each gets an equal share of the width, centered in it, so fewer spread wider."""
+  parts = data.strip_values()
+  if not parts:
+    return
   draw.fill(rect, STRIP_FILL)
-  parts = [("accel", data.accel), ("want", data.want), ("jerk", data.jerk), ("lat", data.lat), ("delay", data.delay)]
   for (label, value), cell in zip(parts, row(inset(rect, x=T.px(20)), [FILL] * len(parts), T.px(12)), strict=True):
     lw = draw.text_width(label + " ", T.font_px(13), MONO)
     vw = draw.text_width(value, T.font_px(13), BOLD)
@@ -159,16 +217,24 @@ def lead_of(lead, v_ego: float, metric: bool) -> Lead | None:
               rel < -0.5, "radar" if getattr(lead, "radar", False) else "vision")
 
 
-def read(ui_state) -> DevData:
-  """Every value the Developer View shows, from the messages the UI already receives."""
+def read(ui_state, params=None) -> DevData:
+  """Every value the Developer View shows, from the messages the UI already receives, and which parts StarPilot's switches
+  turn on. params is the UI's per-frame param cache (ui_state.ui_params by default)."""
   from openpilot.common.constants import CV
+  params = params if params is not None else ui_state.ui_params
+  toggles = ui_state.starpilot_toggles or {}
+  shown = lambda toggle, key: bool(toggles[toggle]) if toggle in toggles else bool(params.get_bool(key))  # noqa: E731
   sm = ui_state.sm
   get = lambda name: sm[name] if sm.valid.get(name, False) else None  # noqa: E731
   car, control, plan, device, delay = get("carState"), get("carControl"), get("starpilotPlan"), get("deviceState"), get("liveDelay")
   controls, radar = get("controlsState"), get("radarState")
   metric = bool(ui_state.is_metric)
   v_ego = car.vEgo if car else 0.0
-  data = DevData()
+  data = DevData(strip=tuple(strip_keys(params.get(STRIP_PARAM, return_default=True))),
+                 show_cpu=shown("cpu_metrics", "ShowCPU"), show_temp=shown("numerical_temp", "NumericalTemp"),
+                 show_gpu=shown("gpu_metrics", "ShowGPU"), show_ram=shown("memory_metrics", "ShowMemoryUsage"),
+                 show_fps=shown("show_fps", "FPSCounter"), show_lanes=shown("adjacent_path_metrics", "AdjacentPathMetrics"),
+                 show_source=shown("speed_limit_sources", "SpeedLimitSources"))
   data.lead = lead_of(radar.leadOne if radar else None, v_ego, metric)
   if device:
     cpus = list(device.cpuUsagePercent)
@@ -189,6 +255,14 @@ def read(ui_state) -> DevData:
     data.accel = _signed(car.aEgo)
   if control:
     data.want = _signed(control.actuators.accel)
+    data.torque = f"{round(abs(control.actuators.torque) * 100)}%"
+  if car:
+    data.steer = f"{round(car.steeringAngleDeg)}°".replace("-", "−")
+  if plan:
+    data.danger = f"{round(plan.dangerFactor * 100)}%"
+  live = get("liveParameters")
+  if live:
+    data.ratio = f"{live.steerRatio:.2f}"
   if controls and car:
     data.lat = f"{abs(car.vEgo ** 2 * controls.curvature):.1f} m/s²"
   if delay:
