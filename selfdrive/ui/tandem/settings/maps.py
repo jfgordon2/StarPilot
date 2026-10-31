@@ -14,10 +14,11 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, IconTitle, Label, Stack, Surface
-from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ProgressBar, Segmented, Switch
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, row
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow, Text
+from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Grid, IconTitle, Label, Stack, Surface
+from openpilot.selfdrive.ui.tandem.chrome import PageHeader, Sidebar, SidebarItem
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ProgressBar, Segmented
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
 from openpilot.selfdrive.ui.tandem.settings.pages import TitledPage, body_rect
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -164,8 +165,41 @@ def maps_page(maps: Maps, open_regions: Callable[[], None]) -> Widget:
                     Columns([regions, Stack([schedule, storage], gap=T.px(14), grow=1)], [1.25, 1]))
 
 
+class RegionCard(Component):
+  """A region to tap on or off; chosen regions have the accent fill and outline."""
+
+  def __init__(self, region: Region, maps: Maps):
+    super().__init__()
+    self._region = region
+    self._maps = maps
+    self.set_click_callback(lambda: maps.source.set_selected(region.token, not self.chosen))
+
+  @property
+  def chosen(self) -> bool:
+    return self._maps.source.selected(self._region.token)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(96)
+
+  def _render(self, rect: rl.Rectangle):
+    chosen = self.chosen
+    draw.fill(rect, T.ACCENT_SELECTED if chosen else T.SURFACE_3, T.px(16))
+    if chosen:
+      draw.stroke(rect, T.ACCENT, T.px(16), T.px(2))
+    elif self.is_pressed:
+      draw.pressed(rect, T.px(16))
+    body = inset(rect, x=T.px(16), y=T.px(12))
+    if not self._region.detail:
+      draw.text(body, self._region.name, T.font_px(17), T.TEXT, T.FONT_BOLD)
+      return
+    lines = [draw.line_height(T.font_px(17)), draw.line_height(T.SIZE_CAPTION)]
+    title, line = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
+    draw.text(title, self._region.name, T.font_px(17), T.TEXT, T.FONT_BOLD)
+    draw.text(line, self._region.detail, T.SIZE_CAPTION, T.TEXT_TERTIARY)
+
+
 class RegionsPage(Component):
-  """Tabs of regions on the left, each with a switch; the selection and readiness checks on the right."""
+  """Region kinds on the left, the regions as cards in the middle, and the selection with its download on the right."""
   grow_touch_target = False
   TABS = ["U.S. regions", "U.S. states", "Other countries"]
 
@@ -173,33 +207,43 @@ class RegionsPage(Component):
     super().__init__()
     self._maps = maps
     self._tab = 0
-    tabs = Segmented(self.TABS, lambda: self._tab, self._select)
+    self._header = self._child(PageHeader("Add map regions", "Pick a region, or switch to states for less storage"))
+    self._tabs = self._child(Sidebar("REGIONS", [SidebarItem(t, on_select=lambda i=i: self._select(i)) for i, t in enumerate(self.TABS)],
+                                     selected=lambda: self._tab, width=T.px(220)))
 
     def build() -> ListPanel:
-      rows = [SettingRow(r.name, r.detail or None, Switch(lambda t=r.token: maps.source.selected(t),
-                                                          lambda on, t=r.token: maps.source.set_selected(t, on)))
-              for r in maps.source.regions(self._tab)]
-      return ListPanel(rows or [Text("No regions available.")], title="Add map regions", header_control=tabs)
+      cards = [RegionCard(r, maps) for r in maps.source.regions(self._tab)]
+      return ListPanel([Grid(cards, columns=2 if self._tab == 0 else 3)] if cards else [Text("No regions available.")],
+                       background=T.BG, dividers=False)
 
     self._list = self._child(Rebuilding(lambda: self._tab, build, maps.source.tick))
-    download = Button("Download", on_download, ButtonStyle.PRIMARY)
+    download = Button("Download", on_download, ButtonStyle.PRIMARY, height=T.px(60))
     download.set_enabled(maps.ready)
-    self._side = self._child(ListPanel([
-      SectionHeader("SELECTED"),
-      SettingRow(maps.source.selection_summary, None),
-      SectionHeader("READY TO DOWNLOAD"),
-      *[SettingRow(name, lambda name=name: "Yes" if dict(maps.source.checks()).get(name) else "Not yet",
-                   subtitle_color=lambda name=name: T.SUCCESS_TEXT if dict(maps.source.checks()).get(name) else T.WARNING)
-        for name, _ in maps.source.checks()],
-    ], footer=download))
+
+    def check(name: str) -> Label:
+      ok = lambda: bool(dict(maps.source.checks()).get(name))  # noqa: E731
+      return Label(lambda: name if ok() else f"{name}: not yet", T.font_px(15), lambda: T.TEXT_SECONDARY if ok() else T.WARNING, T.FONT,
+                   icon=lambda: "check" if ok() else "warning", icon_color=lambda: T.SUCCESS_TEXT if ok() else T.WARNING)
+
+    self._side = self._child(Card([
+      Label("SELECTED", color=T.ACCENT_TEXT, caption=True),
+      Text(maps.source.selection_summary, T.font_px(22), T.TEXT, T.FONT_EXTRABOLD, padding=(0, 0)),
+      Stack([check(name) for name, _ in maps.source.checks()], gap=T.px(8)),
+      SPACER,
+      download,
+    ], padding=(T.px(18), T.px(18))))
 
   def _select(self, index: int) -> None:
     self._tab = index
 
   def _render(self, rect: rl.Rectangle):
-    left, right = row(body_rect(rect), [FILL, T.px(380)], T.PANEL_GAP)
-    self._list.render(left)
-    self._side.render(right)
+    body = inset(body_rect(rect), top=T.px(2))
+    header, content = column(body, [self._header.preferred_height(body.width), FILL], T.px(14))
+    self._header.render(header)
+    tabs, grid, side = row(content, [T.px(220), FILL, T.px(330)], T.px(14))
+    self._tabs.render(inset(tabs, top=-T.px(8)))
+    self._list.render(grid)
+    self._side.render(side)
 
 
 class UpstreamMaps:

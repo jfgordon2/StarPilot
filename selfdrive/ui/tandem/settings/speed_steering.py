@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from openpilot.starpilot.common.accel_profile import ACCELERATION_PROFILES as ACCEL, DECELERATION_PROFILES as DECEL
 from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem.blocks import Grid, InfoCard
 from openpilot.selfdrive.ui.tandem.controls import Button, ChoiceCards, Segmented, Stepper, Switch
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, Padded, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
@@ -227,12 +228,13 @@ class Weather:
 
 
 def weather_panel(model: Weather) -> ListPanel:
-  conditions = [("Fog or low visibility", "Longer following gap"), ("Rain", "Longer gap, earlier braking"),
-                ("Heavy rain or storms", "More gap, softer acceleration"), ("Snow or ice", "Most gap, gentlest starts and stops")]
-  rows = [SettingRow(title, subtitle) for title, subtitle in conditions]
-  for row in rows:
-    row.set_enabled(lambda: model.mode == 0)
-  return ListPanel([SectionHeader("WHAT CHANGES"), *rows], title="Weather",
+  conditions = [("Fog or low visibility", "Longer following gap", "fog"), ("Rain", "Longer gap, earlier braking", "rain"),
+                ("Heavy rain or storms", "More gap, softer acceleration", "storm"),
+                ("Snow or ice", "Most gap, gentlest starts and stops", "snow")]
+  cards = [InfoCard(title, line, icon) for title, line, icon in conditions]
+  for card in cards:
+    card.set_enabled(lambda: model.mode == 0)
+  return ListPanel([SectionHeader("WHAT CHANGES"), Padded(Grid(cards), x=T.px(16), y=T.px(6))], title="Weather",
                    subtitle="Drives more cautiously in bad conditions, using local weather",
                    header_control=Segmented(WEATHER, lambda: model.mode, model.set_mode),
                    footnote="Needs an internet connection. The status chip shows when it's active.")

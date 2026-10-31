@@ -181,8 +181,10 @@ class ChoiceCards(Component):
   grow_touch_target = False
 
   def __init__(self, options: list[tuple[str, str]], selected: Bindable[int], on_change: Callable[[int], None],
-               columns: int = 2, card_height: float = T.px(92)):
+               columns: int = 2, card_height: float = T.px(92), large: bool = False):
+    """large: tall cards with the title at the top (first-run setup); " · recommended" in a title becomes a badge."""
     super().__init__()
+    self._large = large
     self._options = options
     self._selected = selected
     self._on_change = on_change
@@ -198,7 +200,7 @@ class ChoiceCards(Component):
     return max_width, rows * self._card_height + (rows - 1) * T.px(12)
 
   def card_rects(self) -> list[rl.Rectangle]:
-    return grid(self._rect, self._columns, self._rows(), T.px(12))[:len(self._options)]
+    return grid(self._rect, self._columns, self._rows(), T.px(16 if self._large else 12))[:len(self._options)]
 
   def _hit(self, pos: MousePos) -> int | None:
     return next((i for i, r in enumerate(self.card_rects()) if rl.check_collision_point_rec(pos, r)), None)
@@ -215,18 +217,35 @@ class ChoiceCards(Component):
 
   def _render(self, rect: rl.Rectangle):
     selected = resolve(self._selected)
+    radius = T.px(24) if self._large else T.RADIUS_CARD
     for i, ((title, subtitle), r) in enumerate(zip(self._options, self.card_rects(), strict=True)):
       chosen = i == selected
-      draw.fill(r, T.ACCENT_SELECTED if chosen else T.SURFACE_4, T.RADIUS_CARD)
+      draw.fill(r, T.ACCENT_SELECTED if chosen else (T.SURFACE_2 if self._large else T.SURFACE_4), radius)
       if chosen:
-        draw.stroke(r, T.ACCENT, T.RADIUS_CARD, T.px(2))
+        draw.stroke(r, T.ACCENT, radius, T.px(2))
       elif self.is_pressed and i == self._pressed_card:
-        draw.pressed(r, T.RADIUS_CARD)
+        draw.pressed(r, radius)
+      if self._large:
+        self._render_large(inset(r, T.px(24)), title, subtitle)
+        continue
       body = inset(r, x=T.px(18))
       lines = [draw.line_height(T.font_px(19)), draw.line_height(T.SIZE_SUBTITLE)]
       title_rect, sub_rect = column(place(body, body.width, sum(lines) + T.px(4)), lines, T.px(4))
       draw.text(title_rect, title, T.font_px(19), T.TEXT, T.FONT_BOLD)
       draw.text(sub_rect, subtitle, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
+
+  @staticmethod
+  def _render_large(body: rl.Rectangle, title: str, subtitle: str) -> None:
+    name, recommended = title.removesuffix(" · recommended"), title.endswith(" · recommended")
+    size = T.font_px(26)
+    title_rect = rl.Rectangle(body.x, body.y, body.width, draw.line_height(size))
+    w = draw.text(title_rect, name, size, T.TEXT, T.FONT_EXTRABOLD)
+    if recommended:
+      label = "RECOMMENDED"
+      badge = place(inset(title_rect, left=w + T.px(10)), draw.text_width(label, T.SIZE_BADGE, T.FONT_BOLD) + T.px(16), T.px(26), Align.START)
+      draw.fill(badge, T.ACCENT, T.RADIUS_BADGE)
+      draw.text(badge, label, T.SIZE_BADGE, T.ACCENT_INK, T.FONT_BOLD, Align.CENTER)
+    draw.paragraph(inset(body, top=title_rect.height + T.px(10)), subtitle, T.font_px(16), T.TEXT_TERTIARY)
 
 
 class ValueButton(Button):

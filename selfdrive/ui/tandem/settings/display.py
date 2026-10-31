@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from openpilot.selfdrive.ui.tandem import tokens as T
+import pyray as rl
+
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem.base import Component
+from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ChoiceCards, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow, Text
@@ -189,7 +193,7 @@ def map_panel(model: Display, open_offline_maps: Callable[[], None]) -> ListPane
     SettingRow("Turn-by-Turn on Screen", "Next turn, arrival time and distance while navigating",
                Switch(lambda: model.turn_by_turn, model.set_turn_by_turn)),
     SettingRow("Speed Limit Sign", "US style, or the round Vienna style used in most other countries",
-               Segmented(["US", "Vienna"], lambda: model.vienna, model.set_vienna)),
+               SignPicker(lambda: model.vienna, model.set_vienna), height=T.px(96)),
     SettingRow("Offline Maps", "Speed limits and routing without a connection", on_click=open_offline_maps),
     Text("The street name is always shown in the onroad bar. Speed limit sources and their order are in Tuner Mode.",
          T.SIZE_SUBTITLE),
@@ -224,3 +228,47 @@ def edit_startup_message(model: Display) -> None:
 
   keyboard.set_callback(on_result)
   ask("Startup Message: first line", top)
+
+
+VIENNA_RED = rl.Color(0xD9, 0x43, 0x4F, 255)
+
+
+class SignPicker(Component):
+  """The two speed limit sign styles as small pictures: a US "55" sign and a round Vienna "90"."""
+  CARD_W, CARD_H = T.px(86), T.px(72)
+
+  def __init__(self, selected: Callable[[], int], on_change: Callable[[int], None]):
+    super().__init__()
+    self._selected = selected
+    self._on_change = on_change
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return self.CARD_W * 2 + T.px(8), self.CARD_H
+
+  def _cards(self) -> list[rl.Rectangle]:
+    return [rl.Rectangle(self._rect.x + i * (self.CARD_W + T.px(8)), self._rect.y, self.CARD_W, self.CARD_H) for i in range(2)]
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    for i, r in enumerate(self._cards()):
+      if rl.check_collision_point_rec(mouse_pos, r) and i != self._selected():
+        self._on_change(i)
+
+  def _render(self, rect: rl.Rectangle):
+    for i, r in enumerate(self._cards()):
+      chosen = i == self._selected()
+      draw.fill(r, T.ACCENT_SELECTED if chosen else T.SURFACE_4, T.px(14))
+      if chosen:
+        draw.stroke(r, T.ACCENT, T.px(14), T.px(2))
+      if i == 0:
+        sign = place(r, T.px(36), T.px(46))
+        draw.fill(sign, rl.WHITE, T.px(5))
+        draw.stroke(inset(sign, T.px(3)), T.BG, T.px(3), T.px(2))
+        draw.text(sign, "55", T.font_px(16), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+      else:
+        sign = place(r, T.px(46), T.px(46))
+        draw.fill(sign, VIENNA_RED, T.px(23))
+        draw.fill(inset(sign, T.px(6)), rl.WHITE, T.px(17))
+        draw.text(sign, "90", T.font_px(16), T.BG, T.FONT_EXTRABOLD, Align.CENTER)
+
+

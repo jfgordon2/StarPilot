@@ -11,13 +11,13 @@ from typing import Protocol
 
 import pyray as rl
 
-from openpilot.selfdrive.ui.tandem import tokens as T
+from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Tone, ValueButton
-from openpilot.selfdrive.ui.tandem.layout import FILL, Fill, column, row
+from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, Fill, column, grid, inset, place, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow, Text
-from openpilot.selfdrive.ui.tandem.settings.model import Pair, Rebuilding
+from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
 from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
 
 LEARN_SECONDS = 20
@@ -76,6 +76,56 @@ class WheelButtons:
     return f"{count} wheel button{'s' if count != 1 else ''}" if count else "No wheel buttons"
 
 
+# Mock icons for the wheel button actions, by the action key's last part.
+ACTION_ICONS = {"engage_openpilot": "play", "disengage_openpilot": "stop", "cycle_driving_personality": "style",
+                "toggle_screen_off": "display", "bookmark": "bookmark", "toggle_aol": "wheel", "force_coast": "coast", "set_speed": "gauge"}
+
+
+def action_icon(key: str) -> str:
+  return "star" if key.startswith("favorite:") else ACTION_ICONS.get(key.rsplit(":", 1)[-1], "chevron")
+
+
+class ActionGrid(Component):
+  """The actions as cards in three columns, each with its icon; the chosen one is outlined."""
+
+  def __init__(self, actions: list[tuple[str, str]], selected: Callable[[], int], on_change: Callable[[int], None]):
+    super().__init__()
+    self._actions = actions
+    self._selected = selected
+    self._on_change = on_change
+    self._pressed: int | None = None
+
+  def _cells(self) -> list[rl.Rectangle]:
+    rows = -(-len(self._actions) // 3)
+    return grid(self._rect, 3, rows, T.px(10))[:len(self._actions)]
+
+  def _hit(self, pos) -> int | None:
+    return next((i for i, r in enumerate(self._cells()) if rl.check_collision_point_rec(pos, r)), None)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed:
+      self._on_change(hit)
+    self._pressed = None
+
+  def _render(self, rect: rl.Rectangle):
+    selected = self._selected()
+    for i, ((key, name), r) in enumerate(zip(self._actions, self._cells(), strict=True)):
+      chosen = i == selected
+      draw.fill(r, T.ACCENT_SELECTED if chosen else T.SURFACE_4, T.px(16))
+      if chosen:
+        draw.stroke(r, T.ACCENT, T.px(16), T.px(2))
+      elif self.is_pressed and i == self._pressed:
+        draw.pressed(r, T.px(16))
+      body = inset(r, x=T.px(14))
+      draw.icon(rl.Rectangle(body.x, body.y, T.px(22), body.height), action_icon(key), T.ACCENT_TEXT, T.px(22))
+      draw.text(inset(body, left=T.px(34)), name, T.font_px(16), T.TEXT, T.FONT_BOLD if chosen else T.FONT_SEMIBOLD)
+
+
 class AssignSheet(Component):
   """Step 1: press the button on the remote. Step 2: choose what it does. Save maps it."""
   grow_touch_target = False
@@ -87,7 +137,7 @@ class AssignSheet(Component):
     self._learned: dict | None = None
     self._action = -1
     self._started = False
-    self._list = self._child(OptionList([name for _, name in model.source.actions()], lambda: self._action, self._pick, row_height=T.px(50)))
+    self._grid = self._child(ActionGrid(model.source.actions(), lambda: self._action, self._pick))
 
   def _pick(self, index: int) -> None:
     self._action = index
@@ -123,23 +173,34 @@ class AssignSheet(Component):
       return "All button slots are in use", "Remove a button to add another."
     if self._learned is None:
       remaining = self._model.source.status().get("remaining_seconds")
-      return "Press the button on your remote", f"Listening{f' for {remaining:.0f} s' if remaining else ''}. It stops after {LEARN_SECONDS} s."
+      return "Press the button on your remote", f"Listening{f' · {remaining:.0f} s left' if remaining else ''}."
     return f"{self._learned.get('event_name') or 'Button'} detected", "Press a different button on the remote to change it."
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, T.px(400)
+    return max_width, T.px(330)
 
   def _render(self, rect: rl.Rectangle):
-    from openpilot.selfdrive.ui.tandem import draw
-    left, right = row(rect, [Fill(0.8), FILL], T.px(22))
-    cap1, title, sub, _ = column(left, [T.px(28), draw.line_height(T.font_px(22)), draw.line_height(T.SIZE_SUBTITLE), FILL], T.px(8))
-    draw.caption(cap1, "STEP 1 · PRESS IT")
+    detected = self._learned is not None
+    card, right = row(rect, [T.px(280), FILL], T.px(16))
+    draw.fill(card, T.SUCCESS_CARD if detected else T.SURFACE_1, T.px(20))
+    draw.stroke(card, T.SUCCESS_EDGE if detected else T.TRACK, T.px(20), T.px(1))
+    body = inset(card, T.px(20))
     heading, detail = self.step_one()
-    draw.text(title, heading, T.font_px(22), T.SUCCESS_TEXT if self._learned else T.TEXT, T.FONT_BOLD)
-    draw.text(sub, detail, T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
-    cap2, options = column(right, [T.px(28), FILL], T.px(8))
-    draw.caption(cap2, "STEP 2 · CHOOSE WHAT IT DOES")
-    self._list.render(options)
+    cap, well, title, sub, _, note = column(body, [T.px(20), T.px(64), draw.line_height(T.font_px(22)) * 2,
+                                                   draw.paragraph_height(detail, T.font_px(15), T.FONT, body.width), FILL,
+                                                   draw.line_height(T.SIZE_CAPTION)], T.px(10))
+    draw.caption(cap, "STEP 1 · PRESS IT", T.SUCCESS_TEXT if detected else T.ACCENT_TEXT)
+    circle = rl.Rectangle(well.x, well.y, T.px(64), T.px(64))
+    draw.fill(circle, T.SUCCESS_WELL if detected else T.ACCENT_SURFACE, T.px(32))
+    draw.icon(circle, "check" if detected else "locate", T.SUCCESS_TEXT if detected else T.ACCENT_TEXT, T.px(30))
+    draw.paragraph(title, heading, T.font_px(22), T.TEXT, T.FONT_EXTRABOLD, spacing=1.0)
+    draw.paragraph(sub, detail, T.font_px(15), T.TEXT_TERTIARY)
+    draw.text(note, f"Listening stops after {LEARN_SECONDS} s.", T.SIZE_CAPTION, T.TEXT_MUTED)
+
+    cap2, grid_rect, foot = column(right, [T.px(20), FILL, draw.line_height(T.SIZE_SUBTITLE)], T.px(10))
+    draw.caption(cap2, "STEP 2 · CHOOSE WHAT IT DOES", T.ACCENT_TEXT)
+    self._grid.render(grid_rect)
+    draw.text(foot, "Pulse and glide and driver selfie are in Tuner Mode.", T.SIZE_SUBTITLE, T.TEXT_MUTED)
 
 
 def wheel_panel(model: WheelButtons, window) -> Component:
@@ -176,22 +237,99 @@ def wheel_panel(model: WheelButtons, window) -> Component:
     window.present(Sheet("Assign a button", sheet_body, actions=[Button("Cancel", cancel), Button("Save", save, ButtonStyle.PRIMARY)],
                          on_dismiss=cancel))
 
-  def button_row(index: int, mapping: dict) -> SettingRow:
-    pressed = Badge("Pressed", Tone.SUCCESS)
-    pressed.set_visible(lambda: model.is_pressed(mapping))
-    value = ValueButton(lambda: model.action_name(mapping), change(mapping))
-    value.set_visible(lambda: not model.is_pressed(mapping))
-    return SettingRow(f"Button {index + 1}", mapping.get("event_name"), Pair(pressed, value))
-
   def build() -> ListPanel:
-    rows = [button_row(i, m) for i, m in enumerate(model.buttons())]
-    add_row = SettingRow("Add a button", lambda: "That button isn't assigned yet. Tap to add it." if model.unassigned_pressed() else None,
-                         on_click=add, subtitle_color=T.SUCCESS_TEXT)
-    return ListPanel([*rows, add_row], title="Wheel Buttons",
-                     subtitle=lambda: f"{model.remote_name()} · press any button to find it",
+    rows = [WheelRow(i, m, model, change(m)) for i, m in enumerate(model.buttons())]
+    return ListPanel([WheelHeader(model), *rows, AddButtonRow(model, add)],
                      footnote="Buttons don't run their actions while this screen is open.")
 
   return Rebuilding(lambda: tuple((m["id"], m["slot"]) for m in model.buttons()), build)
+
+
+class WheelHeader(Component):
+  """Icon, Wheel Buttons and the remote, with a reminder that pressing a button finds it."""
+  grow_touch_target = False
+
+  def __init__(self, model: WheelButtons):
+    super().__init__()
+    self._model = model
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(76)
+
+  def _render(self, rect: rl.Rectangle):
+    body = inset(rect, left=T.px(20), right=T.px(14))
+    well = place(body, T.px(48), T.px(48), Align.START)
+    draw.fill(well, T.ACCENT_SURFACE, T.px(14))
+    draw.icon(well, "wheel", T.ACCENT_TEXT, T.px(26))
+    hint = "Press any button to find it"
+    chip_w = draw.text_width(hint, T.SIZE_SUBTITLE, T.FONT_SEMIBOLD) + T.px(52)
+    if self._model.buttons():
+      chip = place(body, chip_w, T.px(40), Align.END)
+      draw.fill(chip, T.ACCENT_SURFACE, T.px(12))
+      draw.icon(rl.Rectangle(chip.x + T.px(12), chip.y, T.px(16), chip.height), "locate", T.ACCENT_TEXT, T.px(16))
+      draw.text(inset(chip, left=T.px(38)), hint, T.SIZE_SUBTITLE, T.ACCENT_CHIP_TEXT, T.FONT_SEMIBOLD)
+      body = inset(body, right=chip_w + T.px(14))
+    text = inset(body, left=T.px(62))
+    lines = [draw.line_height(T.font_px(20)), draw.line_height(T.SIZE_SUBTITLE)]
+    title, line = column(place(text, text.width, sum(lines) + T.px(2)), lines, T.px(2))
+    draw.text(title, "Wheel Buttons", T.font_px(20), T.TEXT, T.FONT_BOLD)
+    draw.text(line, self._model.remote_name(), T.SIZE_SUBTITLE, T.SUCCESS_TEXT if self._model.buttons() else T.TEXT_TERTIARY)
+
+
+class WheelRow(Component):
+  """A "Button N" chip and its action; lit up while that button is pressed."""
+
+  def __init__(self, index: int, mapping: dict, model: WheelButtons, on_click: Callable[[], None]):
+    super().__init__()
+    self._index, self._mapping, self._model = index, mapping, model
+    self.set_click_callback(on_click)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(60)
+
+  def _render(self, rect: rl.Rectangle):
+    pressed = self._model.is_pressed(self._mapping)
+    if pressed:
+      draw.fill(rect, T.ACCENT_SELECTED)
+      draw.stroke(rect, T.ACCENT, 0, T.px(2))
+    elif self.is_pressed:
+      draw.pressed(rect)
+    body = inset(rect, left=T.px(20), right=T.px(12))
+    label = f"Button {self._index + 1}"
+    chip = place(body, draw.text_width(label, T.SIZE_SUBTITLE, T.FONT_EXTRABOLD) + T.px(32), T.px(34), Align.START)
+    draw.fill(chip, T.ACCENT if pressed else T.CONTROL, T.px(10))
+    draw.text(chip, label, T.SIZE_SUBTITLE, T.ACCENT_INK if pressed else T.TEXT_SECONDARY, T.FONT_EXTRABOLD if pressed else T.FONT_BOLD,
+              Align.CENTER)
+    draw.chevron(rl.Rectangle(body.x + body.width - T.px(18), body.y, T.px(18), body.height), T.TEXT_TERTIARY, T.px(18))
+    text = inset(body, left=chip.width + T.px(14), right=T.px(30))
+    if pressed:
+      w = draw.text(text, "PRESSED", T.SIZE_CAPTION, T.ACCENT_TEXT, T.FONT_BOLD, Align.END)
+      text = inset(text, right=w + T.px(12))
+    draw.text(text, self._model.action_name(self._mapping), T.font_px(18), T.TEXT, T.FONT_BOLD if pressed else T.FONT_SEMIBOLD)
+
+
+class AddButtonRow(Component):
+  """+ Add a button, in the accent; says so when an unassigned button was just pressed."""
+
+  def __init__(self, model: WheelButtons, on_click: Callable[[], None]):
+    super().__init__()
+    self._model = model
+    self.set_click_callback(on_click)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(58)
+
+  def _render(self, rect: rl.Rectangle):
+    unassigned = self._model.unassigned_pressed()
+    if unassigned:
+      draw.fill(rect, T.SUCCESS_CARD)
+    if self.is_pressed:
+      draw.pressed(rect)
+    body = inset(rect, x=T.px(20))
+    ink = T.SUCCESS_TEXT if unassigned else T.ACCENT_TEXT
+    draw.icon(rl.Rectangle(body.x, body.y, T.px(20), body.height), "plus", ink, T.px(20))
+    label = "That button isn't assigned yet. Tap to add it." if unassigned else "Add a button"
+    draw.text(inset(body, left=T.px(32)), label, T.font_px(17), ink, T.FONT_BOLD)
 
 
 class BluetoothDevices(Protocol):

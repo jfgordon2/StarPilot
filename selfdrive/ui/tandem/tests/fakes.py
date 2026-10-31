@@ -171,7 +171,7 @@ class FakeWheel:
   def __init__(self):
     self.maps = [{"id": "a", "device_name": "Wheel Remote", "event_name": "BTN_A", "slot": 3},
                  {"id": "b", "device_name": "Wheel Remote", "event_name": "BTN_B", "slot": 4}]
-    self.keys = {3: "engage", 4: "disengage"}
+    self.keys = {3: "a:engage_openpilot", 4: "a:disengage_openpilot"}
     self.state = {"testing": True, "last_tested": None, "devices": [{"name": "Wheel Remote"}]}
     self.learning = None
 
@@ -182,7 +182,8 @@ class FakeWheel:
     return f"favorite:{slot}" if slot < 3 else self.keys.get(slot)
 
   def actions(self):
-    return [("engage", "Engage"), ("disengage", "Disengage"), ("style", "Change driving style"), ("screen", "Screen off / on"),
+    return [("a:engage_openpilot", "Engage"), ("a:disengage_openpilot", "Disengage"), ("a:cycle_driving_personality", "Change driving style"),
+            ("a:toggle_screen_off", "Screen off / on"),
             ("favorite:0", "Navigate to favorite 1")]
 
   def status(self):

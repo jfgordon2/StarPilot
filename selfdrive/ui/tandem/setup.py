@@ -88,7 +88,7 @@ class SetupWindow(Component):
   def __init__(self, setup: Setup):
     super().__init__()
     self._setup = setup
-    self._cards = [self._child(ChoiceCards(q.options, lambda i=i: setup.answers[i], setup.pick, columns=1, card_height=T.px(100)))
+    self._cards = [self._child(ChoiceCards(q.options, lambda i=i: setup.answers[i], setup.pick, columns=3, large=True))
                    for i, q in enumerate(QUESTIONS)]
     self._defaults = self._child(Button("Use defaults", lambda: setup.finish(use_answers=False), ButtonStyle.GHOST))
     self._back = self._child(Button("Back", setup.back, ButtonStyle.SECONDARY))
@@ -99,24 +99,26 @@ class SetupWindow(Component):
   def _render(self, rect: rl.Rectangle):
     draw.fill(rect, T.BG)
     s = self._setup
-    body = inset(rect, x=T.px(60), y=T.px(36))
-    left, right = row(body, [T.px(400), FILL], T.px(40))
-    cap, title, note, _ = column(left, [T.px(28), draw.line_height(T.font_px(34)) * 2 + T.px(8), FILL, T.px(10)], T.px(14))
+    body = inset(rect, x=T.px(28), y=T.px(24))
+    header, cards, footer = column(body, [T.px(24) + T.px(6) + draw.line_height(T.font_px(34)), FILL, T.px(64)], T.px(18))
+    cap, title = column(header, [T.px(24), FILL], T.px(6))
     draw.caption(cap, f"STEP {s.step + 1} OF {len(QUESTIONS)}", T.ACCENT_TEXT)
-    draw.paragraph(title, s.question.title, T.font_px(34), T.TEXT, T.FONT_EXTRABOLD)
+    draw.text(title, s.question.title, T.font_px(34), T.TEXT, T.FONT_EXTRABOLD)
+    for i in range(len(QUESTIONS)):   # progress dots, top right
+      dot = rl.Rectangle(header.x + header.width - (len(QUESTIONS) - i) * T.px(42) + T.px(8), header.y + T.px(8), T.px(34), T.px(8))
+      draw.fill(dot, T.ACCENT if i <= s.step else T.TRACK, T.px(4))
+
+    card = self._cards[s.step]
+    card.render(cards)
     remaining = [q.name for q in QUESTIONS[s.step + 1:]]
     hint = "You can change all of these later in Settings › Driving."
-    draw.paragraph(rl.Rectangle(note.x, note.y, note.width, T.px(120)), hint if not remaining else
-                   f"Next: {', then '.join(remaining)}. {hint}", T.font_px(16), T.TEXT_TERTIARY)
-
-    cards, buttons = column(right, [FILL, T.px(64)], T.px(20))
-    card = self._cards[s.step]
-    h = card.preferred_height(cards.width)
-    card.render(rl.Rectangle(cards.x, cards.y, cards.width, h))
-    defaults_w = self._defaults.preferred_size(buttons.width)[0]
-    left_b, _, back, nxt = row(buttons, [defaults_w, FILL, T.px(160), T.px(220)], T.px(12))
-    self._defaults.render(left_b)
-    self._back.render(back)
+    note = hint if not remaining else f"Next: {', then '.join(remaining)}. You can change all of these later."
+    widths = [self._defaults.preferred_size(footer.width)[0], T.px(140) if s.step > 0 else 0, T.px(200)]
+    text, defaults, back, nxt = row(footer, [FILL, *widths], T.px(14))
+    draw.text(text, note, T.font_px(16), T.TEXT_TERTIARY)
+    self._defaults.render(defaults)
+    if s.step > 0:
+      self._back.render(back)
     self._next.render(nxt)
 
 

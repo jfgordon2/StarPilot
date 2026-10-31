@@ -113,7 +113,7 @@ class Label(Component):
   grow_touch_target = False
 
   def __init__(self, text: Bindable[str], size: int = T.SIZE_PANEL_TITLE, color: Bindable[rl.Color] = T.TEXT, weight=T.FONT_BOLD,
-               caption: bool = False, h: Align = Align.START, icon: Bindable[str | None] = None, icon_color: rl.Color | None = None):
+               caption: bool = False, h: Align = Align.START, icon: Bindable[str | None] = None, icon_color: Bindable[rl.Color] | None = None):
     super().__init__()
     self._text, self._size, self._color, self._weight, self._caption, self._h = text, size, color, weight, caption, h
     self._icon, self._icon_color = icon, icon_color
@@ -125,7 +125,7 @@ class Label(Component):
     name = resolve(self._icon)
     if name:
       size = round(self._size * 1.1)
-      draw.icon(rl.Rectangle(rect.x, rect.y, size, rect.height), name, self._icon_color or resolve(self._color), size)
+      draw.icon(rl.Rectangle(rect.x, rect.y, size, rect.height), name, resolve(self._icon_color or self._color), size)
       rect = inset(rect, left=size + T.px(8))
     if self._caption:
       draw.caption(rect, resolve(self._text), resolve(self._color), self._h)
@@ -261,3 +261,71 @@ class Field(Component):
     text = inset(box, x=T.px(12))
     draw.text(rl.Rectangle(text.x, text.y, text.width, min(text.height, T.px(44))), value or self._placeholder, T.font_px(15),
               T.TEXT if value else T.TEXT_MUTED)
+
+
+class Grid(Component):
+  """Widgets in rows of `columns`, each row as tall as its tallest item (or row_height)."""
+  grow_touch_target = False
+
+  def __init__(self, items: list[Widget], columns: int = 2, gap: float = T.px(10), row_height: float | None = None):
+    super().__init__()
+    self._items = [self._child(w) for w in items]
+    self._columns, self._gap, self._row_height = columns, gap, row_height
+
+  def _rows(self) -> list[list[Widget]]:
+    visible = [w for w in self._items if w.is_visible]
+    return [visible[i:i + self._columns] for i in range(0, len(visible), self._columns)]
+
+  def _cell_width(self, width: float) -> float:
+    return (width - self._gap * (self._columns - 1)) / self._columns
+
+  def _height(self, items: list[Widget], width: float) -> float:
+    return self._row_height or max(size_of(w, self._cell_width(width))[1] for w in items)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    rows = self._rows()
+    return max_width, sum(self._height(r, max_width) for r in rows) + self._gap * max(0, len(rows) - 1)
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    for w in self._items:
+      w.set_parent_rect(parent_rect)
+
+  def set_touch_valid_callback(self, touch_callback) -> None:
+    super().set_touch_valid_callback(touch_callback)
+    for w in self._items:
+      w.set_touch_valid_callback(touch_callback)
+
+  def _render(self, rect: rl.Rectangle):
+    w = self._cell_width(rect.width)
+    y = rect.y
+    for items in self._rows():
+      h = self._height(items, rect.width)
+      for i, item in enumerate(items):
+        item.render(rl.Rectangle(rect.x + i * (w + self._gap), y, w, h))
+      y += h + self._gap
+
+
+class InfoCard(Component):
+  """A small card: an optional icon, a title and a line (Weather's conditions)."""
+  grow_touch_target = False
+
+  def __init__(self, title: Bindable[str], line: Bindable[str], icon: str | None = None, background: rl.Color = T.SURFACE_4):
+    super().__init__()
+    self._title, self._line, self._icon, self._background = title, line, icon, background
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, draw.line_height(T.font_px(17)) + T.px(3) + draw.line_height(T.SIZE_SUBTITLE) + T.px(28)
+
+  def _render(self, rect: rl.Rectangle):
+    draw.fill(rect, self._background, T.px(16))
+    body = inset(rect, x=T.px(16), y=T.px(14))
+    if self._icon:
+      draw.icon(rl.Rectangle(body.x, body.y, T.px(24), body.height), self._icon, self.ink(T.ACCENT_TEXT), T.px(24))
+      body = inset(body, left=T.px(36))
+    title, line = column(body, [draw.line_height(T.font_px(17)), draw.line_height(T.SIZE_SUBTITLE)], T.px(3))
+    draw.text(title, resolve(self._title), T.font_px(17), self.ink(T.TEXT), T.FONT_BOLD)
+    draw.text(line, resolve(self._line), T.SIZE_SUBTITLE, self.ink(T.TEXT_TERTIARY))
+
+  def ink(self, color: rl.Color) -> rl.Color:
+    return color if self.enabled else T.TEXT_MUTED

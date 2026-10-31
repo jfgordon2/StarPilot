@@ -65,6 +65,9 @@ SUCCESS = _hex("1F9A55")                # engaged border, engage button
 SUCCESS_BRIGHT = _hex("3FD08A")         # turn signal chevrons, status dots
 SUCCESS_TEXT = _hex("6FD8A0")
 SUCCESS_SURFACE = _hex("13301F")
+SUCCESS_CARD = _hex("13221A")           # a card for something that worked (button detected)
+SUCCESS_EDGE = _hex("1F5A3A")
+SUCCESS_WELL = _hex("1B3A28")
 SUCCESS_CHIP_TEXT = _hex("D2F5E1")
 
 WARNING = _hex("F0B35A")                # Tuner Mode, paused or blocked chips, working arc
