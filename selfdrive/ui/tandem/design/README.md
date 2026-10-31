@@ -27,6 +27,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Onroad alert levels | [alertstyles.html](alertstyles.html) |
 | Confirm new speed limit | [confirmlimit.html](confirmlimit.html) |
 | Confirm dialogs | [confirmdialog.html](confirmdialog.html) |
+| Keyboard | [keyboard.html](keyboard.html) |
 | Progress, blocked, done, empty | [feedback.html](feedback.html) |
 | Parked home | [home.html](home.html) |
 | First-run setup | [setup.html](setup.html) |

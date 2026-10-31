@@ -303,14 +303,16 @@ class UpstreamDevice:
     return self._galaxy_qr[1]._qr_texture
 
   def set_up_remote_access(self) -> None:
-    """Upstream's Galaxy keyboard (password, at least 6 characters), then the same files upstream writes. Upstream's own
-    handler would end on its QR dialog; our page shows the code instead."""
+    """Our keyboard with upstream's Galaxy rules (a password, at least 6 characters), then the same files upstream
+    writes. Upstream's own handler would end on its QR dialog; our page shows the code instead."""
     import hashlib
     import secrets
     from openpilot.selfdrive.ui.layouts.settings import device as upstream
     from openpilot.system.ui.lib.application import gui_app
     from openpilot.system.ui.widgets import DialogResult
-    layout, keyboard = self._layout, self._layout._galaxy_keyboard
+    from openpilot.selfdrive.ui.tandem.keyboard import EssentialsKeyboard
+    layout = self._layout
+    keyboard = EssentialsKeyboard(min_text_size=6, password_mode=True, show_password_toggle=True, action="Set up")
 
     def done(result: int) -> None:
       password = keyboard.text.strip()

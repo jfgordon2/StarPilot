@@ -350,8 +350,8 @@ def report_panel(report: Report) -> Widget:
   def edit(title: str, get: Callable[[], str], set_: Callable[[str], None]) -> Callable[[], None]:
     def open_keyboard():
       from openpilot.system.ui.lib.application import gui_app
-      from openpilot.system.ui.widgets.keyboard import Keyboard
-      keyboard = Keyboard(min_text_size=0)
+      from openpilot.selfdrive.ui.tandem.keyboard import EssentialsKeyboard
+      keyboard = EssentialsKeyboard(min_text_size=0, action="Save")
       keyboard.set_title(title, "Optional")
       keyboard.set_text(get())
       keyboard.set_callback(lambda result: set_(keyboard.text.strip()) if result == DialogResult.CONFIRM else None)

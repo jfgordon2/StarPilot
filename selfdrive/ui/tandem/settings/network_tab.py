@@ -23,12 +23,14 @@ OPEN, UNSUPPORTED = 0, 4      # upstream SecurityType values
 METERED_YES, METERED_NO = 1, 2
 
 
-def ask_text(title: str, subtitle: str, current: str, on_done: Callable[[str], None], min_length: int = 0, password: bool = False) -> None:
-  """Upstream's on-screen keyboard; it closes itself and reports the result."""
+def ask_text(title: str, subtitle: str, current: str, on_done: Callable[[str], None], min_length: int = 0, password: bool = False,
+             action: str = "Save") -> None:
+  """The Essentials keyboard (upstream's, restyled); it closes itself and reports the result."""
   from openpilot.system.ui.lib.application import gui_app
   from openpilot.system.ui.widgets import DialogResult
-  from openpilot.system.ui.widgets.keyboard import Keyboard
-  keyboard = Keyboard(max_text_size=64, min_text_size=min_length, password_mode=password, show_password_toggle=password)
+  from openpilot.selfdrive.ui.tandem.keyboard import EssentialsKeyboard
+  keyboard = EssentialsKeyboard(max_text_size=64, min_text_size=min_length, password_mode=password, show_password_toggle=password,
+                                action=action)
   keyboard.set_title(title, subtitle)
   keyboard.set_text(current)
   keyboard.set_callback(lambda result: on_done(keyboard.text) if result == DialogResult.CONFIRM else None)
@@ -67,7 +69,7 @@ class Network:
 
   def _need_password(self, ssid: str, retry: bool = True) -> None:
     self._ask("Wrong password" if retry else "Enter password", f"for \"{ssid}\"", "",
-              lambda password: self.wifi.connect_to_network(ssid, password), MIN_PASSWORD, True)
+              lambda password: self.wifi.connect_to_network(ssid, password), MIN_PASSWORD, True, "Connect")
 
   def forget(self, ssid: str) -> None:
     self.wifi.forget_connection(ssid)
@@ -76,8 +78,8 @@ class Network:
     def with_name(ssid: str) -> None:
       if ssid:
         self._ask("Enter password", f"for \"{ssid}\", or leave empty for an open network", "",
-                  lambda password: self.wifi.connect_to_network(ssid, password, hidden=True))
-    self._ask("Network name", "", "", with_name, 1)
+                  lambda password: self.wifi.connect_to_network(ssid, password, hidden=True), 0, True, "Connect")
+    self._ask("Network name", "", "", with_name, 1, False, "Next")
 
   # Hotspot and data
 

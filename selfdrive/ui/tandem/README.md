@@ -16,6 +16,7 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | `assets/` | `boot_logo.jpg`, Tandem's boot logo (2160×1080, from `boot_logo.html`). Choosing it copies the file into StarPilot's boot logos folder, where StarPilot's theme manager installs it like any other logo; the Essentials defaults choose it. |
 | `blocks.py` | Layout blocks for the mocks' card layouts: `Stack` (with `SPACER`s or a growing item), `Card`, `Columns`, `Grid`, `Label`, `ValueLine`, `IconTitle`, `InfoCard`, `Field`, `Icon`, `Inline`, `Sized`, `Surface` |
 | `overlays.py` | `Sheet` (slides up), `Dialog` (confirm; `Tone.DANGER` gives a destructive button), `Toast` |
+| `keyboard.py` | `EssentialsKeyboard`: upstream's `Keyboard` (typing, shift and caps, the 123 and #+= layers, backspace repeat, password masking, minimum length) drawn as `design/keyboard.html`, with a named action key. Used by every text entry our screens open: Wi-Fi and hotspot passwords, APN, Report a Problem, the startup message and the Galaxy password. Destination search keeps StarPilot's own. |
 
 ## Building a screen
 

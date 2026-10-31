@@ -223,12 +223,12 @@ def map_panel(model: Display, open_offline_maps: Callable[[], None]) -> ListPane
 
 
 def edit_startup_message(model: Display) -> None:
-  """Two keyboard steps (top line, then bottom line) using upstream's keyboard. Empty text restores the default line."""
+  """Two keyboard steps (top line, then bottom line). Empty text restores the default line."""
   from openpilot.system.ui.lib.application import gui_app
   from openpilot.system.ui.widgets import DialogResult
-  from openpilot.system.ui.widgets.keyboard import Keyboard
+  from openpilot.selfdrive.ui.tandem.keyboard import EssentialsKeyboard
 
-  keyboard = Keyboard(min_text_size=0)
+  keyboard = EssentialsKeyboard(min_text_size=0, action="Next")
   top, bottom = model.startup_message()
   lines: list[str] = []
 
@@ -244,6 +244,7 @@ def edit_startup_message(model: Display) -> None:
       return
     lines.append(keyboard.text.strip() or STARTUP_DEFAULTS[len(lines)])
     if len(lines) == 1:
+      keyboard.set_action("Save")
       ask("Startup Message: second line", bottom)
     else:
       model.set_startup_message(*lines)
