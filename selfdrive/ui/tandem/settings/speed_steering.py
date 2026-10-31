@@ -120,9 +120,8 @@ class SpeedSteering:
 
 
 def everyday_panel(model: SpeedSteering) -> ListPanel:
-  row_height = T.px(54)   # denser than other lists, so all seven settings fit without scrolling
   style = SettingRow("Driving Style", lambda: "Relaxed while Safe Mode is on" if model.safe_mode else
-                     "Sets following gap, acceleration and braking together", Segmented(STYLES, lambda: model.style, model.set_style), height=row_height)
+                     "Sets following gap, acceleration and braking together", Segmented(STYLES, lambda: model.style, model.set_style))
   style.set_enabled(lambda: not model.safe_mode)
   offset = SettingRow("Offset", "Added to every matched limit", indent=True,
                       control=Stepper(lambda: model.offset, model.set_offset, 0, OFFSET_MAX,
@@ -136,15 +135,15 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
   rows = [
     style,
     SettingRow("Speed Limits", "Match sets cruise to the posted limit",
-               Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits), height=row_height),
+               Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits)),
     offset,
     higher,
     SettingRow("Lane Changes", lambda: f"Auto starts one change per signal, above {model.lane_change_speed} {model.unit}",
-               Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes), height=row_height),
+               Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes)),
     SettingRow("Smart Slowdowns", "Slows for curves, stop lights and stopped traffic on its own",
-               Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns), height=row_height),
+               Switch(lambda: model.smart_slowdowns, model.set_smart_slowdowns)),
     SettingRow("Always-On Steering", "Keeps steering with cruise off.",
-               Switch(lambda: model.always_on_steering, model.set_always_on_steering), height=row_height),
+               Switch(lambda: model.always_on_steering, model.set_always_on_steering)),
   ]
   return ListPanel(rows, title="Everyday", header_control=Label(lambda: f"{sum(r.is_visible for r in rows)} settings", T.SIZE_CAPTION,
                                                                 T.TEXT_MUTED, T.FONT, fit=True))
