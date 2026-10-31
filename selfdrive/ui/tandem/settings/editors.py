@@ -38,7 +38,7 @@ class NumberEditor(Component):
     self._picks = [self._child(Chip(s.fmt(p), Tone.NEUTRAL, height=T.px(40), font_size=T.font_px(16))) for p in s.picks]
     for chip, pick in zip(self._picks, s.picks, strict=True):
       chip.set_click_callback(lambda p=pick: on_change(p))
-    self._reset = self._child(Button("Reset to default", lambda: on_change(s.default), ButtonStyle.GHOST))
+    self._reset = self._child(Button("Reset to default", lambda: on_change(s.default), ButtonStyle.GHOST, weight=T.FONT_BOLD))
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
     return max_width, T.px(84) + self._slider.preferred_height(max_width) + T.px(120)

@@ -100,9 +100,9 @@ class Dialog(Component):
     self._on_result = on_result
     confirm_style = ButtonStyle.DANGER if tone == Tone.DANGER else ButtonStyle.PRIMARY
     self._cancel = self._child(Button(cancel_label, lambda: self._finish(DialogResult.CANCEL), height=T.px(64), font_size=T.font_px(19),
-                                      radius=T.px(16)))
+                                      radius=T.px(16), weight=T.FONT_BOLD))
     self._confirm = self._child(Button(confirm_label, lambda: self._finish(DialogResult.CONFIRM), confirm_style, height=T.px(64),
-                                       font_size=T.font_px(19), radius=T.px(16)))
+                                       font_size=T.font_px(19), radius=T.px(16), weight=T.FONT_EXTRABOLD))
     self.result: DialogResult = DialogResult.NO_ACTION
 
   def _finish(self, result: DialogResult) -> None:

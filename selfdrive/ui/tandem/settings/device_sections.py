@@ -362,7 +362,8 @@ def report_panel(report: Report) -> Widget:
     report.category = index
     report.sent = False
 
-  send = Button(lambda: "Sent. Thank you!" if report.sent else "Send report", report.send, ButtonStyle.PRIMARY, height=T.px(56))
+  send = Button(lambda: "Sent. Thank you!" if report.sent else "Send report", report.send, ButtonStyle.PRIMARY, height=T.px(56),
+                weight=T.FONT_EXTRABOLD)
   send.set_enabled(lambda: report.ready() and not report.sent)
   happened = Stack([
     Padded(Label("What happened?", T.font_px(22)), x=T.px(10), y=T.px(4)),

@@ -120,7 +120,8 @@ class VolumeEditor(Component):
                                       floor=SAFETY_FLOOR if group.safety else None, height=T.px(64),
                                       floor_label=f"Minimum {SAFETY_FLOOR}% for safety alerts" if group.safety else None,
                                       marks=[(group.levels[0], "Quiet"), (group.levels[1], "Normal"), (group.levels[2], "Loud")]))
-    self._reset = self._child(Button("Reset to Normal", lambda: model.set_level(group, group.levels[1]), ButtonStyle.GHOST))
+    self._reset = self._child(Button("Reset to Normal", lambda: model.set_level(group, group.levels[1]), ButtonStyle.GHOST,
+                                       weight=T.FONT_BOLD))
 
   def _value(self) -> float:
     level = self._model.level(self._group)

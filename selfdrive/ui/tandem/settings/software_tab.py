@@ -105,7 +105,7 @@ STATUS_INK = {Tone.SUCCESS: T.SUCCESS_TEXT, Tone.ACCENT: T.ACCENT_TEXT, Tone.WAR
 
 def software_page(model: Software, confirm) -> Widget:
   """The version and its actions on the left; update settings on the right."""
-  action = Button(model.action_label, model.act, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17))
+  action = Button(model.action_label, model.act, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17), weight=T.FONT_BOLD)
   action.set_enabled(lambda: model.state() != "busy")
   version = Card([
     Label(lambda: model.status_badge()[0].upper(), T.font_px(15), lambda: STATUS_INK[model.status_badge()[1]],
@@ -114,7 +114,8 @@ def software_page(model: Software, confirm) -> Widget:
     Text(lambda: " · ".join(p for p in (model.version_parts()[1], model.status_line()) if p), T.font_px(16), T.TEXT_TERTIARY,
          padding=(0, 0)),
     SPACER,
-    Columns([action, Button("What's new", model.actions.release_notes, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17))],
+    Columns([action, Button("What's new", model.actions.release_notes, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17),
+                            weight=T.FONT_BOLD)],
             gap=T.px(10)),
   ], gap=T.px(10), padding=(T.px(24), T.px(24)))
   channel = SettingRow("Release Channel", lambda: "Choose another branch" if model.tuner() else "Other branches are in Tuner Mode",

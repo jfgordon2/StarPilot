@@ -71,7 +71,7 @@ class ThisDevicePanel(ListPanel):
       SettingRow("Language", None, action("Change", device.change_language)),
       regulatory := SettingRow("Regulatory", None, action("View", device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
-    ], title="This Device", footer=ButtonRow([Button("Restart", device.restart, height=T.px(52)), power_off]))
+    ], title="This Device", footer=ButtonRow([Button("Restart", device.restart, height=T.px(52), weight=T.FONT_BOLD), power_off]))
     regulatory.set_visible(device.show_regulatory)
 
   def show_event(self):

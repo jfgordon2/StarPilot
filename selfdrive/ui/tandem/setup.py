@@ -96,7 +96,7 @@ class SetupWindow(Component):
     self._back = self._child(Button("Back", setup.back, ButtonStyle.SECONDARY))
     self._back.set_visible(lambda: setup.step > 0)
     self._next = self._child(Button(lambda: "Next" if setup.step < len(QUESTIONS) - 1 else "Start driving", setup.next,
-                                    ButtonStyle.PRIMARY))
+                                    ButtonStyle.PRIMARY, weight=T.FONT_EXTRABOLD))
 
   def _render(self, rect: rl.Rectangle):
     draw.fill(rect, T.BG)
