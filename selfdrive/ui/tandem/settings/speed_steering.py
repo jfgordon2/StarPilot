@@ -129,7 +129,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
                                       fmt=lambda v: f"+{v:g} {model.unit}", value_width=T.px(104)))
   higher = SettingRow("Higher limits", "Lower limits always apply on their own", indent=True,
                       control=Segmented(HIGHER_LIMITS, lambda: model.higher_limits, model.set_higher_limits,
-                                        height=T.px(36), font_size=T.font_px(15)))
+                                        height=T.px(42), font_size=T.font_px(15)))
   for row in (offset, higher):
     row.set_visible(lambda: model.matching)
 
@@ -192,7 +192,8 @@ class VehicleProfile:
 def vehicle_profile_panel(model: VehicleProfile) -> Widget:
   """The profiles as tiles filling the panel, then Trailer Load. No line under the title, as in the mock."""
   load = SettingRow("Trailer Load", lambda: "Weight of a loaded trailer" if model.towing else "Available with Towing",
-                    Segmented(TRAILER_LOADS, lambda: model.trailer_load, model.set_trailer_load), height=T.px(64))
+                    Segmented(TRAILER_LOADS, lambda: model.trailer_load, model.set_trailer_load, height=T.px(44),
+                              font_size=T.font_px(15)), height=T.px(64))
   load.set_enabled(lambda: model.towing)
   return Card([
     Padded(Stack([Label("Vehicle Profile", T.SIZE_PANEL_TITLE),
