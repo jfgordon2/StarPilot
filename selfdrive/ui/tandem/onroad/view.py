@@ -31,8 +31,8 @@ from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCa
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad import alerts
 from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DevData, developer_ui_on, draw_lead_tag, draw_strip, lead_of, read
-from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, BAR_ZONE, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
-                                                         Headroom, HeadroomArc, HelpSteer, LimitCard, LimitOffer, OnroadBar, StatusChip,
+from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
+                                                         Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
@@ -143,7 +143,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
     self._chip_view = StatusChip(lambda: self._chip)
-    self._arc = HeadroomArc(lambda: self._arc_state)
+    self._arc = HeadroomArc(lambda: self._arc_state, lambda: DEV_ARC if self._dev is not None else ARC)   # each mock's curve
     self._help = HelpSteer()
     self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit)   # in the sign's place, top left
     # StarPilot's HUD keeps deciding when the speed and turn card show; they're drawn in the Essentials style.
@@ -231,7 +231,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     pass
 
   def _render_torque_bar(self) -> None:
-    self._arc.render(self._above_bar())
+    self._arc.render(self._content_rect)
     if self._headroom_warning:
       self._help.render(self._content_rect)
 
@@ -280,10 +280,6 @@ class EssentialsOnroadView(StarPilotOnroadView):
     super().hide_event()
 
   # Our layers
-
-  def _above_bar(self) -> rl.Rectangle:
-    c = self._content_rect
-    return rl.Rectangle(c.x, c.y, c.width, c.height - BAR_ZONE)
 
   def _render(self, rect: rl.Rectangle):
     super()._render(rect)

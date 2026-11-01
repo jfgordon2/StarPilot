@@ -190,42 +190,78 @@ class ArcState:
   stage: str = COMFORTABLE
 
 
-ARC_SPAN = 42.0       # degrees of the full arc; at this radius it spans about 40% of the road view, as in the mock
-STAGE_STYLE = {COMFORTABLE: (T.TEXT, T.px(8)), WORKING: (T.WARNING, T.px(13)), AT_LIMIT: (rl.Color(255, 112, 67, 255), T.px(18))}
+@dataclass(frozen=True)
+class ArcShape:
+  """The arc as the mocks draw it: a quadratic curve whose ends span `chord` of the road view's width, with its control
+  point `rise` of the width above the ends (the middle sits half that above them), stroked `stroke` mock px wide, with its
+  ends `lift` mock px above the bottom of the road view."""
+  chord: float
+  rise: float
+  stroke: float
+  lift: float
+
+
+# The road views are 531 mock px tall: onroad.html's ends sit 23 above the bar, onroaddev.html's 19 above its strip.
+ARC = ArcShape(chord=432 / 1093, rise=32 / 1093, stroke=10, lift=531 - 424)     # M330 424 Q546 392 762 424
+DEV_ARC = ArcShape(chord=326 / 827, rise=28 / 827, stroke=9, lift=531 - 398)    # M250 398 Q413 370 576 398
+STAGE_STYLE = {COMFORTABLE: (T.TEXT, None), WORKING: (T.WARNING, T.px(13)), AT_LIMIT: (rl.Color(255, 112, 67, 255), T.px(18))}
+ARC_STEPS = 48
+
+
+def draw_stroke(points: list[rl.Vector2], width: float, ink: rl.Color) -> None:
+  """A round-capped line through points as one triangle strip and two half discs, so a translucent ink never
+  overlaps itself (separate segments and caps darken where they meet)."""
+  half = width / 2
+  strip: list[rl.Vector2] = []
+  for i, p in enumerate(points):
+    a, b = points[max(0, i - 1)], points[min(len(points) - 1, i + 1)]
+    dx, dy = b.x - a.x, b.y - a.y
+    length = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / length * half, dx / length * half
+    strip += [rl.Vector2(p.x - nx, p.y - ny), rl.Vector2(p.x + nx, p.y + ny)]   # raylib culls the other winding
+  rl.draw_triangle_strip(strip, len(strip), ink)
+  for end, inner in ((points[0], points[1]), (points[-1], points[-2])):
+    out = math.degrees(math.atan2(end.y - inner.y, end.x - inner.x))
+    rl.draw_circle_sector(end, half, out - 90, out + 90, 16, ink)
 
 
 class HeadroomArc(Component):
   """The arc above the bar. A faint track, the current use toward the turn, and a lighter preview of the curve ahead."""
   grow_touch_target = False
 
-  def __init__(self, state: Callable[[], ArcState]):
+  def __init__(self, state: Callable[[], ArcState], shape: Callable[[], ArcShape] = lambda: ARC):
     super().__init__()
     self._state = state
+    self._shape = shape
 
   def _render(self, rect: rl.Rectangle):
-    s = self._state()
-    radius = rect.width * 0.55
-    sag = radius * (1 - math.cos(math.radians(ARC_SPAN / 2)))   # how far the ends sit below the top; keep them above the bar
-    center = rl.Vector2(rect.x + rect.width / 2, rect.y + rect.height - T.px(18) - sag + radius)
+    s, shape = self._state(), self._shape()
+    half = rect.width * shape.chord / 2
+    cx, end_y = rect.x + rect.width / 2, rect.y + rect.height - T.px(shape.lift)   # rect is the whole road view
+    rise = rect.width * shape.rise
+
+    def at(t: float) -> rl.Vector2:
+      u = 1 - t
+      return rl.Vector2(cx - half * u * u + half * t * t, end_y - 2 * u * t * rise)
+
     color, thickness = STAGE_STYLE[s.stage]
-    top = 270.0
-    half = ARC_SPAN / 2
+    thickness = thickness or T.px(shape.stroke)
     alpha = 1.0 if s.active else 0.35
 
-    def arc(a0: float, a1: float, width: float, ink: rl.Color) -> None:
-      if abs(a1 - a0) < 0.05:
+    def arc(t0: float, t1: float, width: float, ink: rl.Color) -> None:
+      if abs(t1 - t0) < 0.002:
         return
-      rl.draw_ring(center, radius - width / 2, radius + width / 2, min(a0, a1), max(a0, a1), 64, ink)
-      for a in (a0, a1):   # round caps
-        rad = math.radians(a)
-        rl.draw_circle_v(rl.Vector2(center.x + math.cos(rad) * radius, center.y + math.sin(rad) * radius), width / 2, ink)
+      lo, hi = min(t0, t1), max(t0, t1)
+      steps = max(2, int(ARC_STEPS * (hi - lo)))
+      draw_stroke([at(lo + (hi - lo) * i / steps) for i in range(steps + 1)], width, ink)
 
-    arc(top - half, top + half, T.px(8), draw.alpha(T.TEXT, 0.18 * alpha))
+    arc(0.0, 1.0, T.px(shape.stroke), draw.alpha(T.TEXT, 0.18 * alpha))
+    reach = lambda share: 0.5 + 0.5 * max(-1.0, min(1.0, share))  # noqa: E731
     if s.active and abs(s.preview) > abs(s.usage) + 0.05:
-      arc(top, top + half * max(-1.0, min(1.0, s.preview)), thickness, draw.alpha(color, 0.3))
-    arc(top, top + half * max(-1.0, min(1.0, s.usage)), thickness, draw.alpha(color, 0.95 * alpha))
+      arc(0.5, reach(s.preview), thickness, draw.alpha(color, 0.3))
+    arc(0.5, reach(s.usage), thickness, draw.alpha(color, 0.95 * alpha))
     if abs(s.usage) < 0.03:
-      rl.draw_circle_v(rl.Vector2(center.x, center.y - radius), T.px(5), draw.alpha(T.TEXT, 0.8 * alpha))
+      rl.draw_circle_v(at(0.5), T.px(5), draw.alpha(T.TEXT, 0.8 * alpha))
 
 
 class HelpSteer(Component):
