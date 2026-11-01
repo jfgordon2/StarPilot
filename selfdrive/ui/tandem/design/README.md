@@ -80,6 +80,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 
 - **Path and lead marker** ([proposals/pathlead.html](proposals/pathlead.html)): today the path takes StarPilot's color scheme and the lead marker is the theme's red with upstream's yellow glow. Options: A, Essentials blue path with a white marker in a blue glow (recommended); B, a quiet white path with a dark-ringed white marker; C, the blue path with a marker that turns amber while the car brakes for the lead.
 - **Lead marker shapes** ([proposals/leadmarker.html](proposals/leadmarker.html)), over option A's path: 1, a ground bar on the road under the car ahead (recommended); 2, the path stopping at the car with a bright cap; 3, a focus frame of corner ticks, sized from a typical car's width at the lead's distance (openpilot knows where the car is, not its outline). Each is white while following and amber while braking for the lead.
+- **The recommendation in each situation** ([proposals/leadscenarios.html](proposals/leadscenarios.html)): option A's path with the ground bar, thinly outlined in dark, while following, braking, unsure, picking up a new car, stopped behind one, beside cars in the next lanes, in bright sun, and with no car ahead.
 
 ## Principles
 
