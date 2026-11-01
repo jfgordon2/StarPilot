@@ -141,20 +141,31 @@ class Label(Component):
 class ValueLine(Component):
   """"Engage and disengage chimes ........ 60%": a muted label with its value at the right. Tappable with on_click."""
 
-  def __init__(self, label: Bindable[str], value: Bindable[str], on_click: Callable[[], None] | None = None, size: int = T.font_px(16)):
+  def __init__(self, label: Bindable[str], value: Bindable[str], on_click: Callable[[], None] | None = None, size: int = T.font_px(16),
+               height: float | None = None):
+    """height makes it a finger-sized tile (a filled row with a chevron) instead of a bare line."""
     super().__init__()
-    self._label, self._value, self._size = label, value, size
+    self._label, self._value, self._size, self._height = label, value, size, height
     self.set_click_callback(on_click)
     self.grow_touch_target = False
 
   def preferred_size(self, max_width: float) -> tuple[float, float]:
-    return max_width, draw.line_height(self._size) + T.px(6)
+    return max_width, self._height or draw.line_height(self._size) + T.px(6)
 
   def _render(self, rect: rl.Rectangle):
-    if self._click_callback and self.is_pressed:
+    if self._height:
+      draw.fill(rect, T.SURFACE_4, T.px(14))
+      if self._click_callback and self.is_pressed:
+        draw.pressed(rect, T.px(14))
+      rect = inset(rect, x=T.px(16))
+      if self._click_callback:
+        size = T.px(16)
+        draw.chevron(rl.Rectangle(rect.x + rect.width - size, rect.y, size, rect.height), T.TEXT_TERTIARY, size)
+        rect = inset(rect, right=size + T.px(12))
+    elif self._click_callback and self.is_pressed:
       draw.pressed(rect, T.px(8))
     w = draw.text(rect, resolve(self._value), self._size, T.TEXT, T.FONT_SEMIBOLD, Align.END)
-    draw.text(inset(rect, right=w + T.px(12)), resolve(self._label), self._size, T.TEXT_TERTIARY)
+    draw.text(inset(rect, right=w + T.px(12)), resolve(self._label), self._size, T.TEXT_SECONDARY if self._height else T.TEXT_TERTIARY)
 
 
 class Sized(Component):

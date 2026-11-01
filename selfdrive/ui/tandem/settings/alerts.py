@@ -163,10 +163,11 @@ def alerts_page(model: Alerts, window) -> Widget:
 
   volume = Card([
     Label("Volume", T.font_px(20)),
-    Segmented(PRESETS, lambda: model.preset, model.set_preset, height=T.px(72), font_size=T.font_px(18), equal=True),
-    Stack([ValueLine(g.name, lambda g=g: model.level_label(g), editor(g)) for g in GROUPS], gap=T.px(4)),
+    Segmented(PRESETS, lambda: model.preset, model.set_preset, height=T.px(64), font_size=T.font_px(18), equal=True),
+    # Each group is a finger-sized tile that opens its level editor.
+    Stack([ValueLine(g.name, lambda g=g: model.level_label(g), editor(g), T.font_px(17), height=T.px(48)) for g in GROUPS], gap=T.px(6)),
     Label(note, T.SIZE_SUBTITLE, T.TEXT_MUTED, T.FONT),
-  ], gap=T.px(16))
+  ], gap=T.px(12))
   chimes = ListPanel([SettingRow(title, subtitle, Switch(lambda k=key: model.chime(k), lambda on, k=key: model.set_chime(k, on)),
                                  height=T.px(66)) for title, subtitle, key in CHIMES],
                      title="Chimes", title_size=T.font_px(20), header_divider=False)
