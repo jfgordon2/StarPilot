@@ -169,6 +169,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._turn_card = EssentialsTurnCard(self._turn_top)
     self._hud_renderer._navigation_card = self._turn_card
     self._hud_renderer._draw_current_speed = self._draw_current_speed
+    self._hud_renderer.draw_gradients = False   # no dark fade from the top or bottom edge: our tiles carry their own fills
     self._favorite_radial_menu = _NoFavorites()
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()

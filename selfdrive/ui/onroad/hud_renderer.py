@@ -87,6 +87,7 @@ class HudRenderer(Widget):
     # block, and adds a bottom gradient so they stay legible over the camera image.
     self.speed_offset_y: float = 0.0
     self.draw_bottom_gradient = False
+    self.draw_gradients = True   # False drops both dark gradients (Tandem's Essentials onroad view)
 
   def _update_state(self) -> None:
     """Update HUD state based on car state and controls state."""
@@ -126,16 +127,17 @@ class HudRenderer(Widget):
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
     # Draw the header background
-    rl.draw_rectangle_gradient_v(
-      int(rect.x),
-      int(rect.y),
-      int(rect.width),
-      UI_CONFIG.header_height,
-      COLORS.HEADER_GRADIENT_START,
-      COLORS.HEADER_GRADIENT_END,
-    )
+    if self.draw_gradients:
+      rl.draw_rectangle_gradient_v(
+        int(rect.x),
+        int(rect.y),
+        int(rect.width),
+        UI_CONFIG.header_height,
+        COLORS.HEADER_GRADIENT_START,
+        COLORS.HEADER_GRADIENT_END,
+      )
 
-    if self.draw_bottom_gradient:
+    if self.draw_bottom_gradient and self.draw_gradients:
       gradient_top = max(rect.y, rect.y + SPEED_DIGITS_TOP_Y - SPEED_GRADIENT_LEAD + self.speed_offset_y)
       rl.draw_rectangle_gradient_v(
         int(rect.x),

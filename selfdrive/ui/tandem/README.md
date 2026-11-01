@@ -66,7 +66,7 @@ This fork is rebased onto StarPilot, and everything outside this package belongs
   - The file names in `FontWeight` (`system/ui/lib/application.py`), which switch the whole UI to Figtree.
   - In `selfdrive/ui/layouts/main.py`: the imports, the calls that create the sidebar, home, settings and onroad screens (`screens.py`), and the left sidebar's width. StarPilot's developer sidebar on the right keeps upstream's width.
   - In the wheel controls daemon and its manager predicate: temporary button testing runs while the Bluetooth screen is open, including onroad, without changing the saved enable setting. Tests cover the service and screen lifecycle.
-  - Small hooks: `_show_header()` in `selfdrive/ui/layouts/home.py`, a lane line color override in `selfdrive/ui/onroad/model_renderer.py`, `_get_border_color()` in `selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py`, and the Help steer sound in `selfdrive/ui/soundd.py`.
+  - Small hooks: `_show_header()` in `selfdrive/ui/layouts/home.py`, a lane line color override in `selfdrive/ui/onroad/model_renderer.py`, `_get_border_color()` in `selfdrive/ui/onroad/starpilot/starpilot_onroad_view.py`, `draw_gradients` in `selfdrive/ui/onroad/hud_renderer.py` (off in Essentials, so no dark fade from the screen's edges), and the Help steer sound in `selfdrive/ui/soundd.py`.
   - `common/params_keys.h`: `SteeringHeadroomWarning` and `DeveloperStripMetrics`.
   - `system/version.py`: `release` is in `RELEASE_BRANCHES`, so Tandem's release branch boots as a release build (development-only params cleared, friendly update errors).
 
