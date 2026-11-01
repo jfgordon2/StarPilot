@@ -94,6 +94,8 @@ git merge upstream/StarPilot
 
 Conflicts can only come from the upstream files listed under Upstream integration, and from the owner's own changes to StarPilot code (the turn signal animations in `selfdrive/ui/onroad/starpilot/turn_signals.py` and `starpilot/assets/signal_packs/`, the settings it adds, and the diagnostics hooks). Keep upstream's version, then make our edit again. Files in this package never conflict.
 
+**Release notes:** a device's "What's new" is the top entry of `RELEASES.md` at the repo root, up to its first blank line; GitHub tags and releases aren't read. Before pushing a release, add a new top entry: a `Tandem <date>` heading, its `===` underline, then `* ` bullets (two spaces before a nested `* `), with no blank line inside. `tests/test_tandem.py` checks the top entry is Tandem's and whole.
+
 After a merge, check what Tandem reads from StarPilot, which can change without a conflict:
 - run the tests in `tests/` (see the top of this README);
 - the turn signal renderer's `render()` arguments and `BUNDLED_SIGNAL_PATHS` (`onroad/view.py`, `settings/display.py`);

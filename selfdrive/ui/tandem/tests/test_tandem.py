@@ -383,3 +383,18 @@ def test_help_steer_is_a_bottom_warning_card_with_the_arc_above_it():
   assert card.y <= road.y + road.height - BAR_MARGIN - BAR_HEIGHT                     # covering the bar's row
   assert HeadroomArc.ABOVE_CARD > 0                                                   # the arc's ends sit above it
 
+
+
+def test_release_notes_lead_with_a_tandem_entry():
+  """The updater shows RELEASES.md's first block (up to the first blank line) as What's new; it must be ours and whole."""
+  from pathlib import Path
+  from openpilot.common.markdown import parse_markdown
+  from openpilot.selfdrive.ui.tandem.settings.software_tab import notes_text
+  text = (Path(__file__).resolve().parents[4] / "RELEASES.md").read_text()
+  first, rest = text.split("\n\n", 1)
+  lines = first.splitlines()
+  assert lines[0].startswith("Tandem ") and lines[1].startswith("===")      # not openpilot's or StarPilot's notes
+  assert len(lines) > 3 and all(line.lstrip().startswith("* ") for line in lines[2:])   # a heading, then bullets
+  assert not rest.lstrip().startswith("* ")                                  # no bullets cut off by a blank line
+  shown = notes_text(parse_markdown(first))
+  assert shown.splitlines()[0] == lines[0] and shown.count("• ") == len(lines) - 2
