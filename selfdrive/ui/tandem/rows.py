@@ -73,8 +73,13 @@ class SettingRow(Component):
 
   def __init__(self, title: Bindable[str], subtitle: Bindable[str | None] = None, control: Widget | None = None,
                on_click: Callable[[], None] | None = None, indent: bool = False, height: float | None = None,
-               leading: Widget | None = None, subtitle_color: Bindable[rl.Color] = T.TEXT_TERTIARY, chevron: bool | None = None):
+               leading: Widget | None = None, subtitle_color: Bindable[rl.Color] = T.TEXT_TERTIARY, chevron: bool | None = None,
+               link: tuple[Bindable[str], Callable[[], None]] | None = None):
+    """link: (label, action) drawn after the subtitle in the accent color, e.g. "Sets 11 options"; tapping it runs action."""
     super().__init__()
+    self._link = link
+    self._link_rect: rl.Rectangle | None = None
+    self._press_on_link = False
     self._title = title
     self._subtitle = subtitle
     self._control = control
@@ -115,12 +120,21 @@ class SettingRow(Component):
   def _on_control(self, pos) -> bool:
     return self._control_hit_rect is not None and rl.check_collision_point_rec(pos, self._control_hit_rect)
 
+  def _on_link(self, pos) -> bool:
+    return self._link_rect is not None and rl.check_collision_point_rec(pos, self._link_rect)
+
   def _handle_mouse_press(self, mouse_pos) -> None:
     self._press_on_control = self._on_control(mouse_pos)
+    self._press_on_link = self._on_link(mouse_pos)
 
   def _handle_mouse_release(self, mouse_pos) -> None:
     on_control = self._press_on_control or self._on_control(mouse_pos)
     self._press_on_control = False
+    if self._press_on_link and self._on_link(mouse_pos) and self._link is not None and self.enabled:
+      self._press_on_link = False
+      self._link[1]()
+      return
+    self._press_on_link = False
     if not on_control:
       super()._handle_mouse_release(mouse_pos)
 
@@ -159,6 +173,17 @@ class SettingRow(Component):
     top = place(body, body.width, block)
     title_rect, sub_rect = column(top, [draw.line_height(title_size), draw.line_height(T.SIZE_SUBTITLE)], gap)
     draw.text(title_rect, resolve(self._title), title_size, draw.alpha(T.TEXT, dim), T.FONT_SEMIBOLD)
+    self._link_rect = None
+    if self._link is not None:
+      label = resolve(self._link[0])
+      link_w = draw.text_width(label, T.SIZE_SUBTITLE, T.FONT_SEMIBOLD)
+      sub_w = draw.text(rl.Rectangle(sub_rect.x, sub_rect.y, max(0.0, sub_rect.width - link_w - T.px(8)), sub_rect.height), subtitle,
+                        T.SIZE_SUBTITLE, draw.alpha(resolve(self._subtitle_color), dim))
+      link = rl.Rectangle(sub_rect.x + sub_w + T.px(8), sub_rect.y, link_w, sub_rect.height)
+      draw.text(link, label, T.SIZE_SUBTITLE, draw.alpha(T.ACCENT_TEXT, dim), T.FONT_SEMIBOLD)
+      rl.draw_rectangle_rec(rl.Rectangle(link.x, link.y + link.height - T.px(3), link.width, T.px(1.5)), draw.alpha(T.ACCENT_TEXT, 0.6 * dim))
+      self._link_rect = inset(link, x=-T.px(10), y=-T.px(14))   # a finger-sized target around the words
+      return
     draw.text(sub_rect, subtitle, T.SIZE_SUBTITLE, draw.alpha(resolve(self._subtitle_color), dim))
 
 

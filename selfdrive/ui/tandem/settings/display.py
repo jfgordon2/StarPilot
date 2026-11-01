@@ -10,7 +10,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import Grid
-from openpilot.selfdrive.ui.tandem.layout import Align, inset, place
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Segmented, Switch, ValueButton
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
@@ -164,6 +164,60 @@ class Display:
     return f"{PATH_STYLES[self.path_style][0]} path"
 
 
+GATE_NAMES = {"DeveloperUI": "Developer UI", "DeveloperMetrics": "Controls metrics bar", "DeveloperWidgets": "Developer widgets"}
+BUNDLE_LINES = {"Developer View": "Side panel with system and controls data.",
+                "Lead Insights": "Distance, gap and speed of the car ahead, plus radar points."}
+
+
+def bundle_items(bundle: Bundle) -> list[tuple[str, str]]:
+  """(name, param) for every option a bundle sets: its own first, then the shared Developer UI switches."""
+  from openpilot.selfdrive.ui.tandem.settings.tuner import ITEM_NAMES
+  own = [(ITEM_NAMES.get(k, k), k) for k in bundle.on if k not in GATE_NAMES]
+  return own + [(GATE_NAMES[k], k) for k in bundle.on if k in GATE_NAMES]
+
+
+class BundleGrid(Component):
+  """The options a bundle sets, as tiles of name and param, four across (design/bundlesheet.html)."""
+  grow_touch_target = False
+  COLUMNS, TILE, GAP = 4, T.px(64), T.px(10)
+
+  def __init__(self, bundle: Callable[[], Bundle]):
+    super().__init__()
+    self._bundle = bundle
+
+  def _rows(self) -> int:
+    return -(-len(bundle_items(self._bundle())) // self.COLUMNS)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    rows = self._rows()
+    return max_width, rows * self.TILE + (rows - 1) * self.GAP + T.px(16) + draw.line_height(T.SIZE_SUBTITLE)
+
+  def _render(self, rect: rl.Rectangle):
+    items = bundle_items(self._bundle())
+    w = (rect.width - self.GAP * (self.COLUMNS - 1)) / self.COLUMNS
+    for i, (name, key) in enumerate(items):
+      tile = rl.Rectangle(rect.x + (i % self.COLUMNS) * (w + self.GAP), rect.y + (i // self.COLUMNS) * (self.TILE + self.GAP), w, self.TILE)
+      draw.fill(tile, T.SURFACE_4, T.px(14))
+      top, bottom = column(place(inset(tile, x=T.px(14)), w - T.px(28), T.px(44)), [T.px(24), FILL], T.px(2))
+      draw.text(top, name, T.font_px(16), T.TEXT, T.FONT_SEMIBOLD)
+      draw.text(bottom, key, T.font_px(12), T.TEXT_TERTIARY, T.FONT_MONO)
+    note_y = rect.y + self._rows() * (self.TILE + self.GAP) + T.px(6)
+    note = rl.Rectangle(rect.x, note_y, rect.width, draw.line_height(T.SIZE_SUBTITLE))
+    draw.icon(rl.Rectangle(note.x, note.y, T.px(18), note.height), "info", T.ACCENT_TEXT, T.px(18))
+    draw.text(inset(note, left=T.px(28)), "Switching off turns these back off. To change one on its own, turn on Tuner Mode.",
+              T.SIZE_SUBTITLE, T.TEXT_SECONDARY)
+
+
+def bundle_sheet(window, start: int = 0) -> Sheet:
+  """What Developer View and Lead Insights each set, with tabs to switch between them."""
+  bundles = [DEVELOPER_VIEW, LEAD_INSIGHTS]
+  tab = [start]
+  tabs = Segmented([b.name for b in bundles], lambda: tab[0], lambda i: tab.__setitem__(0, i), height=T.px(52), font_size=T.font_px(16))
+  return Sheet(lambda: f"{bundles[tab[0]].name} sets", BundleGrid(lambda: bundles[tab[0]]),
+               subtitle="One switch for the details most drivers never need",
+               actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss, header=tabs)
+
+
 def driving_screen_panel(model: Display, window) -> ListPanel:
   def path_sheet():
     window.present(Sheet("Path Style", PathStylePicker(lambda: model.path_style, model.set_path_style),
@@ -179,8 +233,10 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",
                Switch(lambda: model.blind_spot, model.set_blind_spot)),
     SectionHeader("POWER USER"),
-    SettingRow(DEVELOPER_VIEW.name, DEVELOPER_VIEW.description, Switch(dev_get, dev_set)),
-    SettingRow(LEAD_INSIGHTS.name, LEAD_INSIGHTS.description, Switch(lead_get, lead_set)),
+    SettingRow(DEVELOPER_VIEW.name, BUNDLE_LINES[DEVELOPER_VIEW.name], Switch(dev_get, dev_set),
+               link=(f"Sets {len(bundle_items(DEVELOPER_VIEW))} options", lambda: window.present(bundle_sheet(window, 0)))),
+    SettingRow(LEAD_INSIGHTS.name, BUNDLE_LINES[LEAD_INSIGHTS.name], Switch(lead_get, lead_set),
+               link=(f"Sets {len(bundle_items(LEAD_INSIGHTS))} options", lambda: window.present(bundle_sheet(window, 1)))),
   ], title="Driving Screen")
 
 

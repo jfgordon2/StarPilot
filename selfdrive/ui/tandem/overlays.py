@@ -30,9 +30,11 @@ class Sheet(Component):
   SNAP_S = 0.18
 
   def __init__(self, title: Bindable[str], body: Widget, subtitle: Bindable[str] | None = None,
-               actions: list[Button] | None = None, height: float | None = None, on_dismiss: Callable[[], None] | None = None):
-    """on_dismiss runs when the scrim above the sheet is tapped."""
+               actions: list[Button] | None = None, height: float | None = None, on_dismiss: Callable[[], None] | None = None,
+               header: Widget | None = None):
+    """on_dismiss runs when the scrim above the sheet is tapped. header sits left of the actions (e.g. tabs)."""
     super().__init__()
+    self._header = self._child(header) if header is not None else None
     self._on_dismiss = on_dismiss
     self._sheet_rect = rl.Rectangle(0, 0, 0, 0)
     self._title = title
@@ -83,6 +85,11 @@ class Sheet(Component):
       x_end -= w
       action.render(rl.Rectangle(x_end, header.y + (header.height - h) / 2, w, h))
       x_end -= T.px(12)
+    if self._header is not None:
+      w, h = size_of(self._header, header.width / 2)
+      x_end -= w
+      self._header.render(rl.Rectangle(x_end, header.y + (header.height - h) / 2, w, h))
+      x_end -= T.px(16)
     text_rect = rl.Rectangle(header.x, header.y, x_end - header.x, header.height)
     self._grab_rects = [rl.Rectangle(sheet.x, sheet.y, sheet.width, body.y - sheet.y), text_rect]   # the handle strip and the title
     if self._subtitle is not None:
