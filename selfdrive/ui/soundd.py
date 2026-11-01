@@ -100,7 +100,7 @@ def read_volume_settings(params):
 
 sound_list: dict[int, tuple[str, int | None, float]] = {
   GPU_MODEL_READY_ALERT: ("model_ready.wav", 1, MAX_VOLUME),
-  STEERING_HEADROOM_ALERT: ("warning_soft.wav", 1, MAX_VOLUME),
+  STEERING_HEADROOM_ALERT: ("prompt.wav", 1, MAX_VOLUME),  # the prompt steerSaturated plays, once
   # AudibleAlert, file name, play count (none for infinite)
   AudibleAlert.engage: ("engage.wav", 1, MAX_VOLUME),
   AudibleAlert.disengage: ("disengage.wav", 1, MAX_VOLUME),
@@ -564,7 +564,7 @@ class Soundd:
       AudibleAlert.preAlert: settings["PromptDistractedVolume"] / 100.0,
 
       AudibleAlert.warningSoft: settings["WarningSoftVolume"] / 100.0,
-      STEERING_HEADROOM_ALERT: settings["WarningSoftVolume"] / 100.0,
+      STEERING_HEADROOM_ALERT: settings["PromptVolume"] / 100.0,
       AudibleAlert.warningImmediate: settings["WarningImmediateVolume"] / 100.0,
 
       starpilot_alert_key(StarPilotAudibleAlert.goat): settings["PromptVolume"] / 100.0,

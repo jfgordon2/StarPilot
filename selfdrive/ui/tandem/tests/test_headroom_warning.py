@@ -301,11 +301,12 @@ def test_chime_drops_missing_invalid_expired_or_future_requests(warning_view, wa
   assert warning_sound.current_alert == soundd.AudibleAlert.none
 
 
-def test_chime_uses_warning_volume_and_retains_steering_limit_mute_type(warning_view, warning_sound):
+def test_chime_is_the_prompt_at_prompt_volume_and_retains_steering_limit_mute_type(warning_view, warning_sound):
   from openpilot.common.params import Params
   sound = warning_sound
   sound.volume_settings = soundd.read_volume_settings(Params(return_defaults=True))
-  sound.volume_settings["WarningSoftVolume"] = 25
+  sound.volume_settings["PromptVolume"] = 25
+  assert soundd.sound_list[soundd.STEERING_HEADROOM_ALERT][0] == "prompt.wav"   # the prompt, not the take-control warning
   sound.update_volume_map()
   enter_limit(warning_view)
   sound.update_headroom_sound(warning_view.sm)
