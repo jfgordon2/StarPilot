@@ -53,12 +53,26 @@ class Device(Protocol):
   def power_off(self) -> None: ...
 
 
+def driver_monitoring_rows(device: Device, ask: Callable | None = None) -> list[SettingRow]:
+  """The Driver Camera preview and the driver monitoring reset, for Driving › Assistance. ask(title, message, label, action,
+  danger, icon) shows our confirm dialog before the reset."""
+  ask = ask or (lambda title, message, label, action, danger, icon: action())
+  preview = Button("Preview", device.driver_camera, ButtonStyle.SECONDARY)
+  preview.set_enabled(device.is_offroad)
+  reset = Button("Reset", lambda: ask("Reset driver monitoring?", "It forgets which side of the car the driver sits on and learns it " +
+                                      "again on the next drive.", "Reset", device.reset_driver_monitoring, False, "restart"),
+                 ButtonStyle.SECONDARY)
+  reset.set_enabled(device.is_offroad)
+  return [SettingRow("Driver Camera", "Check that it can see your face. The car must be off.", preview),
+          SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on", reset)]
+
+
 class ThisDevicePanel(ListPanel):
   def __init__(self, device: Device, open_pairing: Callable[[], None] | None = None, open_remote_access: Callable[[], None] | None = None,
                ask: Callable | None = None, open_regulatory: Callable[[], None] | None = None):
     """open_pairing and open_remote_access show our pages. ask(title, message, label, action, danger,
-    icon) shows our confirm dialog before Restart, Power Off, Recalibrate and the driver monitoring reset; the device then
-    runs upstream's action without its own dialog."""
+    icon) shows our confirm dialog before Restart, Power Off and Recalibrate; the device then runs upstream's action without
+    its own dialog. The driver camera and driver monitoring reset are in Driving › Assistance (driver_monitoring_rows)."""
     self._device = device
     ask = ask or (lambda title, message, label, action, danger, icon: action())
 
@@ -81,8 +95,6 @@ class ThisDevicePanel(ListPanel):
     recalibrate = action("Recalibrate", asking("Recalibrate the camera?", "Calibration starts over. openpilot relearns how the device is " +
                                                "mounted over your next few minutes of driving.", "Recalibrate", device.recalibrate))
     recalibrate.set_enabled(lambda: not device.engaged())   # upstream refuses while engaged
-    reset_dm = action("Reset", asking("Reset driver monitoring?", "It forgets which side of the car the driver sits on and learns it " +
-                                      "again on the next drive.", "Reset", device.reset_driver_monitoring), offroad_only=True)
 
     super().__init__([
       # The two ways to reach the car from elsewhere sit together, each naming its service.
@@ -91,13 +103,10 @@ class ThisDevicePanel(ListPanel):
       SettingRow("Remote Access", lambda: "Galaxy · Set up" if device.remote_access_link() else "Galaxy · reach this device from a web browser",
                  Button(device.remote_access_label, open_remote_access or device.remote_access),
                  subtitle_color=lambda: T.SUCCESS_TEXT if device.remote_access_link() else T.TEXT_TERTIARY),
-      SettingRow("Driver Camera", "Check that it can see your face. The car must be off.",
-                 action("Preview", device.driver_camera, offroad_only=True)),
       SettingRow("Camera Calibration", device.calibration, recalibrate,
                  subtitle_color=lambda: T.SUCCESS_TEXT if device.calibration() == Calibration.CALIBRATED else T.TEXT_TERTIARY),
       SettingRow("How It Works", "Rules, features and limits", action("Review", device.review_guide, offroad_only=True)),
       SectionHeader("MORE"),
-      SettingRow("Driver Monitoring", "Forget which side of the car the driver sits on", reset_dm),
       regulatory := SettingRow("Regulatory", None, action("View", open_regulatory or device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
     ], title="This Device", footer=ButtonRow([restart, power_off]))

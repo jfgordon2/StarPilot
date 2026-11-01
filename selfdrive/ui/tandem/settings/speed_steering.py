@@ -272,6 +272,12 @@ class Assistance:
   def parked_or_disengaged(self) -> bool:
     return not self._live.engaged()
 
+  def summary(self) -> str:
+    return "Gas pedal disengages" if self.get("DisengageOnAccelerator") else "Gas pedal doesn't disengage"
+
+  def monitoring_summary(self) -> str:
+    return "Driver monitoring always on" if self.get("AlwaysOnDM") else "Driver monitoring while engaged"
+
 
 def assistance_panel(model: Assistance) -> ListPanel:
   def switch(title: str, subtitle: str, key: str, on_change=None, restarts: bool = False) -> SettingRow:
@@ -286,10 +292,18 @@ def assistance_panel(model: Assistance) -> ListPanel:
            restarts=True),
     switch("Disengage on Gas Pedal", "Pressing the accelerator turns openpilot off", "DisengageOnAccelerator"),
     switch("Lane Departure Warnings", "Alerts when you drift over a lane line without signaling, above 31 mph (50 km/h)", "IsLdwEnabled"),
-    switch("Always-On Driver Monitoring", "Watches for distraction even when openpilot is off", "AlwaysOnDM"),
     switch("Safe Mode", "Uses stock tuning, the default model and Relaxed until turned off.", "SafeMode", model.set_safe_mode,
            restarts=True),
   ], title="Assistance", subtitle="openpilot's core switches")
+
+
+def driver_monitoring_panel(model: Assistance, rows: list) -> ListPanel:
+  """Driver monitoring in one place: Always-On, then the camera preview and reset (settings.device.driver_monitoring_rows)."""
+  return ListPanel([
+    SettingRow("Always-On Driver Monitoring", "Watches for distraction even when openpilot is off",
+               Switch(lambda: model.get("AlwaysOnDM"), model.setter("AlwaysOnDM"))),
+    *rows,
+  ], title="Driver Monitoring", subtitle="Watches that you're paying attention")
 
 
 # ── Navigation ──

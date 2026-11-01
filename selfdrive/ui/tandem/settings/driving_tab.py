@@ -1,4 +1,4 @@
-"""The Driving tab: a hub of five tiles and the power-user switches."""
+"""The Driving tab: a hub of six tiles and the power-user switches."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -16,9 +16,11 @@ from openpilot.selfdrive.ui.tandem.settings.maps import Maps, MapsPage, RegionsP
 from openpilot.selfdrive.ui.tandem.settings.model import CatalogPage, Models, model_page
 from openpilot.selfdrive.ui.tandem.settings.vehicle import Vehicle, extras_page, vehicle_page
 from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel, edit_startup_message, map_panel, theme_panel
-from openpilot.selfdrive.ui.tandem.settings.pages import HubPage, Section, SectionPage, Strip
+from openpilot.selfdrive.ui.tandem.blocks import Columns
+from openpilot.selfdrive.ui.tandem.settings.device import driver_monitoring_rows
+from openpilot.selfdrive.ui.tandem.settings.pages import FillPage, HubPage, Section, SectionPage, Strip
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import (Assistance, Navigation, SpeedSteering, VehicleProfile, Weather,
-                                                                   assistance_panel, everyday_panel, navigation_panel,
+                                                                   assistance_panel, driver_monitoring_panel, everyday_panel, navigation_panel,
                                                                    vehicle_profile_panel, weather_panel)
 
 
@@ -88,8 +90,14 @@ def driving_hub(window) -> Widget:
       Section("Vehicle Profile", lambda: vehicle_profile_panel(profile), value=profile.summary),
       Section("Weather", lambda: weather_panel(weather), value=weather.summary),
       Section("Navigation", lambda: navigation_panel(navigation, open_destinations, open_maps)),
-      Section("Assistance", lambda: assistance_panel(assistance)),
     ], footer=[tuner_button])
+
+  def assistance_page() -> Widget:
+    """openpilot's core switches beside driver monitoring, gathered from Speed & Steering and This Device."""
+    from openpilot.selfdrive.ui.tandem.settings.device_sections import confirm
+    ask = lambda title, message, label, action, danger, icon: confirm(window, title, message, label, action, danger, icon)  # noqa: E731
+    return FillPage(Columns([assistance_panel(assistance),
+                             driver_monitoring_panel(assistance, driver_monitoring_rows(window.device(), ask))], [1.4, 1]))
 
   def display() -> Widget:
     return SectionPage("DISPLAY", [
@@ -113,4 +121,5 @@ def driving_hub(window) -> Widget:
             opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get(), window.device_data().storage)))), icon="model"),
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
             opener(lambda: vehicle_page(vehicle.get(), window, opener(lambda: extras_page(window.car_extras(), window)))), icon="car"),
-  ], rows=[3, 2], strip=strip)
+    HubTile("Assistance", [assistance.summary, assistance.monitoring_summary], opener(assistance_page), icon="shield"),
+  ], rows=[3, 3], strip=strip)

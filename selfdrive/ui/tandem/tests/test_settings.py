@@ -313,14 +313,34 @@ def test_this_device_buttons_call_the_device_and_respect_offroad():
   rows = _rows(panel)
   rows["Camera Calibration"]._control._click_callback()
   assert device.calls == ["recalibrate"]
-  assert not rows["Driver Camera"]._control.enabled
+  assert "Driver Camera" not in rows and "Driver Monitoring" not in rows   # moved to Driving › Assistance
   assert rows["Camera Calibration"]._control.enabled
   restart, power_off = panel._footer._buttons
   assert power_off.is_visible and not power_off.enabled   # shown greyed out while driving
   restart._click_callback()
   assert device.calls == ["recalibrate", "restart"]
   device.offroad = True
-  assert power_off.enabled and rows["Driver Camera"]._control.enabled
+  assert power_off.enabled
+
+
+def test_driver_monitoring_lives_under_assistance():
+  from openpilot.selfdrive.ui.tandem.settings.device import driver_monitoring_rows
+  from openpilot.selfdrive.ui.tandem.settings.speed_steering import Assistance, assistance_panel, driver_monitoring_panel
+  store, cache = _store({"AlwaysOnDM": False, "DisengageOnAccelerator": True})
+  device, asked = FakeDevice(offroad=False), []
+  model = Assistance(store, FakeLive())
+  rows = _rows(driver_monitoring_panel(model, driver_monitoring_rows(
+    device, lambda title, message, label, action, danger, icon: asked.append((label, action)))))
+  assert list(rows) == ["Always-On Driver Monitoring", "Driver Camera", "Driver Monitoring"]
+  assert "Always-On Driver Monitoring" not in _rows(assistance_panel(model))
+  assert not rows["Driver Camera"]._control.enabled and not rows["Driver Monitoring"]._control.enabled   # the car must be off
+  device.offroad = True
+  rows["Driver Camera"]._control._click_callback()
+  rows["Driver Monitoring"]._control._click_callback()
+  assert device.calls == ["driver_camera"] and [label for label, _ in asked] == ["Reset"]   # the reset asks first
+  asked[0][1]()
+  assert device.calls[-1] == "reset_driver_monitoring"
+  assert model.summary() == "Gas pedal disengages" and model.monitoring_summary() == "Driver monitoring while engaged"
 
 
 def test_this_device_hides_pair_once_paired_and_refreshes_on_show():
@@ -1049,12 +1069,11 @@ def test_device_actions_ask_first_with_our_dialog():
   restart._click_callback()
   power_off._click_callback()
   _rows(panel)["Camera Calibration"]._control._click_callback()
-  _rows(panel)["Driver Monitoring"]._control._click_callback()
-  assert [(label, danger) for label, _, danger in asked] == [("Restart", False), ("Power Off", True), ("Recalibrate", False), ("Reset", False)]
+  assert [(label, danger) for label, _, danger in asked] == [("Restart", False), ("Power Off", True), ("Recalibrate", False)]
   assert device.calls == []                       # nothing runs until the dialog says yes
   for _, action, _ in asked:
     action()
-  assert device.calls == ["restart", "power_off", "recalibrate", "reset_driver_monitoring"]
+  assert device.calls == ["restart", "power_off", "recalibrate"]
 
 
 def test_bar_metrics_pick_up_to_five_in_catalog_order_and_reset_to_the_mock():
