@@ -298,20 +298,20 @@ def test_chip_stack_newest_nearest_the_bar_each_with_its_own_hold():
   stack = ChipStack()
   keys = lambda shown: [c.key for c, _ in shown]  # noqa: E731
   assert keys(stack.update(Snapshot(curve_control=True), 0.0, False)) == ["curve"]
-  shown = stack.update(Snapshot(curve_control=True, weather="Rain"), 0.5, False)
+  shown = stack.update(Snapshot(curve_control=True, weather="Rain", weather_gap=True), 0.5, False)
   assert keys(shown) == ["weather", "curve"]                    # the newer one sits nearest the bar
-  shown = stack.update(Snapshot(weather="Rain"), 1.0, False)    # the curve ended at 0.5: still held
+  shown = stack.update(Snapshot(weather="Rain", weather_gap=True), 1.0, False)    # the curve ended at 0.5: still held
   assert keys(shown) == ["weather", "curve"] and shown[1][1] == 1.0
-  shown = stack.update(Snapshot(weather="Rain"), 2.6, False)    # past its hold: fading
+  shown = stack.update(Snapshot(weather="Rain", weather_gap=True), 2.6, False)    # past its hold: fading
   assert keys(shown) == ["weather", "curve"] and 0.0 < shown[1][1] < 1.0
-  assert keys(stack.update(Snapshot(weather="Rain"), 3.0, False)) == ["weather"]   # gone
-  assert stack.update(Snapshot(weather="Rain"), 3.1, True) == []                     # hidden under an alert
+  assert keys(stack.update(Snapshot(weather="Rain", weather_gap=True), 3.0, False)) == ["weather"]   # gone
+  assert stack.update(Snapshot(weather="Rain", weather_gap=True), 3.1, True) == []                     # hidden under an alert
 
 
 def test_chip_stack_keeps_the_four_highest_priority():
   from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
   stack = ChipStack()
-  busy = Snapshot(lateral_paused=True, curve_control=True, limit_changed=True, speed_limit=45, weather="Rain",
+  busy = Snapshot(lateral_paused=True, curve_control=True, limit_changed=True, speed_limit=45, weather="Rain", weather_gap=True,
                   always_on_lateral=True)
   shown = [c.key for c, _ in stack.update(busy, 0.0, False)]
   assert len(shown) == 4 and "pause_button" in shown and "steering_only" not in shown
@@ -324,6 +324,25 @@ def test_steering_pause_chip_names_the_real_reason():
   assert chip_for(Snapshot(steering_held=True, speed=5.0, **setting)).label == "Steering paused · under 20 mph"
   assert chip_for(Snapshot(steering_held=True, speed=5.0, signal_on=True, pause_on_signal=True, **setting)).label == \
     "Steering paused for signal"
-  assert chip_for(Snapshot(steering_held=True, speed=12.0, **setting)).label == "Steering paused after turn"
+  # With Pause on signal, speed alone doesn't pause: a hold with the signal off is StarPilot's after-turn delay, at any speed
+  assert chip_for(Snapshot(steering_held=True, speed=5.0, pause_on_signal=True, **setting)).label == "Steering paused after turn"
+  assert chip_for(Snapshot(steering_held=True, speed=12.0, pause_on_signal=True, **setting)).label == "Steering paused after turn"
+  assert chip_for(Snapshot(steering_held=True, speed=12.0, **setting)).label == "Steering paused"
   assert chip_for(Snapshot(steering_held=True, standstill=True, **setting)) is None                   # stopped: nothing to say
   assert chip_for(Snapshot(speed=2.0, **setting)) is None              # the planner isn't holding steering: no chip
+
+
+def test_matching_limit_follows_an_accepted_change_until_reached():
+  from openpilot.selfdrive.ui.tandem.onroad.status import LimitWatch
+  w = LimitWatch()
+  assert not w.update(20.0, 20.0, True, False, 0.0, 20.0, 0.0)        # the first limit seen isn't a change
+  assert not w.update(20.0, 20.0, True, True, 0.0, 20.0, 1.0)         # a new limit is still being asked about: the card says it
+  assert not w.update(20.0, 20.0, True, False, 0.0, 20.0, 1.5)        # declined: the limit never changed
+  assert w.update(15.0, 15.0, True, False, 0.0, 20.0, 2.0)            # accepted 15: slowing to it
+  assert not w.update(15.0, 15.0, True, False, 3.0, 19.0, 2.5)        # the driver overrode the speed
+  assert w.update(15.0, 15.0, True, False, 0.0, 18.0, 3.0)
+  assert not w.update(15.0, 15.0, True, False, 0.0, 15.2, 4.0)        # reached
+  assert not w.update(15.0, 15.0, True, False, 0.0, 18.0, 5.0)        # and stays done
+  assert w.update(25.0, 25.0, True, False, 0.0, 15.0, 6.0)            # a raise under the set speed: speeding up to it
+  assert not w.update(30.0, 30.0, False, False, 0.0, 15.0, 7.0)       # above the set speed: the limit isn't holding the car
+  assert not w.update(30.0, 30.0, True, False, 0.0, 15.0, 30.0)       # too long ago

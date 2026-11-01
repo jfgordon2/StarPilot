@@ -5,7 +5,8 @@ and timing; only the drawing changes.
 - Warning: an amber two-line card at the bottom and an amber border.
 - Critical: a full-screen dark red takeover with a steering wheel icon and a red border.
 
-Light Turned Green, Lead Departed, lane changes and turn progress are left to the status chips.
+Light Turned Green, Lead Departed, lane changes and turn progress are left to the status chips;
+Speed limit changed is left to the new-limit card while it asks.
 """
 from __future__ import annotations
 
@@ -50,6 +51,7 @@ def level(size: int, status: int, alert_type: str = "") -> str:
 
 
 CHIP_ALERTS = {"greenLight", "leadDeparting", "laneChange", "turningLeft", "turningRight"}
+LIMIT_ALERT = "speedLimitChanged"
 
 
 def shown_as_chip(alert_type: str) -> bool:

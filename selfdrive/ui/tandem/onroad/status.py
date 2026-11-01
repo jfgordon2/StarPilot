@@ -50,7 +50,8 @@ class Snapshot:
   nav_turn_modifier: str = ""
   limit_changed: bool = False
   speed_limit: float = 0.0                 # display units
-  weather: str = ""                        # "Rain", "Snow", "Fog" ... when Weather is acting
+  weather: str = ""                        # "Rain", "Heavy rain", "Snow", "Fog": the condition Weather presets see
+  weather_gap: bool = False                # ...and its preset adds following distance
   events: set[str] = field(default_factory=set)
 
 
@@ -78,18 +79,22 @@ def chips_for(s: Snapshot) -> list[Chip]:
   unit = "km/h" if s.metric else "mph"
   out: list[Chip] = []
   # Why steering is off, as StarPilot's planner decides it. The car's own minimum steering speed isn't one of these:
-  # openpilot says it in its "Steer Unavailable Below …" alert, with the car's figure.
+  # openpilot says it in its "Steer Unavailable Under …" alert, with the car's figure.
   below = 0 < s.pause_lateral_ms and s.speed < s.pause_lateral_ms
   if s.lateral_paused:
     out.append(Chip("pause_button", "Steering paused", ChipTone.PAUSED, "wheel_pause"))
   elif s.steering_held and not s.standstill:
-    if below and s.signal_on and s.pause_on_signal:
+    # As StarPilot's planner decides: with Pause on signal, speed alone doesn't pause, only signalling below it, then a
+    # short hold once the signal ends (Lateral Resume Delay) so the driver can straighten the wheel after a slow turn.
+    if s.pause_on_signal and s.signal_on:
       icon = {"left": "signal", "right": "signal_right", "both": "warning"}.get(s.signal_direction, "wheel_pause")
       out.append(Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon))
+    elif s.pause_on_signal:
+      out.append(Chip("pause_turn", "Steering paused after turn", ChipTone.PAUSED, "wheel_pause"))
     elif below:
       out.append(Chip("pause_speed", f"Steering paused · under {s.pause_lateral_speed:.0f} {unit}", ChipTone.PAUSED, "wheel_pause"))
-    else:   # StarPilot's short hold after a slow turn, so the driver can straighten the wheel
-      out.append(Chip("pause_turn", "Steering paused after turn", ChipTone.PAUSED, "wheel_pause"))
+    else:
+      out.append(Chip("pause_held", "Steering paused", ChipTone.PAUSED, "wheel_pause"))
   if s.lane_change in ("pre", "starting") and s.blindspot:
     out.append(Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked"))
   elif s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
@@ -117,7 +122,7 @@ def chips_for(s: Snapshot) -> list[Chip]:
     out.append(Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car"))
   if s.limit_changed and s.speed_limit:
     out.append(Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge"))
-  if s.weather:
+  if s.weather and s.weather_gap:
     out.append(Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, {"Snow": "snow", "Fog": "fog"}.get(s.weather, "rain")))
   if green and not s.standstill:
     out.append(Chip("green_light", "Light is green", ChipTone.WAITING, "light_green"))
@@ -188,21 +193,52 @@ class ChipPicker:
     return None if alert_showing else self._chip
 
 
-# OpenWeather-style condition ids StarPilot's weather checker publishes, grouped the way Weather presets are.
+# OpenWeather condition ids, grouped as StarPilot's weather checker groups them (WEATHER_CATEGORIES): (name, preset suffix).
+WEATHER_GROUPS = (
+  ("Rain", "rain", ((300, 321), (500, 504))),
+  ("Heavy rain", "rain_storm", ((200, 232), (511, 511), (520, 531))),
+  ("Snow", "snow", ((600, 622),)),
+  ("Fog", "low_visibility", ((701, 762),)),
+)
+
+
+def weather_group(weather_id: int) -> tuple[str, str]:
+  """(name, StarPilot's preset suffix), or ("", "") for clear and anything StarPilot treats as clear."""
+  for name, suffix, ranges in WEATHER_GROUPS:
+    if any(lo <= weather_id <= hi for lo, hi in ranges):
+      return name, suffix
+  return "", ""
+
+
 def weather_name(weather_id: int) -> str:
-  if 200 <= weather_id < 300 or 502 <= weather_id <= 531:
-    return "Heavy rain"
-  if 300 <= weather_id < 600:
-    return "Rain"
-  if 600 <= weather_id < 700:
-    return "Snow"
-  if 700 <= weather_id < 800:
-    return "Fog"
-  return ""
+  return weather_group(weather_id)[0]
 
 
-def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
-  """Fill a Snapshot from upstream's ui_state. Missing messages leave defaults."""
+class LimitWatch:
+  """Whether the car is matching a new speed limit: after the limit StarPilot drives to changes (accepted, not still
+  asking), while the Speed Limit Controller is holding the speed under the set speed, until the speed reaches it."""
+  TIMEOUT = 20.0     # s: a change the car never reaches (traffic, hills) stops being news
+  CLOSE = 0.5        # m/s
+
+  def __init__(self):
+    self._last = 0.0
+    self._until = 0.0
+
+  def update(self, limit: float, target: float, limiting: bool, pending: bool, overridden: float, speed: float, now: float) -> bool:
+    if limit > 0:
+      if self._last > 0 and abs(limit - self._last) >= self.CLOSE:
+        self._until = now + self.TIMEOUT
+      self._last = limit
+    if now >= self._until:
+      return False
+    if abs(speed - target) <= self.CLOSE:
+      self._until = 0.0
+      return False
+    return limiting and not pending and overridden <= 0
+
+
+def snapshot(ui_state, nav_active: bool = False, limits: LimitWatch | None = None, now: float = 0.0) -> Snapshot:
+  """Fill a Snapshot from upstream's ui_state. Missing messages leave defaults. limits tracks speed limit changes."""
   sm = ui_state.sm
   valid = sm.valid
   s = Snapshot(engaged=bool(ui_state.engaged), metric=bool(ui_state.is_metric), always_on_lateral=bool(ui_state.always_on_lateral_active))
@@ -222,20 +258,27 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     meta = sm["modelV2"].meta
     s.lane_change = {1: "pre", 2: "starting", 3: "finishing"}.get(meta.laneChangeState.raw, "off")
     s.lane_change_direction = {1: "left", 2: "right"}.get(meta.laneChangeDirection.raw, "none")
-  if valid.get("starpilotCarState", False):
-    s.lateral_paused = bool(sm["starpilotCarState"].pauseLateral)
   toggles = ui_state.starpilot_toggles or {}
+  steering_on = s.engaged
+  if valid.get("starpilotCarState", False):
+    spcs = sm["starpilotCarState"]
+    s.lateral_paused = bool(spcs.pauseLateral)
+    # Always On Lateral turns itself off while StarPilot pauses steering, so read whether it would be steering.
+    steering_on |= bool(toggles.get("always_on_lateral", False) and spcs.alwaysOnLateralAllowed)
   s.pause_lateral_ms = float(toggles.get("pause_lateral_below_speed", 0) or 0)
   s.pause_lateral_speed = s.pause_lateral_ms * speed_conversion
   s.pause_on_signal = bool(toggles.get("pause_lateral_below_signal", False))
   if valid.get("starpilotPlan", False):
     plan = sm["starpilotPlan"]
-    s.steering_held = bool(not plan.lateralCheck and (s.engaged or s.always_on_lateral))
+    s.steering_held = bool(not plan.lateralCheck and steering_on)
     s.curve_control = bool(plan.cscControllingSpeed)
     s.red_light = bool(plan.redLight or plan.forcingStop)
     s.stop_sign = bool(plan.stopSignConfirmed)
-    s.limit_changed = bool(plan.speedLimitChanged)
     s.speed_limit = float(plan.slcSpeedLimit) * speed_conversion
+    if limits is not None:
+      s.limit_changed = limits.update(float(plan.slcSpeedLimit), float(plan.slcSpeedLimit + plan.slcSpeedLimitOffset),
+                                      bool(plan.slcIsLimitingMaxSet), bool(plan.speedLimitChanged), float(plan.slcOverriddenSpeed),
+                                      s.speed, now)
     s.slowing_for_lead = bool(plan.experimentalMode and plan.trackingLead and not s.red_light)
     # A route or experimental mode alone does not mean the car is slowing for a turn.
     s.nav_turn = bool(
@@ -244,7 +287,8 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     )
     s.nav_turn_maneuver, s.nav_turn_modifier = str(plan.navTurnManeuver), str(plan.navTurnModifier)
     if toggles.get("weather_presets"):
-      s.weather = weather_name(int(plan.weatherId))
+      s.weather, suffix = weather_group(int(plan.weatherId))
+      s.weather_gap = bool(suffix and float(toggles.get(f"increase_following_distance_{suffix}", 0) or 0) > 0)
     s.events = {str(e.name) for e in plan.starpilotEvents}
   # StarPilot raises greenLight and leadDeparting for a single planner frame, which the UI can miss; the alerts they start
   # are held for seconds, so their names count too (the chip stands in for the hidden banner).

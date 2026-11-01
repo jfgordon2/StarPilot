@@ -37,5 +37,6 @@ def test_routine_status_banners_go_to_chips():
   assert not alerts.shown_as_chip("preLaneChangeLeft/warning")
   assert not alerts.shown_as_chip("preLaneChangeRight/warning")
   assert not alerts.shown_as_chip("personalityChanged/warning")
+  assert not alerts.shown_as_chip("speedLimitChanged/permanent")   # hidden only while the new-limit card asks (view.py)
   assert not alerts.shown_as_chip("promptDriverDistracted/permanent")
   assert not alerts.shown_as_chip("")

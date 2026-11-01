@@ -151,12 +151,12 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | Stopping for stop sign (Stopped for stop sign once stopped) | Octagon | Blue | The car's dashboard confirms a stop sign (`stopSignConfirmed`) |
 | Slowing for traffic | Car rear | Blue | `CESlowerLead`, `CEStoppedLead` |
 | Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
-| Matching limit 45 | Gauge | Blue | `SetSpeedLimit`, after a limit change |
-| Rain · longer gap | Cloud with rain | Blue | `WeatherPresets` |
-| Steering paused | Wheel with pause bars | Amber | The steering wheel's Pause steering button |
-| Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed`: the speed is the driver's setting, not the car's. A car's own minimum steering speed shows in openpilot's "Steer Unavailable Below …" alert |
-| Steering paused after turn | Wheel with pause bars | Amber | StarPilot's hold after a slow turn, until the wheel straightens (`lateralCheck`) |
-| Steering paused for signal | Signal chevrons | Amber | `PauseLateralOnSignal` |
+| Matching limit 45 | Gauge | Blue | `SetSpeedLimit`: after the limit the car drives to changes (accepted, not still asking), while the limit holds the speed under the set speed, until the car reaches it |
+| Rain · longer gap (also Heavy rain, Snow, Fog) | Cloud with rain | Blue | `WeatherPresets`, only when that condition's preset adds following distance. Conditions are grouped as StarPilot's weather checker groups them |
+| Steering paused | Wheel with pause bars | Amber | The steering wheel's Pause steering button. Also with Always On Lateral, which StarPilot turns off while it pauses |
+| Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed`: the speed is the driver's setting, not the car's. A car's own minimum steering speed shows in openpilot's "Steer Unavailable Under …" alert. Not shown with `PauseLateralOnSignal`, where speed alone doesn't pause |
+| Steering paused after turn | Wheel with pause bars | Amber | `LateralResumeDelay`: StarPilot's hold for a few seconds after the signal ends, when the car slowed for the turn |
+| Steering paused for signal | Signal chevrons | Amber | `PauseLateralOnSignal`: signalling below the Pause steering speed |
 | Lane change blocked | Lane, car and cross | Amber | Blind spot during `NudgelessLaneChange` |
 | Changing lanes right | Lane-shift arrow | Blue | `NudgelessLaneChange` |
 | Steering only | Steering wheel | Blue | `AlwaysOnLateral` with cruise off |

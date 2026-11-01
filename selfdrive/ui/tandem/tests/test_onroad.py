@@ -129,26 +129,26 @@ def test_turn_progress_keeps_existing_chip_priorities(higher_status, expected):
 
 
 def test_weather_groups():
-  assert [weather_name(i) for i in (211, 501, 502, 601, 741, 800)] == ["Heavy rain", "Rain", "Heavy rain", "Snow", "Fog", ""]
+  assert [weather_name(i) for i in (211, 501, 502, 601, 741, 800)] == ["Heavy rain", "Rain", "Rain", "Snow", "Fog", ""]
 
 
 @pytest.mark.parametrize("weather_id, expected", [(211, "rain"), (501, "rain"), (502, "rain"), (601, "snow"), (741, "fog")])
 def test_weather_chip_icon_matches_condition(weather_id, expected):
   from openpilot.selfdrive.ui.tandem import draw
-  chip = chip_for(Snapshot(weather=weather_name(weather_id)))
+  chip = chip_for(Snapshot(weather=weather_name(weather_id), weather_gap=True))
   assert chip.icon == expected
   assert (draw.ICON_DIR / f"{chip.icon}.png").is_file()
 
 
 @pytest.mark.parametrize("left, right, expected", [
-  (True, False, "signal"), (False, True, "signal_right"), (True, True, "warning"), (False, False, "wheel_pause"),
+  (True, False, "signal"), (False, True, "signal_right"), (True, True, "warning"), (False, False, "wheel_pause"),   # no signal: the after-turn hold
 ])
 def test_paused_chip_icon_matches_signals(left, right, expected):
   from openpilot.selfdrive.ui.tandem import draw
-  cs = car.CarState.new_message(leftBlinker=left, rightBlinker=right)
-  plan = custom.StarPilotCarState.new_message(pauseLateral=True)
-  state = SimpleNamespace(sm=StatusMessages(carState=cs, starpilotCarState=plan), engaged=True, is_metric=False,
-                          always_on_lateral_active=False, starpilot_toggles={})
+  cs = car.CarState.new_message(leftBlinker=left, rightBlinker=right, vEgo=3.0)
+  plan = custom.StarPilotPlan.new_message(lateralCheck=False)   # StarPilot's planner holding steering
+  state = SimpleNamespace(sm=StatusMessages(carState=cs, starpilotPlan=plan), engaged=True, is_metric=False, always_on_lateral_active=False,
+                          starpilot_toggles={"pause_lateral_below_speed": 8.94, "pause_lateral_below_signal": True})
   chip = chip_for(snapshot(state))
   assert chip.icon == expected
   assert (draw.ICON_DIR / f"{draw.MIRRORED.get(chip.icon, chip.icon)}.png").is_file()
@@ -252,3 +252,15 @@ def test_home_software_card_shows_only_the_version_number():
   assert short_version("6.7.9 / design/essentials / 4b3a097 / Oct 31 - Regret Driven") == "6.7.9"
   assert short_version(b"0.10.1 / release / Oct 28") == "0.10.1"
   assert short_version(None) == ""
+
+
+def test_weather_chip_only_when_its_preset_adds_distance():
+  plan = custom.StarPilotPlan.new_message(weatherId=501)
+  def chip(toggles):
+    state = SimpleNamespace(sm=StatusMessages(starpilotPlan=plan), engaged=True, is_metric=False, always_on_lateral_active=False,
+                            starpilot_toggles=toggles)
+    return chip_for(snapshot(state))
+  assert chip({"weather_presets": True, "increase_following_distance_rain": 0.5}).label == "Rain · longer gap"
+  assert chip({"weather_presets": True, "increase_following_distance_rain": 0}) is None   # rain, but its preset keeps the gap
+  assert chip({"weather_presets": False, "increase_following_distance_rain": 0.5}) is None
+

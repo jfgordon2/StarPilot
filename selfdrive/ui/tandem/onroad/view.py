@@ -38,7 +38,7 @@ from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, B
                                                          Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
-from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, snapshot
+from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, LimitWatch, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
@@ -67,12 +67,14 @@ class EssentialsAlertRenderer(AlertRenderer):
   """StarPilot's alert renderer, keeping its choice of alert, timing and fades, drawn in the mock's three levels."""
 
   headroom_warning: Callable[[], bool] = staticmethod(lambda: False)   # the view's Help steer warning is up
+  limit_card: Callable[[], bool] = staticmethod(lambda: False)         # the new-limit card is asking
 
   def get_alert(self, sm):
     previous = self._prev_alert
     alert = super().get_alert(sm)
     if alert is not None and (alerts.shown_as_chip(alert.alert_type)
-                              or (alerts.replaced_by_headroom(alert.alert_type) and self.headroom_warning())):
+                              or (alerts.replaced_by_headroom(alert.alert_type) and self.headroom_warning())
+                              or ((alert.alert_type or "").split("/", 1)[0] == alerts.LIMIT_ALERT and self.limit_card())):
       self._prev_alert = previous   # not shown, so nothing to fade out either; the status chip says it
       return None
     return alert
@@ -150,6 +152,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._memory = Params(memory=True)
     self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
     self._chips = ChipStack()
+    self._limits = LimitWatch()
     self._chip_list: list = []   # (chip, opacity), nearest the bar first
     self._headroom = Headroom()
     self._arc_state = ArcState()
@@ -170,6 +173,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._stopped_timer_widget = _NoStoppedTimer()
     self.alert_renderer = EssentialsAlertRenderer()
     self.alert_renderer.headroom_warning = lambda: self._headroom_warning   # hides steerSaturated while Help steer shows
+    self.alert_renderer.limit_card = lambda: self._offer() is not None      # hides Speed limit changed while the card asks
     self._layers_visible = False
     self._dev: DevData | None = None            # Developer View's readout, while StarPilot's Developer UI is on
     self.model_renderer._draw_lead_metrics = self._lead_tag   # Lead Insights' text becomes the mock's tag
@@ -383,7 +387,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._offer()   # observe limit changes even when an alert is covering the card
     alert, _ = self.alert_renderer.will_render()
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
-    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
+    now = time.monotonic()
+    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating(), self._limits, now), now, alert is not None)
     if not self._layers_visible:
       return
     c = self._content_rect
@@ -486,6 +491,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
   def _offroad_transition(self) -> None:
     super()._offroad_transition()
     self._limit_offer = LimitOfferState()
+    self._limits = LimitWatch()
 
   # Actions
 
