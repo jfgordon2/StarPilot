@@ -145,7 +145,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
     SettingRow("Always-On Steering", "Keeps steering with cruise off.",
                Switch(lambda: model.always_on_steering, model.set_always_on_steering)),
   ]
-  return ListPanel(rows, title="Everyday", header_control=Label(lambda: f"{sum(r.is_visible for r in rows)} settings", T.SIZE_CAPTION,
+  return ListPanel(rows, title="Everyday", subtitle="Driving style, speed limits, lane changes and steering", header_control=Label(lambda: f"{sum(r.is_visible for r in rows)} settings", T.SIZE_CAPTION,
                                                                 T.TEXT_MUTED, T.FONT, fit=True))
 
 

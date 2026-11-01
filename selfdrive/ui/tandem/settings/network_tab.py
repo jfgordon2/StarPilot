@@ -176,6 +176,7 @@ def wifi_panel(model: Network) -> Component:
 def cellular_panel(model: Network, open_advanced: Callable[[], None]) -> ListPanel:
   return ListPanel([
     SettingRow("Hotspot", "Share this device's connection", Switch(lambda: model.hotspot, model.set_hotspot)),
+    SettingRow("Hotspot Password", "For phones joining this device's hotspot", ValueButton(lambda: "Edit", model.edit_hotspot_password)),
     SettingRow("Save Data", "No large uploads on cellular or phone hotspots", Switch(lambda: model.save_data, model.set_save_data)),
   ], title="Cellular", end_divider=True, bottom=SettingRow("Roaming, APN and IP address", None, on_click=open_advanced))
 
@@ -184,7 +185,6 @@ def advanced_panel(model: Network) -> ListPanel:
   return ListPanel([
     SettingRow("Roaming", "Use cellular data outside your carrier's network", Switch(lambda: model.roaming, model.set_roaming)),
     SettingRow("APN", lambda: model.apn() or "Automatic", ValueButton(lambda: "Edit", model.edit_apn)),
-    SettingRow("Hotspot Password", None, ValueButton(lambda: "Edit", model.edit_hotspot_password)),
     SettingRow("IP Address", lambda: model.wifi.ipv4_address or "Not connected"),
   ], title="Roaming, APN and IP address")
 

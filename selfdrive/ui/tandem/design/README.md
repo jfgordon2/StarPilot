@@ -187,7 +187,7 @@ The bottom bar has five tabs: Driving, Device, Network, Bluetooth and Software. 
   - The Wi-Fi list, with the connected network on top, plus "Join a hidden network".
   - Cellular status, Hotspot (tethering), and Save Data, which is on by default and covers metered Wi-Fi.
   - Roaming, APN and IP address sit behind one row.
-- **Bluetooth:** leads with **Wheel Buttons**, because a remote mounted on the steering wheel is the main reason to pair something.
+- **Bluetooth:** leads with **Bluetooth Remote**, because a remote mounted on the steering wheel is the main reason to pair something. It's named apart from the car's own Steering Wheel Buttons (Vehicle).
   - The connected remote is listed with its assigned buttons, each with its action.
   - New remotes start with four presets: engage, disengage, change driving style, and screen off / on.
   - **Press to find.** While this tab is open, the wheel controls test mode (`WheelControlTestActive`) is on, both parked and onroad. Pressing a button on the remote highlights its row and marks it PRESSED, and its action does not run. An unassigned button highlights Add a button instead, including before any buttons are mapped. Leaving the tab or closing settings ends testing and cancels pending button learning; normal mapped actions keep their previous enabled state. This replaces the separate Test button.

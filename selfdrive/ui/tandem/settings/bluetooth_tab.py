@@ -256,7 +256,8 @@ def wheel_panel(model: WheelButtons, window) -> Component:
 
 
 class WheelHeader(Component):
-  """Icon, Wheel Buttons and the remote, with a reminder that pressing a button finds it."""
+  """Icon, Bluetooth Remote (not the car's own wheel buttons, under Vehicle) and the remote, with a reminder that pressing
+  a button finds it."""
   grow_touch_target = False
 
   def __init__(self, model: WheelButtons):
@@ -282,7 +283,7 @@ class WheelHeader(Component):
     text = inset(body, left=T.px(62))
     lines = [draw.line_height(T.font_px(20)), draw.line_height(T.SIZE_SUBTITLE)]
     title, line = column(place(text, text.width, sum(lines) + T.px(2)), lines, T.px(2))
-    draw.text(title, "Wheel Buttons", T.font_px(20), T.TEXT, T.FONT_BOLD)
+    draw.text(title, "Bluetooth Remote", T.font_px(20), T.TEXT, T.FONT_BOLD)
     draw.text(line, self._model.remote_name(), T.SIZE_SUBTITLE, T.SUCCESS_TEXT if self._model.buttons() else T.TEXT_TERTIARY)
 
 

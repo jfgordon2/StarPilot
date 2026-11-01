@@ -34,28 +34,39 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
           <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #F0B35A; display: block;"></span>Models</span>
         </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 64px; border-bottom: 1px solid #23272E;">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Recorded Drives</span><span style="font-size: 14px; color: #AEB6C2;">Oldest drives are removed when space runs low</span></div>
         <button type="button" style="font-family: inherit; height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #3A2026; color: #F2A7B1; font-size: 15px; font-weight: 700;">Delete all</button>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 64px; border-bottom: 1px solid #23272E;">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Offline Maps</span><span style="font-size: 14px; color: #AEB6C2;">Speed limits and curves work without a connection</span></div>
         <button type="button" style="font-family: inherit; height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #3A2026; color: #F2A7B1; font-size: 15px; font-weight: 700;">Delete</button>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 64px; border-bottom: 1px solid #23272E;">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 14px 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Unused Models</span><span style="font-size: 14px; color: #AEB6C2;">[count] downloaded models not in use</span></div>
         <button type="button" style="font-family: inherit; height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #3A2026; color: #F2A7B1; font-size: 15px; font-weight: 700;">Remove</button>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px; padding: 0 22px; height: 64px; border-bottom: 1px solid #23272E;">
+      <div style="padding: 0 22px; height: 30px; display: flex; align-items: flex-end; background: #13161A;">
+        <span style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; color: #8FA0B5;">RECORDING &amp; UPLOADS</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Record Driver Camera</span><span style="font-size: 14px; color: #AEB6C2;">Saved and uploaded with your drives</span></div>
         <button type="button" role="switch" aria-checked="false" aria-label="Record Driver Camera" style="width: 72px; height: 42px; border-radius: 21px; border: 0; background: #343A44; padding: 4px; display: flex; justify-content: flex-start;"><span style="width: 34px; height: 34px; border-radius: 17px; background: #F2F5F9; display: block;"></span></button>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px; padding: 0 22px; height: 64px; border-bottom: 1px solid #23272E;">
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
         <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Record Microphone</span><span style="font-size: 14px; color: #AEB6C2;">Cabin audio in your drive recordings</span></div>
         <button type="button" role="switch" aria-checked="false" aria-label="Record Microphone" style="width: 72px; height: 42px; border-radius: 21px; border: 0; background: #343A44; padding: 4px; display: flex; justify-content: flex-start;"><span style="width: 34px; height: 34px; border-radius: 17px; background: #F2F5F9; display: block;"></span></button>
       </div>
+      <div style="display: flex; align-items: center; gap: 16px; padding: 0 16px 0 22px; height: 58px; border-bottom: 1px solid #23272E;">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 18px; font-weight: 600;">Uploads</span><span style="font-size: 14px; color: #AEB6C2;">Drive logs and video for debugging</span></div>
+        <div role="radiogroup" aria-label="Uploads" style="display: flex; background: #23272E; border-radius: 13px; padding: 4px;">
+          <button type="button" role="radio" aria-checked="false" style="font-family: inherit; border: 0; background: transparent; color: #C9D0DA; height: 42px; padding: 0 14px; border-radius: 10px; font-size: 16px; font-weight: 600;">Off</button>
+          <button type="button" role="radio" aria-checked="true" style="font-family: inherit; border: 0; background: #5AAAF8; color: #0B1A2B; height: 42px; padding: 0 14px; border-radius: 10px; font-size: 16px; font-weight: 700;">Wi-Fi only</button>
+          <button type="button" role="radio" aria-checked="false" style="font-family: inherit; border: 0; background: transparent; color: #C9D0DA; height: 42px; padding: 0 14px; border-radius: 10px; font-size: 16px; font-weight: 600;">Always</button>
+        </div>
+      </div>
       <div style="flex-grow: 1;"></div>
-      <span style="font-size: 14px; color: #8FA0B5; padding: 12px 22px;">Upload settings are in General. High-quality recording, logging and error logs are in Tuner Mode.</span>
+      <span style="font-size: 14px; color: #8FA0B5; padding: 12px 22px;">High-quality recording, logging and error logs are in Tuner Mode.</span>
     </div>
   </div>
   <nav style="height: 102px; flex-shrink: 0; border-top: 1px solid #1F242B; background: #0E1013; display: flex; align-items: center; gap: 10px; padding: 0 16px;">

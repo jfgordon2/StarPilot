@@ -144,7 +144,6 @@ def general_panel(model: General, window) -> ListPanel:
     SettingRow("Screen Brightness", "Auto follows ambient light, day and night",
                Segmented([name for name, _, _ in BRIGHTNESS], lambda: model.brightness, model.set_brightness)),
     SettingRow("Standby", "Screen sleeps while driving, wakes for alerts", Switch(lambda: model.standby, model.set_standby)),
-    SettingRow("Uploads", "Drive logs and video for debugging", Segmented(UPLOADS, lambda: model.uploads, model.set_uploads)),
   ], title="General")
 
 
@@ -323,10 +322,12 @@ def storage_panel(model: General, window, models) -> ListPanel:
                       ButtonStyle.DANGER_SOFT)),
     delete_maps_row(model.data, window),
     unused_models_row(models, window),
+    SectionHeader("RECORDING & UPLOADS"),
     driver,
     audio,
+    SettingRow("Uploads", "Drive logs and video for debugging", Segmented(UPLOADS, lambda: model.uploads, model.set_uploads)),
   ], title="Storage & Data", header_divider=False, end_divider=True,   # the usage bar belongs to the header, as in the mock
-     footnote="Upload settings are in General. High-quality recording, logging and error logs are in Tuner Mode.")
+     footnote="High-quality recording, logging and error logs are in Tuner Mode.")
 
 
 class Report:

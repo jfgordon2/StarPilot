@@ -242,21 +242,13 @@ def bundle_sheet(window, start: int = 0) -> Sheet:
 
 
 def driving_screen_panel(model: Display, window) -> ListPanel:
-  def path_sheet():
-    window.present(Sheet("Path Style", PathStylePicker(lambda: model.path_style, model.set_path_style),
-                         subtitle="Sets path color, width, edges and lane lines together",
-                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
-
-  def signal_sheet():
-    window.present(Sheet("Turn Signal", SignalPicker(lambda: model.signal_style, model.set_signal_style),
-                         subtitle="Plays beside the speed while a blinker is on",
-                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
-
   dev_get, dev_set = model.bundle(DEVELOPER_VIEW)
   lead_get, lead_set = model.bundle(LEAD_INSIGHTS)
   return ListPanel([
-    SettingRow("Path Style", "Color, width and edges as one preset", ValueButton(lambda: PATH_STYLES[model.path_style][0], path_sheet)),
-    SettingRow("Turn Signal", "Chevrons by the speed, or a whimsical animation", ValueButton(model.signal_name, signal_sheet)),
+    SettingRow("Camera View", "Wide shows more of the road at low speed",
+               Segmented([name for name, _ in CAMERA_VIEWS], lambda: model.camera_view, model.set_camera_view)),
+    SettingRow("Driver Camera in Reverse", "Shows the inside camera while backing up",
+               Switch(lambda: model.driver_camera_in_reverse, model.set_driver_camera_in_reverse)),
     SettingRow("Driving Style Banner", "Shows the current style when it changes",
                Switch(lambda: model.driving_style_banner, model.set_driving_style_banner)),
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",
@@ -283,11 +275,20 @@ def boot_logo_sheet(model: Display, window) -> None:
 
 
 def theme_panel(model: Display, edit_startup_message: Callable[[], None], window=None) -> ListPanel:
+  """The customizations: how the path and turn signal look, and what shows at startup."""
+  def path_sheet():
+    window.present(Sheet("Path Style", PathStylePicker(lambda: model.path_style, model.set_path_style),
+                         subtitle="Sets path color, width, edges and lane lines together",
+                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
+
+  def signal_sheet():
+    window.present(Sheet("Turn Signal", SignalPicker(lambda: model.signal_style, model.set_signal_style),
+                         subtitle="Plays beside the speed while a blinker is on",
+                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
+
   return ListPanel([
-    SettingRow("Camera View", "Wide shows more of the road at low speed",
-               Segmented([name for name, _ in CAMERA_VIEWS], lambda: model.camera_view, model.set_camera_view)),
-    SettingRow("Driver Camera in Reverse", "Shows the inside camera while backing up",
-               Switch(lambda: model.driver_camera_in_reverse, model.set_driver_camera_in_reverse)),
+    SettingRow("Path Style", "Color, width and edges as one preset", ValueButton(lambda: PATH_STYLES[model.path_style][0], path_sheet)),
+    SettingRow("Turn Signal", "Chevrons by the speed, or a whimsical animation", ValueButton(model.signal_name, signal_sheet)),
     SettingRow("Boot Logo", "Shown while the device starts up", ValueButton(model.boot_logo_name, lambda: boot_logo_sheet(model, window))),
     SettingRow("Startup Message", lambda: "The banner when you start the car" if model.startup_is_default() else model.startup_message()[0],
                ValueButton(lambda: "Default" if model.startup_is_default() else "Custom", edit_startup_message)),
