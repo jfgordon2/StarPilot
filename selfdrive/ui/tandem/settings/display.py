@@ -642,16 +642,33 @@ def _logo_texture(path: Path, width: int) -> rl.Texture | None:
   key = (str(path), width)
   if key not in _TEXTURES:
     texture = None
-    if path.is_file():
-      image = rl.load_image(str(path))
-      if image.height > image.width:
-        rl.image_rotate_ccw(image)
-      rl.image_resize(image, width, width // 2)
+    png = _logo_png(path, width) if path.is_file() else None
+    if png is not None:
+      # Decoded with Pillow and handed to raylib as PNG: the device's raylib is built without JPEG support, and the
+      # built-in logos (Tandem's, StarPilot's and comma's) are JPEGs. Upstream loads emoji the same way.
+      image = rl.load_image_from_memory(".png", png, len(png))
       texture = rl.load_texture_from_image(image)
       rl.set_texture_filter(texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
       rl.unload_image(image)
     _TEXTURES[key] = texture
   return _TEXTURES[key]
+
+
+def _logo_png(path: Path, width: int) -> bytes | None:
+  """The logo as PNG bytes, landscape and width × width/2, whatever its file format; None if it can't be read."""
+  import io
+  from PIL import Image
+  try:
+    with Image.open(path) as image:
+      image = image.convert("RGB")
+      if image.height > image.width:
+        image = image.rotate(90, expand=True)   # counterclockwise, as raylib's image_rotate_ccw did
+      image = image.resize((width, width // 2), Image.LANCZOS)
+      out = io.BytesIO()
+      image.save(out, "PNG")
+      return out.getvalue()
+  except OSError:
+    return None
 
 
 class UpstreamBootLogos:

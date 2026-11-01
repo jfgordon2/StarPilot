@@ -1300,3 +1300,17 @@ def test_quiet_is_25_percent_for_every_alert_sound():
   keys = [k for g in GROUPS for k in g.keys]
   assert all(cache.values[k] == 25 == SAFETY_FLOOR for k in keys) and cache.values["AlertVolumeControl"]
   assert alerts.preset == 1
+
+
+def test_boot_logo_previews_decode_jpegs_without_raylib():
+  """The device's raylib can't open JPEGs; every built-in logo is one, so previews decode them as PNG first."""
+  import io
+  from PIL import Image
+  from openpilot.selfdrive.ui.tandem.settings.display import BUILT_IN_IMAGES, _logo_png
+  for slug, path in BUILT_IN_IMAGES.items():
+    assert path.suffix == ".jpg"
+    png = _logo_png(path, 400)
+    assert png is not None and png[:8] == b"\x89PNG\r\n\x1a\n", slug
+    with Image.open(io.BytesIO(png)) as image:
+      assert image.size == (400, 200), slug                      # comma's portrait logo turned landscape too
+  assert _logo_png(BUILT_IN_IMAGES["tandem"].with_suffix(".missing"), 400) is None
