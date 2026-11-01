@@ -55,6 +55,12 @@ class Network:
       return "Connecting…"
     return "Saved" if self.wifi.is_connection_saved(ssid) else ""
 
+  def status_line(self, ssid: str) -> str:
+    """The row's line: its status, with the device's local IP address beside Connected (for SSH and the like)."""
+    status = self.status(ssid)
+    ip = self.wifi.ipv4_address if status == "Connected" else ""
+    return f"{status} · {ip}" if ip else status
+
   def choose(self, network) -> None:
     if network.security_type == UNSUPPORTED or self.wifi.connected_ssid == network.ssid:
       return
@@ -157,7 +163,7 @@ def wifi_panel(model: Network) -> Component:
     secured = network.security_type != OPEN
     forget = Button("Forget", lambda: model.forget(network.ssid), ButtonStyle.GHOST)
     forget.set_visible(lambda: model.wifi.is_connection_saved(network.ssid))
-    row_ = SettingRow(network.ssid, lambda: model.status(network.ssid) or ("Secured" if secured else "Open"), forget,
+    row_ = SettingRow(network.ssid, lambda: model.status_line(network.ssid) or ("Secured" if secured else "Open"), forget,
                       on_click=lambda: model.choose(network), leading=SignalGlyph(lambda: network.strength, secured), chevron=False,
                       subtitle_color=lambda: T.SUCCESS_TEXT if model.status(network.ssid) == "Connected" else T.TEXT_TERTIARY)
     row_.set_enabled(network.security_type != UNSUPPORTED)

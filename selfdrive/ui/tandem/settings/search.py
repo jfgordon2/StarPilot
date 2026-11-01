@@ -175,6 +175,7 @@ ENTRIES: list[Entry] = [
   Entry("UI Debug Mode", "Shows touches and the frame rate", 1, section=5),
   # Connections
   _place("Wi-Fi", "Networks nearby, and joining one", 2, section=0, words="wifi network internet"),
+  _place("IP Address", "This device's local address, beside the connected network", 2, section=0, words="ip local ssh"),
   Entry("Join a hidden network", "Enter its name and password", 2, section=0, words="wifi"),
   _place("Cellular", "Hotspot, data use, roaming and APN", 2, section=1, words="lte sim"),
   Entry("Hotspot", "Share this device's connection", 2, section=1, words="tether"),

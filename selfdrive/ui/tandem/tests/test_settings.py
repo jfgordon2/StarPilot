@@ -1314,3 +1314,15 @@ def test_boot_logo_previews_decode_jpegs_without_raylib():
     with Image.open(io.BytesIO(png)) as image:
       assert image.size == (400, 200), slug                      # comma's portrait logo turned landscape too
   assert _logo_png(BUILT_IN_IMAGES["tandem"].with_suffix(".missing"), 400) is None
+
+
+def test_connected_network_shows_the_local_ip_address():
+  from openpilot.selfdrive.ui.tandem.settings.network_tab import Network
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeWifi
+  wifi = FakeWifi()
+  network = Network(wifi, SettingsStore(FakeCache(), lambda: None))
+  assert network.status_line(wifi.connected_ssid) == f"Connected · {wifi.ipv4_address}"
+  other = next(n.ssid for n in wifi.networks if n.ssid != wifi.connected_ssid)
+  assert wifi.ipv4_address not in network.status_line(other)
+  wifi.ipv4_address = ""
+  assert network.status_line(wifi.connected_ssid) == "Connected"
