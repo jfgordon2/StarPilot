@@ -424,3 +424,46 @@ def test_screens_moves_the_settings_window_to_a_tab(monkeypatch):
   monkeypatch.setattr(screens, "_settings", [type("W", (), {"open_at": lambda self, tab: moved.append(tab)})()])
   screens.show_settings_tab(3)
   assert moved == [3]
+
+
+def test_lead_bar_takes_the_chevrons_place_and_size():
+  from openpilot.selfdrive.ui.tandem.onroad import extras
+  sz = 50.0
+  chevron = [(500 + sz * 1.25, 300 + sz), (500, 300), (500 - sz * 1.25, 300 + sz)]   # upstream's: tip at the car's ground point
+  rect = extras.lead_bar_rect(chevron)
+  assert abs(rect.x + rect.width / 2 - 500) < 1e-6 and rect.y > 300 and abs(rect.width - sz * 2.5) < 1e-6
+  far = extras.lead_bar_rect([(500 + 20, 300 + 16), (500, 300), (500 - 20, 300 + 16)])
+  assert far.width < rect.width                                                    # smaller with distance
+  assert extras.lead_bar_rect([]) is None
+  fills = []
+  import openpilot.selfdrive.ui.tandem.draw as draw
+  original = draw.fill
+  draw.fill = lambda r, c, radius=0: fills.append((r.width, c.a))
+  try:
+    extras.draw_lead_bar(rect, extras.LEAD_INK)
+    assert len(fills) == 2 and fills[0][0] > fills[1][0]                           # the dark outline, then the bar
+    fills.clear()
+    extras.draw_lead_bar(rect, extras.LEAD_INK, extras.LEAD_FAINT, outline=False)
+    assert len(fills) == 1 and fills[0][1] < 255
+  finally:
+    draw.fill = original
+
+
+def test_lead_bar_grows_in_for_a_new_or_cut_in_car():
+  from openpilot.selfdrive.ui.tandem.onroad.extras import LEAD_SETTLE, LeadSettle
+  s = LeadSettle()
+  assert s.update(True, 40.0, 0.0) == 0.0
+  assert 0.0 < s.update(True, 40.0, LEAD_SETTLE / 2) < 1.0
+  assert s.update(True, 39.0, LEAD_SETTLE) == 1.0
+  assert s.update(True, 20.0, LEAD_SETTLE + 1.0) == 0.0          # a car cut in, much nearer: grows in again
+  assert s.update(False, 0.0, 5.0) == 0.0 and s.update(True, 30.0, 5.0) == 0.0
+
+
+def test_standard_and_thin_paths_are_essentials_blue():
+  from openpilot.selfdrive.ui.lib.starpilot_theme import get_param_color
+  from openpilot.selfdrive.ui.tandem.onroad.extras import PATH_COLOR
+  from openpilot.selfdrive.ui.tandem.settings.display import PATH_STYLES
+  for name, _, values in PATH_STYLES:
+    assert values["PathColor"] == PATH_COLOR, name
+  color = get_param_color(type("P", (), {"get": lambda self, k, encoding=None: PATH_COLOR})(), "PathColor")
+  assert (color.r, color.g, color.b, color.a) == (0x5A, 0xAA, 0xF8, 0x80)

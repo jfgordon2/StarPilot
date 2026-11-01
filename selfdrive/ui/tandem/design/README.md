@@ -29,6 +29,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Confirm dialogs | [confirmdialog.html](confirmdialog.html) |
 | Keyboard | [keyboard.html](keyboard.html) |
 | Progress, blocked, done, empty | [feedback.html](feedback.html) |
+| Path and lead marker | [leadmarker.html](leadmarker.html) |
 | Parked home | [home.html](home.html) |
 | Home: alerts, update ready | [homealerts.html](homealerts.html), [homeupdate.html](homeupdate.html) |
 | First-run setup | [setup.html](setup.html) |
@@ -76,11 +77,17 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 - **Search settings** sits at the top right of the hub ([search.html](search.html)). It searches every setting's name, what it does and where it lives, with the Essentials keyboard; the best four show above the keyboard and Search lists them all. Picking one opens its page and section. Settings behind Tuner Mode are found only while it's on.
 - **Connections** replaces the Network and Bluetooth tabs ([connections.html](connections.html) and its sections).
 
-## Proposals (not built)
+## Path and lead marker
 
-- **Path and lead marker** ([proposals/pathlead.html](proposals/pathlead.html)): today the path takes StarPilot's color scheme and the lead marker is the theme's red with upstream's yellow glow. Options: A, Essentials blue path with a white marker in a blue glow (recommended); B, a quiet white path with a dark-ringed white marker; C, the blue path with a marker that turns amber while the car brakes for the lead.
-- **Lead marker shapes** ([proposals/leadmarker.html](proposals/leadmarker.html)), over option A's path: 1, a ground bar on the road under the car ahead (recommended); 2, the path stopping at the car with a bright cap; 3, a focus frame of corner ticks, sized from a typical car's width at the lead's distance (openpilot knows where the car is, not its outline). Each is white while following and amber while braking for the lead.
-- **The recommendation in each situation** ([proposals/leadscenarios.html](proposals/leadscenarios.html)): option A's path with the ground bar, thinly outlined in dark, while following, braking, unsure, picking up a new car, stopped behind one, beside cars in the next lanes, in bright sun, and with no car ahead.
+[leadmarker.html](leadmarker.html) shows each situation.
+
+- **Path:** Essentials blue (`#5AAAF8`, 50% at the car fading toward the horizon) for the Standard and Thin path styles, through StarPilot's `PathColor`. Rainbow and Acceleration keep their own colors.
+- **Lead marker:** a white bar on the road under the car ahead, in place of upstream's arrow, with a thin dark outline so it holds up on bright roads.
+  - Amber while braking for the car ahead: the same rule as the Slowing for traffic chip, so they change together.
+  - Half opacity when the model isn't sure the car is there, rather than another color.
+  - Grows in over a quarter second when a car first appears or cuts in, then holds still.
+  - White and calm when stopped behind a car; the Stopped chip says why.
+  - A second car ahead, and cars in the next lanes (Lead Insights), get a faint bar without the outline.
 
 ## Principles
 

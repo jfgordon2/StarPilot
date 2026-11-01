@@ -42,6 +42,64 @@ WHIMSY_SIGNALS = {"frog": "Jumping frog", "pouncing_cat": "Pouncing cat", "bounc
 SIGNAL_GAP = T.px(12)   # between an animation and the bar
 
 
+# ── Path and lead marker (design/leadmarker.html) ──
+
+PATH_COLOR = "#5AAAF880"   # StarPilot's PathColor for the Standard and Thin path styles: our blue at 50%
+LEAD_INK = T.TEXT
+LEAD_BRAKING_INK = T.WARNING
+LEAD_OUTLINE = rl.Color(0x0B, 0x0D, 0x10, 0xB3)
+LEAD_UNSURE = 0.45          # opacity when the model isn't sure the car ahead is there
+LEAD_FAINT = 0.35           # a second car ahead, and cars in the next lanes
+LEAD_SETTLE = 0.25          # s for a new car's bar to grow in
+LEAD_JUMP = 8.0             # m: a lead this much nearer than the last one is a new car (a cut-in)
+
+
+def lead_bar_rect(chevron) -> rl.Rectangle | None:
+  """The bar under a lead car, from upstream's chevron for it: the chevron's tip is the car's ground point and its height
+  (sz) scales with distance, so the bar keeps the chevron's place and size."""
+  if not chevron or len(chevron) < 3:
+    return None
+  (_, base_y), (x, y), _ = chevron
+  sz = base_y - y
+  if sz <= 0:
+    return None
+  w, h = sz * 2.5, max(T.px(7), sz * 0.16)   # the chevron's width, about the car's at that distance
+  return rl.Rectangle(x - w / 2, y + sz * 0.08, w, h)
+
+
+def draw_lead_bar(rect: rl.Rectangle, color: rl.Color, opacity: float = 1.0, scale: float = 1.0, outline: bool = True) -> None:
+  """The bar, grown from its center by scale (the settle-in), with a thin dark outline that keeps white readable on a bright
+  road."""
+  if opacity <= 0.01 or scale <= 0.01:
+    return
+  w = rect.width * scale
+  bar = rl.Rectangle(rect.x + (rect.width - w) / 2, rect.y, w, rect.height)
+  if outline:
+    edge = T.px(2)
+    out = rl.Rectangle(bar.x - edge, bar.y - edge, bar.width + edge * 2, bar.height + edge * 2)
+    draw.fill(out, draw.alpha(LEAD_OUTLINE, opacity), out.height / 2)
+  draw.fill(bar, draw.alpha(color, opacity), bar.height / 2)
+
+
+class LeadSettle:
+  """How far a lead's bar has grown in (0 to 1): a car that appears, or one much nearer than the last (a cut-in), starts
+  again from small and grows over LEAD_SETTLE."""
+
+  def __init__(self):
+    self._since: float | None = None
+    self._distance: float | None = None
+
+  def update(self, present: bool, distance: float, now: float) -> float:
+    if not present:
+      self._since = self._distance = None
+      return 0.0
+    if self._since is None or (self._distance is not None and self._distance - distance > LEAD_JUMP):
+      self._since = now
+    self._distance = distance
+    t = min(1.0, (now - self._since) / LEAD_SETTLE)
+    return 1.0 - (1.0 - t) ** 3   # ease out
+
+
 # ── Pedals ──
 
 def pedal_levels(params, car_state, starpilot_car_state=None) -> tuple[float, float] | None:

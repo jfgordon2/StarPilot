@@ -16,10 +16,11 @@ from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
-from openpilot.selfdrive.ui.tandem.onroad.extras import WHIMSY_SIGNALS
+from openpilot.selfdrive.ui.tandem.onroad.extras import PATH_COLOR, WHIMSY_SIGNALS
 
 # Path Style -> the path and lane line params it sets. Standard is upstream's path without the acceleration tint.
-_STANDARD_PATH = {"ModelUI": True, "CustomUI": True, "PathWidth": 6.1, "PathEdgeWidth": 20.0, "LaneLinesWidth": 4.0,
+# PathColor is Essentials blue (design/leadmarker.html); Rainbow and Acceleration draw their own colors over it.
+_STANDARD_PATH = {"ModelUI": True, "CustomUI": True, "PathColor": PATH_COLOR, "PathWidth": 6.1, "PathEdgeWidth": 20.0, "LaneLinesWidth": 4.0,
                   "RainbowPath": False, "AccelerationPath": False, "DynamicPathWidth": False}
 PATH_STYLES = [
   ("Standard", "The usual path and lane lines", _STANDARD_PATH),

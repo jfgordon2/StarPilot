@@ -272,6 +272,16 @@
    "built": "onroad_default"
   },
   {
+   "mock": "leadmarker",
+   "title": "Onroad › Path and lead marker",
+   "note": "Matches: the white ground bar with its dark outline while following (top, with a faint bar for a car in the next lane) and amber while braking with the Slowing for traffic chip (bottom). The stand-in road's path is a flat blue; on the device the path is our blue fading toward the horizon.",
+   "match": true,
+   "built": [
+    "lead_following",
+    "lead_braking"
+   ]
+  },
+  {
    "mock": "steeringheadroom",
    "title": "Steering headroom",
    "note": "This shows the at-limit stage: Help steer is the bottom Warning card in the bar's place, like StarPilot's alerts, with the arc moved above it. On the car the border also turns amber and the lane lines tint; this stand-in render keeps the green border.",

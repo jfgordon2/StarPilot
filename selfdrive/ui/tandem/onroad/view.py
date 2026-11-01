@@ -38,7 +38,7 @@ from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, B
                                                          Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
-from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, LimitWatch, snapshot
+from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, LimitWatch, chips_for, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
@@ -179,6 +179,11 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._layers_visible = False
     self._dev: DevData | None = None            # Developer View's readout, while StarPilot's Developer UI is on
     self.model_renderer._draw_lead_metrics = self._lead_tag   # Lead Insights' text becomes the mock's tag
+    # The lead marker is our ground bar (design/leadmarker.html); upstream still places and sizes it.
+    self.model_renderer._draw_lead_indicator = self._draw_leads
+    self.model_renderer._draw_adjacent_leads = self._draw_adjacent_leads
+    self._lead_settle = extras.LeadSettle()
+    self._braking_for_lead = False   # the Slowing for traffic chip's rule, so the bar turns amber with it
     self._nav_sm = None
 
   # Upstream pieces replaced here
@@ -252,6 +257,44 @@ class EssentialsOnroadView(StarPilotOnroadView):
     lead = lead_of(lead_data, car.vEgo, bool(ui_state.is_metric))
     if lead is not None:
       draw_lead_tag(chevron[1][0], min(p[1] for p in chevron), lead)
+
+  def _draw_leads(self, radar_state) -> None:
+    """The car ahead as a ground bar: white, amber while braking for it, half opacity when the model is unsure, growing
+    in when it first appears. A second car ahead gets a faint bar. Upstream's _draw_lead_indicator, redrawn."""
+    mr = self.model_renderer
+    leads = [radar_state.leadOne, radar_state.leadTwo]
+    threshold = mr._params.get_int("LeadDetectionProbability") or mr._params.get_int("LeadDetectionThreshold") or 50
+    threshold = threshold / 100.0 if threshold > 1.0 else threshold
+    first = mr._lead_vehicles[0] if mr._lead_vehicles else None
+    present = bool(first and first.chevron and leads[0] and leads[0].status)
+    scale = self._lead_settle.update(present, float(leads[0].dRel) if present else 0.0, time.monotonic())
+    for i, lead in enumerate(mr._lead_vehicles):
+      rect = extras.lead_bar_rect(lead.chevron)
+      if rect is None:
+        continue
+      if i == 0:
+        sure = not (leads[0] and leads[0].status) or leads[0].modelProb >= threshold
+        color = extras.LEAD_BRAKING_INK if self._braking_for_lead else extras.LEAD_INK
+        extras.draw_lead_bar(rect, color, 1.0 if sure else extras.LEAD_UNSURE, scale)
+      else:
+        extras.draw_lead_bar(rect, extras.LEAD_INK, extras.LEAD_FAINT, outline=False)
+      if mr._lead_info_enabled and i < len(leads) and leads[i] and leads[i].status:
+        mr._draw_lead_metrics(False, lead.chevron, leads[i])
+
+  def _draw_adjacent_leads(self) -> None:
+    """Cars in the next lanes (Lead Insights): faint bars without the outline, so the car you follow stays the obvious one."""
+    sm, mr = ui_state.sm, self.model_renderer
+    if not sm.valid.get("starpilotRadarState", False):
+      return
+    state = sm["starpilotRadarState"]
+    for idx, lead_data in enumerate((state.leadLeft, state.leadRight)):
+      if not (lead_data and lead_data.status):
+        continue
+      rect = extras.lead_bar_rect(mr._adjacent_lead_vehicles[idx].chevron)
+      if rect is not None:
+        extras.draw_lead_bar(rect, extras.LEAD_INK, extras.LEAD_FAINT, outline=False)
+      if mr._lead_info_enabled:
+        mr._draw_lead_metrics(True, mr._adjacent_lead_vehicles[idx].chevron, lead_data)
 
   def _render_developer_metrics(self):
     """Developer View's readout, gathered here; StarPilot's device line moves to our panel and the controls to our strip."""
@@ -402,8 +445,9 @@ class EssentialsOnroadView(StarPilotOnroadView):
     # Help steer is a Warning alert drawn by us: like StarPilot's alerts, it takes the bar's place at the bottom.
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None and not self._headroom_warning)
     now = time.monotonic()
-    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating(), self._limits, now), now,
-                                         alert is not None or self._headroom_warning)
+    current = snapshot(ui_state, self._navigating(), self._limits, now)
+    self._braking_for_lead = any(chip.key == "traffic" for chip in chips_for(current))
+    self._chip_list = self._chips.update(current, now, alert is not None or self._headroom_warning)
     if not self._layers_visible:
       return
     c = self._content_rect
