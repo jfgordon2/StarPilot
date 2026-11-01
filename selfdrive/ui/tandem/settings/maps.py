@@ -17,7 +17,7 @@ from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import SPACER, Card, Columns, Grid, IconTitle, Label, Stack, Surface
 from openpilot.selfdrive.ui.tandem.chrome import PageHeader, Sidebar, SidebarItem
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, ProgressBar, Segmented
-from openpilot.selfdrive.ui.tandem.layout import FILL, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.device_sections import DELETE_MAPS_MESSAGE, StorageBar, confirm
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
@@ -35,15 +35,45 @@ class Region:
 
 
 @dataclass(frozen=True)
+class RegionProgress:
+  location: str        # mapd's name for it, e.g. "US_ID"
+  done: int
+  total: int
+
+  @property
+  def code(self) -> str:
+    """The short name a tile shows: a U.S. state's code ("ID"), otherwise the name."""
+    return self.location[3:] if self.location.startswith("US_") else self.location.replace("_", " ")
+
+  @property
+  def finished(self) -> bool:
+    return self.total > 0 and self.done >= self.total
+
+
+@dataclass(frozen=True)
 class Progress:
   active: bool
   done: int
   total: int
   location: str
+  regions: tuple[RegionProgress, ...] = ()
 
   @property
   def fraction(self) -> float:
     return self.done / self.total if self.total else 0.0
+
+  @property
+  def step(self) -> int:
+    """The mock's steps: 0 Prepare (no file count yet), 1 Download, 2 Install (every file in, still finishing), 3 Ready."""
+    if not self.active:
+      return 3
+    if not self.total:
+      return 0
+    return 1 if self.done < self.total else 2
+
+  @property
+  def current(self) -> RegionProgress | None:
+    return next((r for r in self.regions if not r.finished), None)
 
 
 class MapsSource(Protocol):
@@ -290,7 +320,13 @@ class UpstreamMaps:
 
   def progress(self) -> Progress:
     state = self._layout._download_state
-    return Progress(state.active or self._layout._download_requested(), state.downloaded_files, state.total_files, state.primary_location)
+    regions: tuple[RegionProgress, ...] = ()
+    sm = self._layout._map_sm
+    if sm.valid.get("mapdExtendedOut", False):   # mapd's per-location counts, already received by the layout's own update
+      regions = tuple(RegionProgress(str(d.location), int(d.downloadedFiles), int(d.totalFiles))
+                      for d in sm["mapdExtendedOut"].downloadProgress.locationDetails)
+    return Progress(state.active or self._layout._download_requested(), state.downloaded_files, state.total_files, state.primary_location,
+                    regions)
 
   def cancelling(self) -> bool:
     return self._layout._is_visually_cancelling()
@@ -356,14 +392,142 @@ def remove_offline_maps(on_done: Callable[[], None] | None = None) -> None:
   threading.Thread(target=worker, daemon=True).start()
 
 
+STEPS = ["Prepare", "Download", "Install", "Ready"]
+DOWNLOAD_NOTE = "Pauses if you start driving or lose Wi-Fi, and picks up where it stopped. Keep the device powered."
+
+
+def tile_window(count: int, current: int | None, capacity: int) -> tuple[int, int, int]:
+  """(start, end, more) when count tiles may not fit in capacity: a run that keeps the current one in view, and how many
+  are left out (drawn as one "+N more" tile)."""
+  if count <= capacity:
+    return 0, count, 0
+  shown = capacity - 1
+  start = 0 if current is None else max(0, min(current - shown // 2, count - shown))
+  return start, start + shown, count - shown
+
+
+def minutes_left(started: tuple[float, int] | None, now: float, done: int, total: int) -> int | None:
+  """Minutes to go at the rate since started (time, files done then), once there's a rate to go by."""
+  if started is None or total <= 0 or done >= total:
+    return None
+  t0, d0 = started
+  if done <= d0 or now - t0 < 5.0:
+    return None
+  rate = (done - d0) / (now - t0)
+  return max(1, round((total - done) / rate / 60))
+
+
+class DownloadView(Component):
+  """A download in progress (design/mapdownloading.html): percent and steps, then each region as a tile, done, current or
+  waiting. Shown in place of the Offline Maps page while it runs."""
+  grow_touch_target = False
+  COLUMNS = 7
+
+  def __init__(self, maps: Maps):
+    super().__init__()
+    self._maps = maps
+    self._cancel = self._child(Button("Cancel download", maps.source.cancel, ButtonStyle.DANGER_SOFT, height=T.px(52)))
+    self._bar = self._child(ProgressBar(lambda: maps.source.progress().fraction))
+    self._started: tuple[float, int] | None = None
+
+  def _update_state(self):
+    progress = self._maps.source.progress()
+    if progress.active and progress.total and self._started is None:
+      self._started = (rl.get_time(), progress.done)
+    elif not progress.active:
+      self._started = None
+
+  def _render(self, rect: rl.Rectangle):
+    from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
+    progress = self._maps.source.progress()
+    body = body_rect(rect)
+    header, top, grid = column(body, [T.px(60), T.px(136), FILL], T.px(12))
+    # Header: title and line, Cancel at the right
+    w, _ = self._cancel.preferred_size(header.width)
+    words, cancel = row(header, [FILL, w], T.px(14))
+    self._cancel.render(place(cancel, w, T.px(52)))
+    title, line = column(place(words, words.width, T.px(60)), [T.px(34), FILL], T.px(2))
+    what = self._maps.source.selection_summary().removesuffix(" selected")   # "13 regions", "Whole U.S. (56 states)"
+    draw.text(title, f"Downloading {what}", T.font_px(26), T.TEXT, T.FONT_EXTRABOLD)
+    draw.text(line, "You can leave this screen. It keeps going in the background.", T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
+    # Percent, bar and steps
+    draw.fill(top, T.SURFACE_2, T.RADIUS_PANEL)
+    inner = inset(top, x=T.px(22), y=T.px(16))
+    figure, bar, steps = column(inner, [T.px(50), T.px(12), FILL], T.px(10))
+    pct = f"{round(progress.fraction * 100)}%"
+    pw = draw.text(figure, pct, T.font_px(44), T.TEXT, T.FONT_EXTRABOLD)
+    left = minutes_left(self._started, rl.get_time(), progress.done, progress.total)
+    detail = f"{progress.done} of {progress.total} files" if progress.total else "Getting ready"
+    if left is not None:
+      detail += f" · about {left} min left"
+    draw.text(inset(figure, left=pw + T.px(16)), detail, T.font_px(17), T.TEXT_SECONDARY)
+    self._bar.render(bar)
+    for i, (name, cell) in enumerate(zip(STEPS, row(steps, [FILL] * len(STEPS), T.px(12)), strict=True)):
+      done, now = i < progress.step, i == progress.step
+      ink = T.SUCCESS_TEXT if done else (T.TEXT if now else T.TEXT_MUTED)
+      mark = rl.Rectangle(cell.x, cell.y, T.px(18), cell.height)
+      if done:
+        draw.icon(mark, "check", T.SUCCESS_TEXT, T.px(16))
+      elif now:
+        rl.draw_circle_v(rl.Vector2(mark.x + T.px(7), mark.y + mark.height / 2), T.px(5), T.ACCENT)
+      else:
+        rl.draw_circle_lines_v(rl.Vector2(mark.x + T.px(7), mark.y + mark.height / 2), T.px(5), T.TEXT_MUTED)
+      draw.text(inset(cell, left=T.px(26)), f"{i + 1} {name}", T.font_px(16), ink, T.FONT_SEMIBOLD if now or done else T.FONT)
+    # Regions
+    draw.fill(grid, T.SURFACE_2, T.RADIUS_PANEL)
+    inner = inset(grid, x=T.px(22), y=T.px(14))
+    regions = progress.regions
+    finished = sum(r.finished for r in regions)
+    caption, tiles, note = column(inner, [draw.line_height(T.SIZE_CAPTION), FILL, draw.line_height(T.SIZE_SUBTITLE)], T.px(12))
+    draw.caption(caption, f"REGIONS · {finished} OF {len(regions)} DONE" if regions else "REGIONS")
+    current = progress.current
+    tile_w = (tiles.width - T.px(10) * (self.COLUMNS - 1)) / self.COLUMNS
+    rows = max(1, int((tiles.height + T.px(8)) // T.px(56)))
+    start, end, more = tile_window(len(regions), regions.index(current) if current is not None else None, rows * self.COLUMNS)
+    cell = lambda i: rl.Rectangle(tiles.x + (i % self.COLUMNS) * (tile_w + T.px(10)), tiles.y + (i // self.COLUMNS) * T.px(56),  # noqa: E731
+                                  tile_w, T.px(48))
+    if more:
+      tile = cell(end - start)
+      draw.fill(tile, T.SURFACE_4, T.px(12))
+      draw.text(tile, f"+{more} more", T.font_px(15), T.TEXT_TERTIARY, T.FONT_SEMIBOLD, Align.CENTER)
+    for i, region in enumerate(regions[start:end]):
+      tile = cell(i)
+      is_current = region is current
+      if region.finished:
+        draw.fill(tile, T.SUCCESS_SURFACE, T.px(12))
+        label, ink = region.code, T.SUCCESS_CHIP_TEXT
+      elif is_current:
+        draw.fill(tile, T.ACCENT_SELECTED, T.px(12))
+        draw.stroke(tile, T.ACCENT, T.px(12), T.px(2))
+        label, ink = region.code, T.TEXT
+      else:
+        draw.fill(tile, T.SURFACE_4, T.px(12))
+        label, ink = region.code, T.TEXT_TERTIARY
+      extra = ""
+      if is_current and region.total:
+        extra = f"{round(region.done * 100 / region.total)}%"
+      lw = draw.text_width(label, T.font_px(17), T.FONT_BOLD)
+      ew = draw.text_width(extra, T.font_px(13), T.FONT_BOLD) + T.px(8) if extra else 0
+      cw = T.px(22) if region.finished else 0
+      x = tile.x + (tile.width - (cw + lw + ew)) / 2
+      if region.finished:
+        draw.icon(rl.Rectangle(x, tile.y, T.px(16), tile.height), "check", T.SUCCESS_TEXT, T.px(16))
+      draw.text(rl.Rectangle(x + cw, tile.y, lw, tile.height), label, T.font_px(17), ink, T.FONT_BOLD)
+      if extra:
+        draw.text(rl.Rectangle(x + cw + lw + T.px(8), tile.y, ew, tile.height), extra, T.font_px(13), T.ACCENT_TEXT, T.FONT_BOLD)
+    draw.icon(rl.Rectangle(note.x, note.y, T.px(18), note.height), "info", T.ACCENT_TEXT, T.px(18))
+    draw.text(inset(note, left=T.px(28)), DOWNLOAD_NOTE, T.SIZE_SUBTITLE, T.TEXT_SECONDARY)
+
+
 class MapsPage(Component):
-  """The Offline Maps panel; tracks the download while open."""
+  """The Offline Maps panel; tracks the download while open, showing the download view in its place while one runs."""
   grow_touch_target = False
 
   def __init__(self, maps: Maps, open_regions: Callable[[], None], sizes: Callable[[], dict[str, float]], window):
     super().__init__()
     self._maps = maps
     self._page = self._child(maps_page(maps, open_regions, sizes, window))
+    self._download = self._child(DownloadView(maps))
 
   def show_event(self):
     self._maps.source.refresh()
@@ -373,4 +537,4 @@ class MapsPage(Component):
     self._maps.source.tick()
 
   def _render(self, rect: rl.Rectangle):
-    self._page.render(rect)
+    (self._download if self._maps.source.progress().active else self._page).render(rect)

@@ -1084,3 +1084,21 @@ def test_profiles_show_from_style_and_override_resets_to_the_style():
   assert tuner.profile_status("AccelerationProfile") == OVERRIDE
   tuner.reset_profile("AccelerationProfile")
   assert tuner.profile_status("AccelerationProfile") == FROM_STYLE
+
+
+def test_map_download_steps_regions_and_time_left():
+  from openpilot.selfdrive.ui.tandem.settings.maps import Progress, RegionProgress, minutes_left
+  regions = (RegionProgress("US_AK", 4, 4), RegionProgress("US_ID", 3, 5), RegionProgress("Germany", 0, 9))
+  p = Progress(True, 7, 18, "US_ID", regions)
+  assert p.step == 1 and p.current.code == "ID" and regions[2].code == "Germany"
+  assert Progress(True, 0, 0, "").step == 0 and Progress(True, 18, 18, "").step == 2 and Progress(False, 18, 18, "").step == 3
+  assert minutes_left((0.0, 0), 60.0, 6, 18) == 2          # 6 files a minute, 12 to go
+  assert minutes_left((0.0, 0), 3.0, 1, 18) is None         # too early to tell
+
+
+def test_region_tiles_keep_the_current_one_in_view_when_they_overflow():
+  from openpilot.selfdrive.ui.tandem.settings.maps import tile_window
+  assert tile_window(13, 5, 14) == (0, 13, 0)                 # all fit
+  start, end, more = tile_window(56, 40, 21)
+  assert start <= 40 < end and end - start == 20 and more == 36
+  assert tile_window(56, None, 21) == (0, 20, 36)

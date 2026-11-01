@@ -354,7 +354,11 @@ class FakeMaps:
 
   def download(self):
     self.calls.append("download")
-    self.state = self._Progress(True, 21, 50, "California")
+    from openpilot.selfdrive.ui.tandem.settings.maps import RegionProgress
+    regions = tuple(RegionProgress(f"US_{code}", done, total) for code, done, total in (
+      ("AK", 4, 4), ("AZ", 3, 3), ("CA", 6, 6), ("CO", 3, 3), ("HI", 1, 1), ("ID", 3, 5), ("MT", 0, 4), ("NV", 0, 3), ("NM", 0, 3),
+      ("OR", 0, 4), ("UT", 0, 3), ("WA", 0, 5), ("WY", 0, 6)))
+    self.state = self._Progress(True, 21, 50, "California", regions)
 
   def cancel(self):
     self.calls.append("cancel")
