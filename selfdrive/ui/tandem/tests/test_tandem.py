@@ -405,3 +405,22 @@ def test_release_notes_lead_with_a_tandem_entry():
   assert not rest.lstrip().startswith("* ")                                  # no bullets cut off by a blank line
   shown = notes_text(parse_markdown(first))
   assert shown.splitlines()[0] == lines[0] and shown.count("• ") == len(lines) - 2
+
+
+def test_home_software_card_opens_software_or_the_notes():
+  from openpilot.selfdrive.ui.tandem.home import HomeContent, HomeState
+  opened = []
+  state = HomeState(version="0.11.2")
+  home = HomeContent(lambda: state, lambda: None, lambda: None, lambda: opened.append("notes"), lambda: opened.append("software"))
+  home._update._click_callback()
+  state = HomeState(update_ready=True)
+  home._update._click_callback()
+  assert opened == ["software", "notes"]
+
+
+def test_screens_moves_the_settings_window_to_a_tab(monkeypatch):
+  from openpilot.selfdrive.ui.tandem import screens
+  moved = []
+  monkeypatch.setattr(screens, "_settings", [type("W", (), {"open_at": lambda self, tab: moved.append(tab)})()])
+  screens.show_settings_tab(3)
+  assert moved == [3]

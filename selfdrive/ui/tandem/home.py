@@ -104,7 +104,8 @@ class HomeContent(Component):
   grow_touch_target = False
 
   def __init__(self, state: Callable[[], HomeState], on_alerts: Callable[[], None], on_where_to: Callable[[], None],
-               on_notes: Callable[[], None]):
+               on_notes: Callable[[], None], on_software: Callable[[], None] = lambda: None):
+    """The update card opens the release notes when an update is ready, else Settings › Software (on_software)."""
     super().__init__()
     self._state = state
     self._hero = self._child(Hero(state, on_alerts))
@@ -114,7 +115,7 @@ class HomeContent(Component):
     self._update = self._child(Card("download", lambda: "Update ready" if state().update_ready else "Software",
                                     lambda: "Installs when you turn off the car" if state().update_ready else
                                     (f"Up to date · {state().version}" if state().version else "Up to date"),
-                                    lambda: on_notes() if state().update_ready else None, notes))
+                                    lambda: on_notes() if state().update_ready else on_software(), notes))
 
   def _render(self, rect: rl.Rectangle):
     top, bottom = column(rect, [FILL, T.px(100)], T.px(14))
@@ -139,11 +140,19 @@ def essentials_home():
       self._speed = SpeedSteering(SettingsStore())
       self._setup_checked = False
       self._content = HomeContent(self._state, lambda: self._set_state(HomeLayoutState.ALERTS), self._where_to,
-                                  lambda: self._set_state(HomeLayoutState.UPDATE))
+                                  lambda: self._set_state(HomeLayoutState.UPDATE), self._open_software)
       home = lambda: self._set_state(HomeLayoutState.HOME)  # noqa: E731
       self._alerts_view = AlertsView(self._home_alerts, home, self._alert_action)
       self._update_view = UpdateView(self._new_version, lambda: notes_text(self.update_alert.release_notes), home,
                                      lambda: self.update_alert.reboot_btn._click_callback())
+
+    def _open_software(self):
+      """Settings at its Software tab: MainLayout opens settings as home's settings button does, then the tab moves."""
+      from openpilot.selfdrive.ui.tandem.screens import show_settings_tab
+      from openpilot.selfdrive.ui.tandem.settings.window import Tab
+      if self.settings_callback is not None:
+        self.settings_callback()
+        show_settings_tab(Tab.SOFTWARE)
 
     def _show_header(self) -> bool:
       return False   # our alerts and update views carry their own back and title

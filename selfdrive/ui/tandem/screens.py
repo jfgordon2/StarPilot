@@ -10,12 +10,23 @@ def _enabled(name: str) -> bool:
   return os.getenv(name, "1") != "0"
 
 
+_settings: list = []   # the Essentials settings window, once MainLayout has made it
+
+
 def settings_window() -> Widget:
   if not _enabled("TANDEM_SETTINGS"):
     from openpilot.selfdrive.ui.layouts.settings.settings import SettingsLayout
     return SettingsLayout()
   from openpilot.selfdrive.ui.tandem.settings.window import SettingsWindow
-  return SettingsWindow()
+  window = SettingsWindow()
+  _settings[:] = [window]
+  return window
+
+
+def show_settings_tab(tab: int) -> None:
+  """After MainLayout has opened settings, move the Essentials window to a tab (home's Software card opens Software)."""
+  if _settings:
+    _settings[0].open_at(tab)
 
 
 def home_layout() -> Widget:
