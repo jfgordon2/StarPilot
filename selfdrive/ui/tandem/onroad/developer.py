@@ -24,7 +24,8 @@ from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, row
 
 PANEL_W = T.px(256)                 # the mock's sidebar
 WIDTH = PANEL_W + T.px(10)          # with its gap from the road view
-STRIP_H = T.px(30)
+STRIP_H = T.px(40)          # the mock's 30, taller for STRIP_TEXT
+STRIP_TEXT = T.font_px(18)  # the mock's 13 was too small to read while driving
 TILE_FILL = T._hex("1E2227")
 LABEL = T._hex("9FAABA")
 BAR_INK = T.ACCENT_TEXT
@@ -176,11 +177,11 @@ def draw_strip(rect: rl.Rectangle, data: DevData) -> None:
     return
   draw.fill(rect, STRIP_FILL)
   for (label, value), cell in zip(parts, row(inset(rect, x=T.px(20)), [FILL] * len(parts), T.px(12)), strict=True):
-    lw = draw.text_width(label + " ", T.font_px(13), MONO)
-    vw = draw.text_width(value, T.font_px(13), BOLD)
+    lw = draw.text_width(label + " ", STRIP_TEXT, MONO)
+    vw = draw.text_width(value, STRIP_TEXT, BOLD)
     x = cell.x + (cell.width - lw - vw) / 2
-    draw.text(rl.Rectangle(x, cell.y, lw, cell.height), label + " ", T.font_px(13), T.TEXT_SECONDARY, MONO)
-    draw.text(rl.Rectangle(x + lw, cell.y, vw, cell.height), value, T.font_px(13), T.TEXT, BOLD)
+    draw.text(rl.Rectangle(x, cell.y, lw, cell.height), label + " ", STRIP_TEXT, T.TEXT_SECONDARY, MONO)
+    draw.text(rl.Rectangle(x + lw, cell.y, vw, cell.height), value, STRIP_TEXT, T.TEXT, BOLD)
 
 
 def draw_lead_tag(center_x: float, top_y: float, lead: Lead) -> None:
