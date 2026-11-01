@@ -24,12 +24,15 @@ from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer
 from openpilot.selfdrive.ui.onroad.augmented_road_view import CAMERA_VIEW_DRIVER
+from openpilot.selfdrive.ui.lib.starpilot_visuals import get_border_roundness
+from openpilot.selfdrive.ui.onroad.starpilot import starpilot_border, starpilot_onroad_view
+from openpilot.selfdrive.ui.onroad.starpilot.compass import get_compass_text
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
-from openpilot.selfdrive.ui.tandem.onroad import alerts
+from openpilot.selfdrive.ui.tandem.onroad import alerts, extras
 from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DevData, developer_view_on, draw_lead_tag, draw_strip, lead_of, read
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
@@ -131,11 +134,18 @@ class EssentialsOnroadView(StarPilotOnroadView):
     zones = self.layout_manager.zones
     # StarPilot widgets Essentials replaces: the personality button, its driver monitor and steering wheel icons, and the
     # Aether Gauge (Conditional Experimental's "STOPPED"/"SLOW"/curve/light indicator), which the status chip says instead.
+    # The pedal icons and the model-source badge are drawn by us (onroad/extras.py) in the Essentials style.
     for zone, widget in (("bottom", self._personality_button_widget), ("bottom", self._driver_monitor_widget),
-                         ("right", self._steering_wheel_widget), ("left", self._aethergauge_widget)):
+                         ("right", self._steering_wheel_widget), ("left", self._aethergauge_widget), ("right", self._pedals_widget),
+                         ("right_center", self._model_source_widget)):
       if widget in zones[zone]:
         zones[zone].remove(widget)
       widget.set_visible(False)
+    self._model_chip = extras.ModelChip(self._model_source_widget)
+    self.model_renderer._draw_radar_marker_texture = extras.draw_radar_marker   # white dots ringed in black
+    # StarPilot's curve glow keeps its timing and fade; Essentials draws it in our blue at every curve strength.
+    starpilot_border._glow_color = lambda intensity: T.ACCENT
+    starpilot_border._TRAINING = T.ACCENT
 
     self._memory = Params(memory=True)
     self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
@@ -298,7 +308,74 @@ class EssentialsOnroadView(StarPilotOnroadView):
                           int(self._content_rect.height))
     self._render_layers()
     rl.end_scissor_mode()
-    super()._draw_border(rect)
+    # StarPilot's border, its overlay effects, and our signal and blind-spot halves (its steering-torque fill is left out:
+    # the steering arc says the same).
+    border_width = self._get_border_width()
+    rl.draw_rectangle_lines_ex(rect, border_width, rl.BLACK)
+    border_rect = rl.Rectangle(rect.x + border_width, rect.y + border_width, rect.width - 2 * border_width, rect.height - 2 * border_width)
+    roundness = get_border_roundness(border_rect, border_width)
+    rl.draw_rectangle_rounded_lines_ex(border_rect, roundness, 10, border_width, self._get_border_color())
+    halves = self._border_halves()
+    if halves is not None:
+      extras.draw_border_halves(rect, border_rect, roundness, border_width, halves)
+    starpilot_onroad_view.render_overlay(border_rect, border_width)
+
+  def _border_halves(self):
+    """The signal and blind-spot halves, under StarPilot's SignalMetrics and BlindSpotMetrics. Alerts and Help steer keep the
+    whole border."""
+    params = getattr(ui_state, "ui_params", None)
+    if params is None or self._headroom_warning or alerts.border(self.alert_renderer.level()) is not None:
+      return None
+    signal_on, blind_on = params.get_bool("SignalMetrics"), params.get_bool("BlindSpotMetrics")
+    if not (signal_on or blind_on) or not ui_state.sm.valid.get("carState", False):
+      return None
+    car = ui_state.sm["carState"]
+    left_blind, right_blind = bool(car.leftBlindspot), bool(car.rightBlindspot)
+    if ui_state.starpilot_toggles.get("v_asm_enabled", False):
+      from openpilot.starpilot.common.vision_bsm import get_fresh_vasm_state
+      vasm_left, vasm_right = get_fresh_vasm_state(ui_state.params_memory)
+      left_blind, right_blind = left_blind or vasm_left, right_blind or vasm_right
+    return extras.border_halves(signal_on, blind_on, bool(car.leftBlinker), bool(car.rightBlinker), left_blind, right_blind, rl.get_time())
+
+  def _render_extra_road_overlays(self, rect: rl.Rectangle) -> None:
+    """StarPilot's path extras in our colors: path edges, adjacent lanes and blind spots, the stopping point, then the curve
+    glow under the HUD."""
+    mr = self.model_renderer
+    if mr._path.projected_points.size:
+      if mr._path_edge_width > 0.0 and mr._track_edge_vertices.size >= 4:
+        extras.draw_path_edges(mr._rect, mr._track_edge_vertices, mr._path.projected_points)
+      extras.draw_lanes(mr._rect, self._lane_sides())
+      self._render_stopping_point()
+    starpilot_onroad_view.render_behind(rect, self._get_border_width())
+
+  def _lane_sides(self):
+    """(polygon, kind) for each adjacent lane, under StarPilot's AdjacentPath and BlindSpotPath."""
+    mr, params, sm = self.model_renderer, self.model_renderer._params, ui_state.sm
+    adjacent, blind_spot = params.get_bool("AdjacentPath"), params.get_bool("BlindSpotPath")
+    vertices = mr._adjacent_path_vertices
+    if not (adjacent or blind_spot) or not vertices or len(vertices) < 2:
+      return []
+    blind = [False, False]
+    if blind_spot and sm.recv_frame["carState"] >= ui_state.started_frame:
+      blind = [bool(sm["carState"].leftBlindspot), bool(sm["carState"].rightBlindspot)]
+      if ui_state.starpilot_toggles.get("v_asm_enabled", False):
+        from openpilot.starpilot.common.vision_bsm import get_fresh_vasm_state
+        blind = [a or b for a, b in zip(blind, get_fresh_vasm_state(ui_state.params_memory), strict=True)]
+    widths = [0.0, 0.0]
+    if adjacent and sm.recv_frame["starpilotPlan"] >= ui_state.started_frame:
+      widths = [float(sm["starpilotPlan"].laneWidthLeft), float(sm["starpilotPlan"].laneWidthRight)]
+    return [(vertices[i], "blind_spot" if blind[i] else ("lane" if adjacent and widths[i] > 0.0 else None)) for i in range(2)]
+
+  def _render_stopping_point(self) -> None:
+    params, sm = ui_state.ui_params, ui_state.sm
+    if not params.get_bool("ShowStoppingPoint") or not sm.valid.get("starpilotPlan", False) or not sm["starpilotPlan"].redLight:
+      return
+    ends = extras.path_end(self.model_renderer._path.projected_points)
+    if ends is None:
+      return
+    distance = 0.0 if sm.valid.get("carState", False) and sm["carState"].standstill else float(sm["starpilotPlan"].forcingStopLength)
+    label = extras.stop_text(distance, bool(ui_state.is_metric)) if params.get_bool("ShowStoppingPointMetrics") else None
+    extras.draw_stopping_point(ends, label)
 
   def _render_layers(self) -> None:
     self._offer()   # observe limit changes even when an alert is covering the card
@@ -308,6 +385,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     if not self._layers_visible:
       return
     c = self._content_rect
+    self._render_corner_extras(c)
     lift = 0.0
     if self._dev is not None and self._dev.strip:   # the picked metrics, just above the bar; the chip moves up over it
       lift = STRIP_H + T.px(6)
@@ -315,6 +393,17 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._chip_view.render(rl.Rectangle(c.x, c.y, c.width, c.height - lift))
     self._limit.render(c)
     self._bar.render(c)
+
+  def _render_corner_extras(self, c: rl.Rectangle) -> None:
+    """Under the driver monitor tile: the pedal tiles (Lead Insights), then the external-GPU model chip."""
+    tile = dm_tile(c)
+    y = tile.y + tile.height + T.px(10)
+    car = ui_state.sm["carState"] if ui_state.sm.valid.get("carState", False) else None
+    sp_car = ui_state.sm["starpilotCarState"] if ui_state.sm.valid.get("starpilotCarState", False) else None
+    levels = extras.pedal_levels(ui_state.ui_params, car, sp_car)
+    if levels is not None:
+      y = extras.draw_pedals(tile, levels)
+    self._model_chip.render(tile.x + tile.width, y)
 
   def _handle_mouse_press(self, mouse_pos: MousePos):
     # Taps on our layers stay ours; anywhere else keeps upstream's behavior (toggling the sidebar).
@@ -345,7 +434,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     navigating = self._navigating()
     arrive, left = self._route_progress(metric) if navigating else ("", "")
     return BarState(engaged=bool(ui_state.engaged), can_engage=bool(ui_state.started), set_speed=set_speed,
-                    unit="km/h" if metric else "mph", street=street, navigating=navigating, arrive=arrive, left=left)
+                    unit="km/h" if metric else "mph", street=street, navigating=navigating, arrive=arrive, left=left,
+                    heading=extras.heading(get_compass_text()))
 
   def _route_progress(self, metric: bool) -> tuple[str, str]:
     """Arrival time and what's left, from navInstruction. ui_state doesn't subscribe to it, so this view does."""

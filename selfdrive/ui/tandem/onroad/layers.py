@@ -34,6 +34,7 @@ class BarState:
   navigating: bool = False
   arrive: str = ""                # e.g. "4:52 PM"
   left: str = ""                  # e.g. "12 min · 8.4 mi"
+  heading: str = ""               # StarPilot's compass, when on: "NE"
 
 
 def _glyph_button(name: str, on_click: Callable[[], None]) -> Button:
@@ -93,6 +94,8 @@ class OnroadBar(Component):
       self._end.render(place(body, w, T.px(52), Align.END))
       body = inset(body, right=w + T.px(20))
       x = body.x
+      if state.heading:   # the compass tag stays first, before the arrival time
+        x += heading_tag(rl.Rectangle(x, body.y, body.width, body.height), state.heading) + T.px(20)
       for caption, text in (("ARRIVE", state.arrive or "–"), ("LEFT", state.left or "–")):
         cell_w = max(draw.text_width(caption, T.SIZE_CAPTION, T.FONT_BOLD, tracking=T.CAPTION_TRACKING), draw.text_width(text, T.font_px(22), T.FONT_BOLD))
         top, bottom = column(place(rl.Rectangle(x, body.y, cell_w, body.height), cell_w, T.px(56)), [T.px(18), FILL], T.px(3))
@@ -102,8 +105,8 @@ class OnroadBar(Component):
       if state.street and x + T.px(80) < body.x + body.width:
         rl.draw_rectangle_rec(rl.Rectangle(x, body.y + body.height * 0.25, T.DIVIDER, body.height * 0.5), T.CONTROL)
         self._street(rl.Rectangle(x + T.px(22), body.y, body.x + body.width - x - T.px(22), body.height), state.street, Align.START)
-    elif state.street:
-      self._street(inset(center, x=T.px(16)), state.street, Align.CENTER)
+    elif state.street or state.heading:
+      self._street(inset(center, x=T.px(16)), state.street, Align.CENTER, state.heading)
 
     engage = r["engage"]
     draw.fill(engage, ENGAGED if state.engaged else CONTROL_FILL, T.RADIUS_CARD)
@@ -112,12 +115,29 @@ class OnroadBar(Component):
 
 
   @staticmethod
-  def _street(rect: rl.Rectangle, street: str, h: Align) -> None:
-    """The road icon and street name, centered (or at the start) in rect, the name elided to fit."""
-    text_w = min(rect.width - T.px(40), draw.text_width(street, T.font_px(22), T.FONT_BOLD))
-    block = place(rect, text_w + T.px(40), rect.height, h)
+  def _street(rect: rl.Rectangle, street: str, h: Align, heading: str = "") -> None:
+    """The road icon, the compass tag when on, and the street name, centered (or at the start) in rect, elided to fit."""
+    tag_w = heading_width(heading) + T.px(12) if heading else 0
+    text_w = min(rect.width - T.px(40) - tag_w, draw.text_width(street, T.font_px(22), T.FONT_BOLD)) if street else 0
+    block = place(rect, T.px(40) + tag_w + text_w, rect.height, h)
     draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
-    draw.text(inset(block, left=T.px(40)), street, T.font_px(22), T.TEXT, T.FONT_BOLD)
+    if heading:
+      heading_tag(rl.Rectangle(block.x + T.px(40), block.y, tag_w, block.height), heading)
+    if street:
+      draw.text(inset(block, left=T.px(40) + tag_w), street, T.font_px(22), T.TEXT, T.FONT_BOLD)
+
+
+def heading_width(heading: str) -> float:
+  return draw.text_width(heading, T.font_px(15), T.FONT_EXTRABOLD, tracking=T.px(1)) + T.px(16)
+
+
+def heading_tag(rect: rl.Rectangle, heading: str) -> float:
+  """The compass heading as a small blue tag, vertically centered at the start of rect. Returns its width."""
+  w = heading_width(heading)
+  tag = place(rl.Rectangle(rect.x, rect.y, w, rect.height), w, T.px(28))
+  draw.fill(tag, T.ACCENT_SURFACE, T.px(8))
+  draw.text(tag, heading, T.font_px(15), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER, tracking=T.px(1))
+  return w
 
 
 class StatusChip(Component):
