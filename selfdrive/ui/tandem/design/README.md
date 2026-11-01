@@ -146,8 +146,8 @@ The top-right corner of the onroad view answers "why is the car doing that?". A 
 | Chip | Icon | Color | Triggered by |
 | --- | --- | --- | --- |
 | Slowing for curve | Curve | Blue | `CurveSpeedController` |
-| Stopping for light | Traffic light | Blue | `CEStopLights` |
-| Stopping for stop sign | Octagon | Blue | `CEStopLights` (model stop detection) |
+| Stopping for light (Stopped for light once stopped) | Traffic light | Blue | `CEStopLights` |
+| Stopping for stop sign (Stopped for stop sign once stopped) | Octagon | Blue | `CEStopLights` (model stop detection) |
 | Slowing for traffic | Car rear | Blue | `CESlowerLead`, `CEStoppedLead` |
 | Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
 | Matching limit 45 | Gauge | Blue | `SetSpeedLimit`, after a limit change |

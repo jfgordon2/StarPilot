@@ -255,3 +255,10 @@ def test_traffic_chip_only_while_braking_and_ready_only_when_the_car_waits():
   assert chip_for(stopped) is None                                   # stopped behind a car that will resume on its own
   stopped.waiting_for_resume = True
   assert chip_for(stopped).label == "Ready · tap resume"
+
+
+def test_stop_chips_say_stopped_once_the_car_is_stopped():
+  from openpilot.selfdrive.ui.tandem.onroad.status import Snapshot, chip_for
+  assert chip_for(Snapshot(red_light=True, speed=8.0)).label == "Stopping for light"
+  assert chip_for(Snapshot(red_light=True, standstill=True)).label == "Stopped for light"
+  assert chip_for(Snapshot(stop_sign=True, standstill=True)).label == "Stopped for stop sign"

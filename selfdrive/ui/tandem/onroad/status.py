@@ -82,10 +82,11 @@ def chip_for(s: Snapshot) -> Chip | None:
     return Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked")
   if s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
     return Chip("lane_change", f"Changing lanes {s.lane_change_direction}", ChipTone.INFO, f"lane_{s.lane_change_direction}")
+  stop = "Stopped" if s.standstill else "Stopping"   # once the car is stopped, the chip says so
   if s.stop_sign:
-    return Chip("stop_sign", "Stopping for stop sign", ChipTone.INFO, "stop_sign")
+    return Chip("stop_sign", f"{stop} for stop sign", ChipTone.INFO, "stop_sign")
   if s.red_light:
-    return Chip("red_light", "Stopping for light", ChipTone.INFO, "light_red")
+    return Chip("red_light", f"{stop} for light", ChipTone.INFO, "light_red")
   if s.curve_control:
     return Chip("curve", "Slowing for curve", ChipTone.INFO, "curve")
   if s.nav_turn:
