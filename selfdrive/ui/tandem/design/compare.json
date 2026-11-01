@@ -45,7 +45,7 @@
   {
    "mock": "display",
    "title": "Display › Driving Screen",
-   "note": "Matches: short descriptions with a \"Sets N options\" link to the bundle sheet. Counts come from the bundles themselves (11 and 9).",
+   "note": "Matches: Camera View, Driver Camera in Reverse, Driving Style Banner, Compass and Blind Spot Highlights, then the power-user bundles. The rows are taller than the mock's, so the panel scrolls to Lead Insights.",
    "match": true
   },
   {

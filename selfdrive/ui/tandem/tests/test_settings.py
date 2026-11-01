@@ -1280,3 +1280,13 @@ def test_language_shows_its_name_after_a_restart():
   assert general.language_name() == "Deutsch"
   assert same_language("main_de", "de") and not same_language("main_de", "main_en")
 
+
+
+def test_compass_switch_writes_starpilots_compass():
+  from openpilot.selfdrive.ui.tandem.settings.display import Display, driving_screen_panel
+  store, cache = _store({"Compass": False})
+  display = Display(store)
+  row = _rows(driving_screen_panel(display, None))["Compass"]
+  assert not row._control.value
+  display.set_compass(True)
+  assert cache.values["Compass"] and display.compass

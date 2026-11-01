@@ -107,6 +107,7 @@ Defaults are in **bold**.
 | Path Style | **Standard** · Thin · Rainbow · Acceleration | `PathColor` `PathWidth` `PathEdgeWidth` `PathEdgesColor` `LaneLinesColor` `LaneLinesWidth` `RoadEdgesWidth` `RainbowPath` `AccelerationPath` `DynamicPathWidth` |
 | Turn Signal | **Standard** · Whimsy: Jumping frog · Pouncing cat · Bouncing ball | `SignalAnimation` (`stock`, `frog`, `pouncing_cat`, `bouncing_ball`); a Whimsy choice also sets `CustomThemes` on and `RandomThemes` off, as StarPilot's picker does |
 | Driving Style Banner | On · **Off** | `HideDistanceProfileBanner` (inverted) `AdvancedCustomUI` |
+| Compass | **On** · Off | `Compass` |
 | Blind Spot Highlights | **On** · Off | `BlindSpotPath` `BlindSpotMetrics` `SignalMetrics` `BorderWidth` |
 | Alert Volume | Quiet · **Normal** · Loud | `EngageVolume` `DisengageVolume` `PromptVolume` `PromptDistractedVolume` `RefuseVolume` `WarningSoftVolume` `WarningImmediateVolume` `BelowSteerSpeedVolume` |
 
@@ -124,7 +125,7 @@ Lane-change and turn progress always use the status chips; their full-width stat
 
 ## Fixed values, no longer shown
 
-Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel **on**, stopped timer **on**, compass **on** (its heading shows beside the street name in the bar), wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
+Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel **on**, stopped timer **on**, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
 
 ## Navigation changes
 

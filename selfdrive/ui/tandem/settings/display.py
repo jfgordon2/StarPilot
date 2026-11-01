@@ -103,6 +103,14 @@ class Display:
     self._store.write({"AdvancedCustomUI": True, "HideDistanceProfileBanner": not on})
 
   @property
+  def compass(self) -> bool:
+    """StarPilot's compass: the heading beside the street name in the onroad bar."""
+    return self._store.get_bool("Compass")
+
+  def set_compass(self, on: bool) -> None:
+    self._store.write({"Compass": on})
+
+  @property
   def blind_spot(self) -> bool:
     return self._store.get_bool("BlindSpotPath")
 
@@ -251,6 +259,7 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
                Switch(lambda: model.driver_camera_in_reverse, model.set_driver_camera_in_reverse)),
     SettingRow("Driving Style Banner", "Shows the current style when it changes",
                Switch(lambda: model.driving_style_banner, model.set_driving_style_banner)),
+    SettingRow("Compass", "Heading beside the street name, like NE", Switch(lambda: model.compass, model.set_compass)),
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",
                Switch(lambda: model.blind_spot, model.set_blind_spot)),
     SectionHeader("POWER USER"),

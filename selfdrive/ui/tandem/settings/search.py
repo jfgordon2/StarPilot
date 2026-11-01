@@ -85,6 +85,7 @@ ENTRIES: list[Entry] = [
   Entry("Camera View", "Wide shows more of the road at low speed", 0, D, 0),
   Entry("Driver Camera in Reverse", "Shows the inside camera while backing up", 0, D, 0),
   Entry("Driving Style Banner", "Shows the current style when it changes", 0, D, 0),
+  Entry("Compass", "Heading beside the street name, like NE", 0, D, 0, "heading direction north"),
   Entry("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you", 0, D, 0, "bsm"),
   Entry("Developer View", "Side panel with system and controls data", 0, D, 0, "developer ui metrics"),
   Entry("Lead Insights", "Distance, gap and speed of the car ahead, plus radar points", 0, D, 0, "lead metrics radar"),
