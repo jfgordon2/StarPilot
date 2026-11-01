@@ -223,7 +223,7 @@ class ArcShape:
 
 # The road views are 531 mock px tall: onroad.html's ends sit 23 above the bar, onroaddev.html's 19 above its strip.
 ARC = ArcShape(chord=432 / 1093, rise=32 / 1093, stroke=10, lift=531 - 424)     # M330 424 Q546 392 762 424
-DEV_ARC = ArcShape(chord=326 / 827, rise=28 / 827, stroke=9, lift=531 - 398 + 10)   # M250 398 Q413 370 576 398; +10 for the taller strip
+DEV_ARC = ArcShape(chord=326 / 827, rise=28 / 827, stroke=9, lift=531 - 388)   # M250 388 Q413 360 576 388
 STAGE_STYLE = {COMFORTABLE: (T.TEXT, None), WORKING: (T.WARNING, T.px(13)), AT_LIMIT: (rl.Color(255, 112, 67, 255), T.px(18))}
 ARC_STEPS = 48
 

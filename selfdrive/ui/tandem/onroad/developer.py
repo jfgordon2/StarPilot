@@ -24,8 +24,8 @@ from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, row
 
 PANEL_W = T.px(256)                 # the mock's sidebar
 WIDTH = PANEL_W + T.px(10)          # with its gap from the road view
-STRIP_H = T.px(40)          # the mock's 30, taller for STRIP_TEXT
-STRIP_TEXT = T.font_px(18)  # the mock's 13 was too small to read while driving
+STRIP_H = T.px(40)          # as onroaddev.html (was 30)
+STRIP_TEXT = T.font_px(18)  # as onroaddev.html (13 was too small to read while driving)
 TILE_FILL = T._hex("1E2227")
 LABEL = T._hex("9FAABA")
 BAR_INK = T.ACCENT_TEXT
