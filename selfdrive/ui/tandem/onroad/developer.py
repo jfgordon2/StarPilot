@@ -276,6 +276,14 @@ def developer_ui_on(ui_state, params) -> bool:
   return bool(ui_state.starpilot_toggles.get("developer_ui", params.get_bool("DeveloperUI")))
 
 
+def developer_view_on(ui_state, params) -> bool:
+  """The Developer View switch: its bundle is keyed on StarPilot's DeveloperSidebar. Developer UI alone isn't enough,
+  since Lead Insights keeps it on after Developer View is turned off."""
+  toggles = ui_state.starpilot_toggles or {}
+  sidebar = toggles["developer_sidebar"] if "developer_sidebar" in toggles else params.get_bool("DeveloperSidebar")
+  return developer_ui_on(ui_state, params) and bool(sidebar)
+
+
 def developer_sidebar():
   """The right panel, shown when StarPilot's developer sidebar would be. Made on the device only."""
   from openpilot.selfdrive.ui.onroad.starpilot.developer_sidebar import DeveloperSidebar

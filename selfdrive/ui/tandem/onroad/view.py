@@ -30,7 +30,7 @@ from openpilot.system.ui.lib.application import MousePos
 from openpilot.selfdrive.ui.onroad.starpilot.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.onroad import alerts
-from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DevData, developer_ui_on, draw_lead_tag, draw_strip, lead_of, read
+from openpilot.selfdrive.ui.tandem.onroad.developer import STRIP_H, DevData, developer_view_on, draw_lead_tag, draw_strip, lead_of, read
 from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, BAR_MARGIN, LIMIT_BORDER_COLOR, LIMIT_LANE_COLOR, ArcState, BarState,
                                                          Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
@@ -226,7 +226,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
   def _render_developer_metrics(self):
     """Developer View's readout, gathered here; StarPilot's device line moves to our panel and the controls to our strip."""
-    self._dev = read(ui_state) if developer_ui_on(ui_state, self._params) else None   # drawn as our strip, see _render
+    self._dev = read(ui_state) if developer_view_on(ui_state, self._params) else None   # drawn as our strip, see _render
 
   def _render_road_name(self):
     pass

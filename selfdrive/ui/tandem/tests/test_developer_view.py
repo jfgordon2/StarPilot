@@ -35,3 +35,12 @@ def test_rows_follow_starpilots_switches_and_the_strip_follows_the_pick():
   # Before StarPilot's toggles arrive, the params decide
   data = D.read(_ui({}), _Params({"ShowGPU": True}))
   assert data.show_gpu and not data.show_cpu and data.strip == D.STRIP_DEFAULT
+
+
+def test_strip_follows_the_developer_view_switch_not_developer_ui_alone():
+  params = _Params({"DeveloperUI": True, "DeveloperSidebar": True})
+  assert D.developer_view_on(_ui({}), params)
+  # Developer View off, Lead Insights on: Developer UI stays on, the strip goes
+  assert not D.developer_view_on(_ui({"developer_ui": True, "developer_sidebar": False}), params)
+  assert not D.developer_view_on(_ui({"developer_ui": False, "developer_sidebar": True}), params)
+  assert D.developer_view_on(_ui({"developer_ui": True, "developer_sidebar": True}), _Params({}))
