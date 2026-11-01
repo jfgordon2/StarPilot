@@ -1182,3 +1182,85 @@ def test_region_tiles_keep_the_current_one_in_view_when_they_overflow():
   start, end, more = tile_window(56, 40, 21)
   assert start <= 40 < end and end - start == 20 and more == 36
   assert tile_window(56, None, 21) == (0, 20, 36)
+
+
+# ── Settings search ──
+
+def _rows_on(widget, seen=None) -> list[str]:
+  """Every SettingRow title on a page, building panels that build on first draw."""
+  from openpilot.selfdrive.ui.tandem.base import resolve
+  from openpilot.selfdrive.ui.tandem.rows import SettingRow
+  from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
+  seen = seen if seen is not None else set()
+  if id(widget) in seen:
+    return []
+  seen.add(id(widget))
+  if isinstance(widget, Rebuilding) and widget._content is None:
+    widget._update_state()
+  titles = [resolve(widget._title)] if isinstance(widget, SettingRow) else []
+  for child in list(getattr(widget, "_children", [])) + list(getattr(widget, "items", None) or []):
+    titles += _rows_on(child, seen)
+  for name in ("_content", "_panel", "current"):
+    child = getattr(widget, name, None)
+    if child is not None and hasattr(child, "render"):
+      titles += _rows_on(child, seen)
+  return titles
+
+
+def _search_window():
+  from openpilot.selfdrive.ui.tandem.settings import window as W
+  from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
+  from openpilot.selfdrive.ui.tandem.tests.fakes import (FakeBluetooth, FakeBootLogos, FakeCarExtras, FakeCars, FakeData,
+                                                         FakeDeveloperSource, FakeMaps, FakeModels, FakeUpdates, FakeWheel, FakeWifi)
+  models, wheel, maps = FakeModels(), FakeWheel(), FakeMaps()
+  window = W.SettingsWindow(store=SettingsStore(FakeCache(), lambda: None), live=FakeLive(), model_source=lambda: models,
+                            car_catalog=FakeCars, device_data=FakeData, device=FakeDevice, wifi=FakeWifi, wheel=lambda: wheel,
+                            bluetooth=FakeBluetooth, updates=FakeUpdates, maps_source=lambda: maps, boot_logos=FakeBootLogos,
+                            developer_source=FakeDeveloperSource, car_extras=FakeCarExtras)
+  TUNER_MODE.set(window.store, True)
+  return window
+
+
+# Rows named after data (networks, backups, devices, the car's own buttons), not settings
+DATA_ROWS = {"Home Wi-Fi", "Coffee Shop", "Neighbor", "Car Audio", "Pixel 9", "Home", "Work", "Distance", "LKAS", "Cruise main"}
+
+
+def test_search_index_matches_every_settings_screen():
+  from openpilot.selfdrive.ui.tandem.settings.search import ENTRIES, SECTIONS
+  window = _search_window()
+  places = sorted({(e.tab, e.page, e.section) for e in ENTRIES}, key=str)
+  for tab, page, section in places:
+    window.open_at(tab, page, section)
+    shown = set(_rows_on(window.top))
+    indexed = {e.name for e in ENTRIES if (e.tab, e.page, e.section) == (tab, page, section) and e.row}
+    assert indexed <= shown, f"{(tab, page, section)}: indexed but not there: {indexed - shown}"
+    if section is None and (page if page is not None else tab) in SECTIONS:
+      continue   # a page with sections opens its first one, whose rows are indexed there
+    unindexed = {t for t in shown - indexed if t not in DATA_ROWS and not t.startswith("Backup") and t != "Before update"}
+    assert not unindexed, f"{(tab, page, section)}: rows missing from the search index: {unindexed}"
+
+
+def test_search_finds_by_name_meaning_and_place_best_first():
+  from openpilot.selfdrive.ui.tandem.settings.search import search
+  names = [e.name for e in search("gas", tuner=True)]
+  assert names[:2] == ["Gas & Brake", "Disengage on Gas Pedal"] and "Actuator Delay" in names
+  assert "Gas & Brake" not in [e.name for e in search("gas", tuner=False)]          # Tuner Mode screens only while it's on
+  assert [e.name for e in search("imperial", tuner=False)] == ["Units"]
+  assert search("hotspot pass", tuner=False)[0].name == "Hotspot Password"
+  assert search("g", tuner=True) == []                                                # two letters at least
+  assert search("bluetooth remote", tuner=False)[0].where == "Connections"     # a section shows the place it sits in
+
+
+def test_picking_a_result_opens_its_page_and_section():
+  from openpilot.selfdrive.ui.tandem.settings.search import ResultCard, search
+  window = _search_window()
+  window.show_event()
+  window.select_tab(Tab.SOFTWARE)
+  results = search("trailer", tuner=True)
+  assert [e.name for e in results] == ["Trailer Load", "Vehicle Profile"]
+  card = ResultCard(0, lambda: results, lambda e: window.open_at(e.tab, e.page, e.section))
+  card._click_callback()
+  assert window.tab == Tab.DRIVING and window.depth == 2
+  assert window.top.selected == 1                                                     # Speed & Steering › Vehicle Profile
+  window.open_at(Tab.CONNECTIONS, None, 1)
+  assert window.tab == Tab.CONNECTIONS and window.top.selected == 1

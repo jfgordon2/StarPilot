@@ -112,7 +112,16 @@ def driving_hub(window) -> Widget:
   strip = Strip("POWER USER", "Extra detail and fine tuning, each behind one switch", [
     ToggleButton(b.name, lambda b=b: b.is_on(store), lambda on, b=b: set_bundle(b, on)) for b in BUNDLES])
 
-  return HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
+  def open_search() -> None:
+    from openpilot.selfdrive.ui.tandem.settings.search import SettingsSearch
+
+    def pick(entry) -> None:
+      window.dismiss()
+      window.open_at(entry.tab, entry.page, entry.section)
+    window.present(SettingsSearch(tuner, pick, window.dismiss))
+
+  from openpilot.selfdrive.ui.tandem.settings.search import SearchButton
+  hub = HubPage("Driving", "Good defaults are on. Change only what matters to you.", [
     HubTile("Speed & Steering", [speed.summary, speed.speed_limit_summary], opener(speed_steering), icon="wheel"),
     HubTile("Display", [screen.summary, screen.path_summary], opener(display), icon="display"),
     HubTile("Alerts", [alerts.summary, alerts.chimes_summary], opener(lambda: alerts_page(alerts, window)),
@@ -122,4 +131,10 @@ def driving_hub(window) -> Widget:
     HubTile("Vehicle", [car, lambda: f"{profile.summary()} profile · {vehicle.get().buttons_summary()}"],
             opener(lambda: vehicle_page(vehicle.get(), window, opener(lambda: extras_page(window.car_extras(), window)))), icon="car"),
     HubTile("Assistance", [assistance.summary, assistance.monitoring_summary], opener(assistance_page), icon="shield"),
-  ], rows=[3, 3], strip=strip)
+  ], rows=[3, 3], strip=strip, trailing=SearchButton(open_search))
+  # Each page the hub opens, by name, for settings search to open a result's page.
+  hub.pages = {"speed_steering": opener(speed_steering), "display": opener(display), "alerts": opener(lambda: alerts_page(alerts, window)),
+               "model": opener(lambda: model_page(models.get(), opener(lambda: CatalogPage(models.get(), window.device_data().storage)))),
+               "vehicle": opener(lambda: vehicle_page(vehicle.get(), window, opener(lambda: extras_page(window.car_extras(), window)))),
+               "assistance": opener(assistance_page), "tuner": open_tuner}
+  return hub

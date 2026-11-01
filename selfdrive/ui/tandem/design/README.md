@@ -42,6 +42,8 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Pair the phone app | [pairing.html](pairing.html) |
 | Driver camera preview | [drivercamera.html](drivercamera.html) |
 | Remote Access (Galaxy) | [remoteaccess.html](remoteaccess.html), set up: [remoteaccessqr.html](remoteaccessqr.html) |
+| Assistance | [assistance.html](assistance.html) |
+| Settings search | [search.html](search.html) |
 | Connections: Wi-Fi | [connections.html](connections.html) |
 | Connections: Cellular | [connectionscellular.html](connectionscellular.html) |
 | Connections: Bluetooth Remote | [connectionsremote.html](connectionsremote.html) |
@@ -68,12 +70,11 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Offline maps › Downloading | [mapdownloading.html](mapdownloading.html) |
 | Driving Model › Browse and download | [modelcatalog.html](modelcatalog.html) |
 
-## Proposals (not built)
+## Settings structure
 
-Mocks in `proposals/` for bigger changes to the settings structure, each with a screenshot beside it. The Connections tab was built and its mocks moved up as `connections*.html`.
-
-- **Assistance on the hub** (`assistancehub.html`, `assistance.html`): a sixth hub tile for openpilot's core switches, now the last section of Speed & Steering. Its page also gathers driver monitoring: Always-On Driver Monitoring (from Assistance), and the Driver Camera preview and Driver Monitoring reset (from Device › This Device).
-- **Settings search** (`searchhub.html`, `search.html`): a Search settings button on the hub opens a search over every row's name and subtitle, with the Essentials keyboard; each result shows where it lives and opens it there. Rows behind Tuner Mode are found too.
+- **Assistance** is a hub tile ([assistance.html](assistance.html)): openpilot's core switches beside Driver Monitoring, which gathers Always-On Driver Monitoring, the Driver Camera preview and the driver monitoring reset.
+- **Search settings** sits at the top right of the hub ([search.html](search.html)). It searches every setting's name, what it does and where it lives, with the Essentials keyboard; the best four show above the keyboard and Search lists them all. Picking one opens its page and section. Settings behind Tuner Mode are found only while it's on.
+- **Connections** replaces the Network and Bluetooth tabs ([connections.html](connections.html) and its sections).
 
 ## Principles
 

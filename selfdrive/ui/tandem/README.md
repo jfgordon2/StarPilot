@@ -123,6 +123,7 @@ After a merge, check what Tandem reads from StarPilot, which can change without 
 | | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
 | Device | This Device, the pairing page, Remote Access, Regulatory and the driver camera (`drivercamera.py`) | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh). Remote Access uses upstream's Galaxy keyboard, files, link and `GalaxyQRDialog` code, and its unpair; the password setup writes the same three files upstream's handler does, without its QR dialog |
 | | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps and the model catalog; offline maps and unused models can also be removed here |
+| Search | Every setting by name, meaning and place; opens its page and section | `search.py` | The index is checked against every screen by `tests/test_settings.py` |
 | Connections | Sections: Wi-Fi; Cellular (with Roaming, APN and IP address); Bluetooth Remote; Car Audio & Devices | `connections.py`, `network_tab.py`, `bluetooth_tab.py` | `WifiManager`, wheel controls service, `BluetoothManager` |
 | Software | Updates, release channel, Reset Settings, Uninstall | `software_tab.py`, `defaults.py` | `SoftwareLayout` actions |
 

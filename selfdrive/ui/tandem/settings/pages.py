@@ -32,9 +32,11 @@ class HubPage(Component):
   """Title and subtitle, a grid of tiles, then an optional strip (e.g. the power-user switches)."""
   grow_touch_target = False
 
-  def __init__(self, title: str, subtitle: str, tiles: list[HubTile], rows: list[int] | None = None, strip: Component | None = None):
+  def __init__(self, title: str, subtitle: str, tiles: list[HubTile], rows: list[int] | None = None, strip: Component | None = None,
+               trailing: Widget | None = None):
+    """trailing sits at the right of the title (the Search settings button)."""
     super().__init__()
-    self._header = self._child(PageHeader(title, subtitle, size=T.font_px(30)))
+    self._header = self._child(PageHeader(title, subtitle, trailing=trailing, size=T.font_px(30)))
     self._grid = self._child(HubGrid(tiles, rows=rows))
     self._strip = self._child(strip) if strip is not None else None
 

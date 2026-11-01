@@ -263,6 +263,17 @@ class SettingsWindow(Widget):
     elif self._close_callback is not None:
       self._close_callback()
 
+  def open_at(self, tab: int, page: str | None = None, section: int | None = None) -> None:
+    """Open a place in settings from its first page: a tab, then a page the Driving hub opens (its `pages` names), then a
+    section of that page's sidebar. Settings search opens results with it."""
+    self.dismiss()
+    self._unwind(tab)
+    self.select_tab(tab)
+    if page is not None:
+      self._stack(tab)[0].pages[page]()
+    if section is not None:
+      self.top.select(section)
+
   def _unwind(self, tab: int) -> None:
     stack = self._stack(tab)
     while len(stack) > 1:
