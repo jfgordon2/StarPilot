@@ -170,11 +170,15 @@ def test_inherited_border_draws_amber_then_restores_normal_color(warning_view, m
   f, view = warning_view, warning_view.view
   view._get_border_width = lambda: 12
   view._draw_hud_controls = False
+  view._content_rect = rl.Rectangle(12, 12, 2136, 1056)
+  view._render_layers = lambda: None   # drawn just before the border; this test is about the border's color
   normal = rl.Color(22, 127, 64, 255)
   monkeypatch.setattr(onroad.StarPilotOnroadView, "_get_border_color", lambda _: normal)
   for name in ("render_background_effects", "render_overlay"):
     monkeypatch.setattr(upstream, name, lambda *_: None)
   monkeypatch.setattr(rl, "draw_rectangle_lines_ex", lambda *_: None)
+  for name in ("begin_scissor_mode", "end_scissor_mode"):
+    monkeypatch.setattr(rl, name, lambda *_: None)
   colors = []
   monkeypatch.setattr(rl, "draw_rectangle_rounded_lines_ex", lambda _r, _round, _segments, _width, color: colors.append(color))
   enter_limit(f)

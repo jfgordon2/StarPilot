@@ -288,12 +288,23 @@ class EssentialsOnroadView(StarPilotOnroadView):
   # Our layers
 
   def _render(self, rect: rl.Rectangle):
+    self._layers_visible = False   # set again by _render_layers, from _draw_border, on frames that draw the view
     super()._render(rect)
+    self._render_driver_monitor()
+
+  def _draw_border(self, rect: rl.Rectangle):
+    # Our layers go under the border, as the camera does, so its rounded inner corners stay round at the bottom too.
+    rl.begin_scissor_mode(int(self._content_rect.x), int(self._content_rect.y), int(self._content_rect.width),
+                          int(self._content_rect.height))
+    self._render_layers()
+    rl.end_scissor_mode()
+    super()._draw_border(rect)
+
+  def _render_layers(self) -> None:
     self._offer()   # observe limit changes even when an alert is covering the card
     alert, _ = self.alert_renderer.will_render()
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
     self._chip = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
-    self._render_driver_monitor()
     if not self._layers_visible:
       return
     c = self._content_rect
