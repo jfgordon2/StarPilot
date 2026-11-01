@@ -1073,3 +1073,14 @@ def test_bar_metrics_sheet_opens_from_developer_view_overrides():
   tuner, window = Tuner(store), Window()
   BundleOverrides(tuner, window)._choose._click_callback()
   assert isinstance(window.overlay, Sheet) and isinstance(window.overlay._body, StripPicker)
+
+
+def test_profiles_show_from_style_and_override_resets_to_the_style():
+  from openpilot.selfdrive.ui.tandem.settings.tuner import FROM_STYLE, OVERRIDE, Tuner
+  store, cache = _store({"LongitudinalPersonality": 1, "AccelerationProfile": 0, "DecelerationProfile": 1})
+  tuner = Tuner(store)
+  assert tuner.profile_status("AccelerationProfile") == FROM_STYLE
+  tuner.set_accel_profile(2)                                    # Sport
+  assert tuner.profile_status("AccelerationProfile") == OVERRIDE
+  tuner.reset_profile("AccelerationProfile")
+  assert tuner.profile_status("AccelerationProfile") == FROM_STYLE

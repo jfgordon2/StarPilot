@@ -13,10 +13,10 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
-from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Stepper, Switch, Tone
+from openpilot.selfdrive.ui.tandem.controls import Badge, Button, ButtonStyle, Segmented, Switch, Tone
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
-from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
+from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.editors import NumberSpec, number_sheet
 from openpilot.selfdrive.ui.tandem.settings.speed_steering import STYLE_PARAMS, SpeedSteering
@@ -162,10 +162,16 @@ class Tuner:
   def set_decel_profile(self, index: int) -> None:
     self._store.write({"DecelerationProfile": DECEL_PROFILES[index][1]})
 
-  def profile_status(self, key: str) -> str:
+  def _style_profile(self, key: str) -> int:
     _, accel, decel = STYLE_PARAMS[self._speed.style]
-    expected = accel if key == "AccelerationProfile" else decel
-    return FROM_STYLE if self._store.get_int(key) == expected else OVERRIDE
+    return accel if key == "AccelerationProfile" else decel
+
+  def profile_status(self, key: str) -> str:
+    return FROM_STYLE if self._store.get_int(key) == self._style_profile(key) else OVERRIDE
+
+  def reset_profile(self, key: str) -> None:
+    """Back to the profile the Driving Style sets."""
+    self._store.write({key: self._style_profile(key)})
 
   def gap(self, key: str) -> float:
     return self._store.get_float(key)
@@ -307,24 +313,93 @@ def steering_panel(tuner: Tuner, window) -> ListPanel:
 
 
 def gas_brake_panel(tuner: Tuner, window) -> ListPanel:
-  def profile(title: str, key: str, profiles, get, set_) -> SettingRow:
-    return SettingRow(title, lambda: "Set by Driving Style" if tuner.profile_status(key) == FROM_STYLE else "Overrides Driving Style",
-                      Segmented([name for name, _ in profiles], get, set_))
+  def profile(title: str, subtitle: str, key: str, profiles, get, set_) -> SettingRow:
+    """As the mock: the profile, FROM STYLE or OVERRIDE, and Override (a picker) or Reset (back to the style's)."""
+    from openpilot.selfdrive.ui.tandem.rows import OptionList
+
+    def pick() -> None:
+      def choose(index: int) -> None:
+        set_(index)
+        window.dismiss()
+      window.present(Sheet(title, OptionList([name for name, _ in profiles], get, choose),
+                           subtitle="Replaces the profile your Driving Style sets, until you reset it",
+                           actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
+
+    def action() -> None:
+      if tuner.profile_status(key) == OVERRIDE:
+        tuner.reset_profile(key)
+      else:
+        pick()
+    return SettingRow(title, subtitle, ValueStatus(lambda: profiles[get()][0], lambda: tuner.profile_status(key),
+                                                   Button(lambda: "Reset" if tuner.profile_status(key) == OVERRIDE else "Override", action,
+                                                          height=T.px(40)), on_value=pick))
 
   return ListPanel([
-    profile("Acceleration Profile", "AccelerationProfile", ACCEL_PROFILES, lambda: tuner.accel_profile, tuner.set_accel_profile),
-    profile("Braking Profile", "DecelerationProfile", DECEL_PROFILES, lambda: tuner.decel_profile, tuner.set_decel_profile),
+    profile("Acceleration Profile", "How quickly the car speeds up", "AccelerationProfile", ACCEL_PROFILES, lambda: tuner.accel_profile,
+            tuner.set_accel_profile),
+    profile("Braking Profile", "How early and firmly it slows down", "DecelerationProfile", DECEL_PROFILES, lambda: tuner.decel_profile,
+            tuner.set_decel_profile),
     *[tunable_row(tuner, t, window) for t in GAS_BRAKE],
   ], title="Gas & Brake", subtitle="Driving Style and Vehicle Profile set these. An override replaces their value.")
 
 
+class GapCells(Component):
+  """The four following gaps as one row of cells, as in the mock: the style, then its gap. A changed gap shows in amber;
+  tapping a cell edits it."""
+  grow_touch_target = False
+  GAP = T.px(10)
+
+  def __init__(self, tuner: Tuner, window):
+    super().__init__()
+    self._tuner, self._window = tuner, window
+    self._pressed: int | None = None
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, T.px(14) + draw.line_height(T.font_px(17)) + T.px(10) + T.px(68) + T.px(14)
+
+  def _cells(self, rect: rl.Rectangle) -> list[rl.Rectangle]:
+    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(14))
+    top = body.y + draw.line_height(T.font_px(17)) + T.px(10)
+    return row(rl.Rectangle(body.x, top, body.width, T.px(68)), [FILL] * len(GAPS), self.GAP)
+
+  def _hit(self, pos) -> int | None:
+    return next((i for i, cell in enumerate(self._cells(self._rect)) if rl.check_collision_point_rec(pos, cell)), None)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed:
+      self.edit(hit)
+    self._pressed = None
+
+  def edit(self, index: int) -> None:
+    name, key, default = GAPS[index]
+    tuner, window = self._tuner, self._window
+    window.present(number_sheet(window, f"{name} gap", "Seconds behind the car ahead in this Driving Style",
+                                NumberSpec(0.5, 3.0, 0.05, default, lambda v: f"{v:.2f} s"),
+                                lambda: tuner.gap(key), lambda v: tuner.set_gap(key, v)))
+
+  def _render(self, rect: rl.Rectangle):
+    body = inset(rect, x=T.PANEL_HEADER_INSET, y=T.px(14))
+    draw.text(rl.Rectangle(body.x, body.y, body.width, draw.line_height(T.font_px(17))), "Following gap by style", T.font_px(17), T.TEXT,
+              T.FONT_BOLD)
+    for i, ((name, key, default), cell) in enumerate(zip(GAPS, self._cells(rect), strict=True)):
+      draw.fill(cell, T.SURFACE_4, T.px(14))
+      if self.is_pressed and i == self._pressed:
+        draw.pressed(cell, T.px(14))
+      top, bottom = column(inset(cell, x=T.px(16), y=T.px(10)), [draw.line_height(T.font_px(14)), FILL], T.px(2))
+      draw.text(top, name, T.font_px(14), T.TEXT_TERTIARY)
+      value = self._tuner.gap(key)
+      changed = abs(value - default) > 0.01
+      draw.text(bottom, f"{value:.2f} s", T.font_px(22), T.WARNING if changed else T.TEXT, T.FONT_BOLD)
+
+
 def following_panel(tuner: Tuner, window) -> ListPanel:
-  gaps = [SettingRow(name, None, Stepper(lambda k=key: tuner.gap(k), lambda v, k=key: tuner.set_gap(k, v), 0.5, 3.0, 0.05,
-                                         fmt=lambda v: f"{v:.2f} s", value_width=T.px(110)), indent=True)
-          for name, key, _ in GAPS]
   return ListPanel([
-    SectionHeader("FOLLOWING GAP BY STYLE"),
-    *gaps,
+    GapCells(tuner, window),
     *[tunable_row(tuner, t, window) for t in FOLLOWING],
     SettingRow("Use Radar for Take-Offs", "Starts moving as soon as the radar sees the car ahead pull away",
                Switch(lambda: tuner.switch("RadarTakeoffs"), lambda on: tuner.set_switch("RadarTakeoffs", on))),
