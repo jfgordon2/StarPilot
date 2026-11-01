@@ -158,7 +158,7 @@ These are reached from a row or button, never as a tab:
 `screens.py` creates the screens MainLayout shows. Setting `TANDEM_SIDEBAR=0`, `TANDEM_HOME=0`, `TANDEM_SETTINGS=0` or `TANDEM_ONROAD=0` brings back upstream's version of that screen.
 
 - **Onroad** (`onroad/`): `EssentialsOnroadView` subclasses StarPilot's onroad view and keeps its camera, path and lane lines, and StarPilot still chooses every alert. It replaces the following:
-  - **Bottom bar:** a scrim, not a panel. It holds menu (the sidebar), MAX − / + (StarPilot's `SLCForceCruiseSpeed`, only while engaged), the street name, and engage.
+  - **Bottom bar:** no panel or scrim behind it, so the road shows to the bottom edge. It holds menu (the sidebar), MAX − / + (StarPilot's `SLCForceCruiseSpeed`, only while engaged), the street name, and engage.
     - Engage and disengage go through the wheel controls' action counters.
     - While a route is active, the street name gives way to arrival time, what's left and End route. That reads `navInstruction` through the view's own subscriber, since `ui_state` doesn't subscribe to it.
   - **Status chips** (bottom left, stacked up from the bar): up to four at once, newest nearest the bar (the highest priority when there are more); each held 2 s after its reason ends, renewed when it fires again, then faded, with the rest sliding down; all hidden during alerts (`ChipStack`). The rules are in `onroad/status.py`, pure and tested.

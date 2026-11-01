@@ -132,7 +132,7 @@ Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel *
 - The Driving tab opens on a hub with five tiles: Speed & Steering, Display, Alerts, Driving Model, Vehicle. A "Power user" strip below them holds the three bundle switches.
 - **Labels describe what things do** rather than naming the product: "Reset Settings", "How It Works", "Phone App", "Version [version]".
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
-- **The onroad bar is a scrim, not a solid panel.** It fades from clear at the top to 55% dark at the bottom, so the camera view stays visible underneath. The controls have 80%-opaque backgrounds to stay readable over bright scenes such as snow or low sun. Avoid a live blur behind the bar: blurring the camera image every frame costs GPU time on the device.
+- **The onroad bar has no panel or scrim behind it.** The camera view runs to the bottom edge with no dark fade. The controls have 80%-opaque backgrounds to stay readable over bright scenes such as snow or low sun. Avoid a live blur behind the bar: blurring the camera image every frame costs GPU time on the device.
 - **The onroad bar holds four things:** menu, MAX −/+, the current street name, and the engage button.
   - Driving Style is set in Settings › Driving and with the wheel's distance button. There is no onroad toggle for it.
   - The street name is always on, which retires the `RoadNameUI` toggle. While navigating, arrival time, distance left and End route take its slot, and the street name moves to a chip above the steering headroom arc.

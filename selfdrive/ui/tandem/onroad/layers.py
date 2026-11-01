@@ -73,8 +73,6 @@ class OnroadBar(Component):
 
   def _render(self, rect: rl.Rectangle):
     state = self._state()
-    zone = rl.Rectangle(rect.x, rect.y + rect.height - BAR_ZONE * 1.6, rect.width, BAR_ZONE * 1.6)
-    draw.gradient_v(zone, draw.alpha(T.BG, 0.0), draw.alpha(T.BG, 0.55))   # a scrim, not a panel: the road stays visible
     r = self.rects(rect)
     self._menu.render(r["menu"])
 
