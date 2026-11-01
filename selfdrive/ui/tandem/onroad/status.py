@@ -26,7 +26,9 @@ class Chip:
 class Snapshot:
   engaged: bool = False
   standstill: bool = False
+  waiting_for_resume: bool = False         # the car's cruise is held at a stop until the driver resumes
   speed: float = 0.0                       # m/s
+  accel: float = 0.0                       # m/s², the car's own
   metric: bool = False
   lateral_paused: bool = False
   pause_lateral_speed: float = 0.0         # display units; 0 when the setting is off
@@ -63,6 +65,10 @@ def turn_icon(maneuver: str, modifier: str) -> str:
   return "shift" if modifier == "straight" else "map"
 
 
+SLOWING_ACCEL = -0.3     # m/s²: below this the car is braking, not just following
+MOVING_SPEED = 0.5       # m/s
+
+
 def chip_for(s: Snapshot) -> Chip | None:
   """The one chip to show now, highest priority first: paused or blocked, stopping, slowing, then waiting."""
   unit = "km/h" if s.metric else "mph"
@@ -89,7 +95,7 @@ def chip_for(s: Snapshot) -> Chip | None:
     return Chip("turning", "Turning left", ChipTone.INFO, "turn_left")
   if "turningRight" in s.events:
     return Chip("turning", "Turning right", ChipTone.INFO, "turn_right")
-  if s.slowing_for_lead:
+  if s.slowing_for_lead and not s.standstill and s.speed > MOVING_SPEED and s.accel < SLOWING_ACCEL:
     return Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car")
   if s.limit_changed and s.speed_limit:
     return Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge")
@@ -99,7 +105,7 @@ def chip_for(s: Snapshot) -> Chip | None:
     return Chip("green_light", "Light is green", ChipTone.WAITING, "light_green")
   if "leadDeparting" in s.events:
     return Chip("lead_moved", "Car ahead moved", ChipTone.WAITING, "car_up")
-  if s.engaged and s.standstill:
+  if s.engaged and s.standstill and s.waiting_for_resume:   # cars that resume on their own aren't waiting on you
     return Chip("ready", "Ready · tap resume", ChipTone.WAITING, "play")
   if s.always_on_lateral and not s.engaged:
     return Chip("steering_only", "Steering only", ChipTone.INFO, "wheel")
@@ -144,7 +150,8 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
   speed_conversion = 3.6 if s.metric else 2.236936
   if valid.get("carState", False):
     cs = sm["carState"]
-    s.standstill, s.speed = bool(cs.standstill), float(cs.vEgo)
+    s.standstill, s.speed, s.accel = bool(cs.standstill), float(cs.vEgo), float(cs.aEgo)
+    s.waiting_for_resume = bool(cs.cruiseState.standstill)
     s.signal_on = bool(cs.leftBlinker or cs.rightBlinker)
     if cs.leftBlinker and cs.rightBlinker:
       s.signal_direction = "both"

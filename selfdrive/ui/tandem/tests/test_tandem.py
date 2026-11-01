@@ -244,3 +244,14 @@ def test_sheet_springs_back_from_a_short_slow_drag_and_ignores_drags_off_the_han
   assert not closed and sheet._snap is not None and sheet._drag == 0
   _sheet_drag([(700, 0.0), (900, 0.5), (1000, 1.0), (1000, 1.1)], lambda: closed.append(True))      # starts in the body
   assert not closed
+
+
+def test_traffic_chip_only_while_braking_and_ready_only_when_the_car_waits():
+  from openpilot.selfdrive.ui.tandem.onroad.status import Snapshot, chip_for
+  braking = Snapshot(engaged=True, slowing_for_lead=True, speed=12.0, accel=-1.2)
+  assert chip_for(braking).label == "Slowing for traffic"
+  assert chip_for(Snapshot(engaged=True, slowing_for_lead=True, speed=12.0, accel=0.1)) is None      # just following
+  stopped = Snapshot(engaged=True, slowing_for_lead=True, standstill=True, speed=0.0, accel=-0.4)
+  assert chip_for(stopped) is None                                   # stopped behind a car that will resume on its own
+  stopped.waiting_for_resume = True
+  assert chip_for(stopped).label == "Ready · tap resume"

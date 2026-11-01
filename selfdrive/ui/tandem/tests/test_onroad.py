@@ -14,7 +14,7 @@ class StatusMessages(dict):
 
 
 def test_chip_priority_paused_then_stopping_then_slowing_then_waiting():
-  s = Snapshot(lateral_paused=True, red_light=True, curve_control=True, engaged=True, standstill=True)
+  s = Snapshot(lateral_paused=True, red_light=True, curve_control=True, engaged=True, standstill=True, waiting_for_resume=True)
   assert chip_for(s).key == "pause_speed" and chip_for(s).tone == ChipTone.PAUSED
   s.lateral_paused = False
   assert chip_for(s).key == "red_light"
