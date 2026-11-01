@@ -117,25 +117,28 @@ class OnroadBar(Component):
   def _street(rect: rl.Rectangle, street: str, h: Align, heading: str = "") -> None:
     """The road icon, the compass tag when on, and the street name, centered (or at the start) in rect, elided to fit."""
     tag_w = heading_width(heading) + T.px(12) if heading else 0
-    text_w = min(rect.width - T.px(40) - tag_w, draw.text_width(street, T.font_px(22), T.FONT_BOLD)) if street else 0
+    text_w = min(rect.width - T.px(40) - tag_w, draw.text_width(street, STREET_SIZE, T.FONT_BOLD)) if street else 0
     block = place(rect, T.px(40) + tag_w + text_w, rect.height, h)
     draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
     if heading:
       heading_tag(rl.Rectangle(block.x + T.px(40), block.y, tag_w, block.height), heading)
     if street:
-      draw.text(inset(block, left=T.px(40) + tag_w), street, T.font_px(22), T.TEXT, T.FONT_BOLD)
+      draw.text(inset(block, left=T.px(40) + tag_w), street, STREET_SIZE, T.TEXT, T.FONT_BOLD)
+
+
+STREET_SIZE = T.font_px(22)   # the street name, and the compass tag beside it at the same size
 
 
 def heading_width(heading: str) -> float:
-  return draw.text_width(heading, T.font_px(20), T.FONT_EXTRABOLD, tracking=T.px(1)) + T.px(20)
+  return draw.text_width(heading, STREET_SIZE, T.FONT_EXTRABOLD, tracking=T.px(1)) + T.px(22)
 
 
 def heading_tag(rect: rl.Rectangle, heading: str) -> float:
   """The compass heading as a blue tag, vertically centered at the start of rect. Returns its width."""
   w = heading_width(heading)
-  tag = place(rl.Rectangle(rect.x, rect.y, w, rect.height), w, T.px(36))
+  tag = place(rl.Rectangle(rect.x, rect.y, w, rect.height), w, T.px(40))
   draw.fill(tag, T.ACCENT_SURFACE, T.px(10))
-  draw.text(tag, heading, T.font_px(20), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER, tracking=T.px(1))
+  draw.text(tag, heading, STREET_SIZE, T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER, tracking=T.px(1))
   return w
 
 
