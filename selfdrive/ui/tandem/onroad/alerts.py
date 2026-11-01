@@ -57,6 +57,13 @@ def shown_as_chip(alert_type: str) -> bool:
   return (alert_type or "").split("/", 1)[0] in CHIP_ALERTS
 
 
+HEADROOM_ALERTS = {"steerSaturated"}   # "Turn exceeds steering limit": the Help steer warning already says it
+
+
+def replaced_by_headroom(alert_type: str) -> bool:
+  return (alert_type or "").split("/", 1)[0] in HEADROOM_ALERTS
+
+
 def border(alert_level: str | None) -> rl.Color | None:
   """The border an alert asks for, or None to keep the engaged or disengaged color."""
   return {WARNING: WARNING_BORDER, CRITICAL: CRITICAL_BORDER}.get(alert_level or "")

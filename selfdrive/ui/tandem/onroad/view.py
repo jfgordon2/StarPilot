@@ -63,10 +63,13 @@ class EssentialsTurnCard(NavigationCardRenderer):
 class EssentialsAlertRenderer(AlertRenderer):
   """StarPilot's alert renderer, keeping its choice of alert, timing and fades, drawn in the mock's three levels."""
 
+  headroom_warning: Callable[[], bool] = staticmethod(lambda: False)   # the view's Help steer warning is up
+
   def get_alert(self, sm):
     previous = self._prev_alert
     alert = super().get_alert(sm)
-    if alert is not None and alerts.shown_as_chip(alert.alert_type):
+    if alert is not None and (alerts.shown_as_chip(alert.alert_type)
+                              or (alerts.replaced_by_headroom(alert.alert_type) and self.headroom_warning())):
       self._prev_alert = previous   # not shown, so nothing to fade out either; the status chip says it
       return None
     return alert
@@ -154,6 +157,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._pip_sidecam.set_visible(False)   # the side-camera bubble: a Galaxy developer feature, and it would cover the bar
     self._stopped_timer_widget = _NoStoppedTimer()
     self.alert_renderer = EssentialsAlertRenderer()
+    self.alert_renderer.headroom_warning = lambda: self._headroom_warning   # hides steerSaturated while Help steer shows
     self._layers_visible = False
     self._dev: DevData | None = None            # Developer View's readout, while StarPilot's Developer UI is on
     self.model_renderer._draw_lead_metrics = self._lead_tag   # Lead Insights' text becomes the mock's tag

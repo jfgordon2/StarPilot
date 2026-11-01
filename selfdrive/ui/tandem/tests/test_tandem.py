@@ -262,3 +262,9 @@ def test_stop_chips_say_stopped_once_the_car_is_stopped():
   assert chip_for(Snapshot(red_light=True, speed=8.0)).label == "Stopping for light"
   assert chip_for(Snapshot(red_light=True, standstill=True)).label == "Stopped for light"
   assert chip_for(Snapshot(stop_sign=True, standstill=True)).label == "Stopped for stop sign"
+
+
+def test_steer_saturated_is_the_alert_help_steer_replaces():
+  from openpilot.selfdrive.ui.tandem.onroad.alerts import replaced_by_headroom
+  assert replaced_by_headroom("steerSaturated/warning")
+  assert not replaced_by_headroom("promptDriverDistracted/warning") and not replaced_by_headroom("")

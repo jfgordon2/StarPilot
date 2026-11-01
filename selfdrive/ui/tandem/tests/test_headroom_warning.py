@@ -310,3 +310,25 @@ def test_chime_uses_warning_volume_and_retains_steering_limit_mute_type(warning_
   assert sound.get_volume_override() == 0.25
   assert soundd.should_mute_turn_steering_limit_alert(sound.current_alert_type, 1.0, 5.0)
   assert soundd.sound_list[soundd.STEERING_HEADROOM_ALERT][1] == 1
+
+
+def test_help_steer_stands_in_for_steer_saturated_only_while_it_shows(monkeypatch):
+  saturated = SimpleNamespace(alert_type="steerSaturated/warning")
+  monkeypatch.setattr(onroad.AlertRenderer, "get_alert", lambda self, sm: saturated)
+  renderer = onroad.EssentialsAlertRenderer.__new__(onroad.EssentialsAlertRenderer)
+  renderer._prev_alert = None
+  renderer.headroom_warning = lambda: True
+  assert renderer.get_alert(None) is None          # Help steer already says it: no second alert
+  renderer.headroom_warning = lambda: False
+  assert renderer.get_alert(None) is saturated     # without it, openpilot's alert shows as before
+
+
+def test_soundd_mutes_steer_saturated_only_while_the_headroom_warning_is_fresh(monkeypatch):
+  sound = soundd.Soundd.__new__(soundd.Soundd)
+  monkeypatch.setattr(soundd.time, "monotonic", lambda: 100.0)
+  sound.headroom_warning_since = 0.0
+  assert not sound.headroom_warning_active()
+  sound.headroom_warning_since = 95.0
+  assert sound.headroom_warning_active()
+  sound.headroom_warning_since = 60.0                 # stale: the UI never cleared it
+  assert not sound.headroom_warning_active()

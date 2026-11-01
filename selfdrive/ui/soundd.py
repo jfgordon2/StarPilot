@@ -167,6 +167,7 @@ class Soundd:
     self.model_ready_last_check = 0.0
     self.model_ready_pending = False
     self.headroom_warning_seen = time.monotonic()  # a soundd restart must not replay an existing warning
+    self.headroom_warning_since = 0.0  # while the UI's steering headroom warning is up, it stands in for steerSaturated
 
     self.starpilot_toggles = get_starpilot_toggles()
 
@@ -352,6 +353,9 @@ class Soundd:
         self.starpilot_toggles.goat_scream_critical_alerts and critical_full_alert,
       )
 
+      if new_alert_type.startswith("steerSaturated/") and self.headroom_warning_active():
+        new_alert = AudibleAlert.none  # the headroom warning already chimed once for this turn
+
       new_starpilot_alert = sm['starpilotSelfdriveState'].alertSound.raw
       if new_alert == AudibleAlert.none and new_starpilot_alert != StarPilotAudibleAlert.none:
         new_alert = starpilot_alert_key(new_starpilot_alert)
@@ -406,6 +410,7 @@ class Soundd:
       warning = float(self.params_memory.get("SteeringHeadroomWarning") or 0.0)
     except (TypeError, ValueError):
       return
+    self.headroom_warning_since = warning if math.isfinite(warning) else 0.0
     if not math.isfinite(warning) or warning <= self.headroom_warning_seen:
       return
     self.headroom_warning_seen = warning
@@ -416,6 +421,10 @@ class Soundd:
         and sm["starpilotSelfdriveState"].alertSize == custom.StarPilotSelfdriveState.AlertSize.none):
       self.current_alert_type = "steerSaturated/warning"
       self.update_alert(STEERING_HEADROOM_ALERT)
+
+  def headroom_warning_active(self) -> bool:
+    # The UI clears the param when its warning ends; the age cap keeps a stale value from muting steerSaturated.
+    return self.headroom_warning_since > 0 and 0 <= time.monotonic() - self.headroom_warning_since <= 30.0
 
   def get_volume_override(self):
     if self.current_alert_type.startswith("belowSteerSpeed/"):
