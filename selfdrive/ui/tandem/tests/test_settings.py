@@ -624,8 +624,10 @@ def test_reset_all_restores_defaults_and_bundle_values():
   tuner.set_value(STEERING[3], 2.0)
   tuner.set_gap("RelaxedFollow", 2.5)
   tuner.set_switch("ShowGPU", False)
+  tuner.set_controller(0)                          # Auto: NNFF on
   tuner.reset_all()
   assert cache.values["SteerKP"] == 1.1 and cache.values["RelaxedFollow"] == GAPS[0][2] and cache.values["ShowGPU"]
+  assert tuner.controller == 3 and not cache.values["NNFF"] and not cache.values["NNFFLite"]   # Torque; NNFF is opt-in
 
 
 def test_reset_all_tuning_asks_first():

@@ -75,6 +75,7 @@ FOLLOWING = [
 GAPS = [("Relaxed", "RelaxedFollow", 1.6), ("Standard", "StandardFollow", 1.45), ("Sport", "AggressiveFollow", 1.25),
         ("Traffic", "TrafficFollow", 0.75)]
 CONTROLLERS = ["Auto", "NNFF", "Lite", "Torque"]
+DEFAULT_CONTROLLER = 3   # Torque: NNFF and NNFF Lite stay opt-in
 _CONTROLLER_PARAMS = [
   {"NNFF": True, "NNFFLite": True, "ForceTorqueController": False},    # NNFF where the car has a model, otherwise Lite
   {"NNFF": True, "NNFFLite": False, "ForceTorqueController": False},
@@ -237,7 +238,7 @@ class Tuner:
       if t.learned_key is not None:
         values[t.learned_key] = True
     _, accel, decel = STYLE_PARAMS[self._speed.style]
-    values |= {"AccelerationProfile": accel, "DecelerationProfile": decel} | _CONTROLLER_PARAMS[0]
+    values |= {"AccelerationProfile": accel, "DecelerationProfile": decel} | _CONTROLLER_PARAMS[DEFAULT_CONTROLLER]
     values |= {key: default for _, key, default in GAPS} | {"CustomCruise": 1.0}
     for bundle in OVERRIDE_BUNDLES:
       on = bundle.is_on(self._store)
