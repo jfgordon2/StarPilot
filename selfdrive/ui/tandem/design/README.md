@@ -37,6 +37,7 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Vehicle | [vehicle.html](vehicle.html) |
 | Steering headroom | [steeringheadroom.html](steeringheadroom.html) |
 | Status chips | [statuschips.html](statuschips.html) |
+| Onroad extras (StarPilot options) | [onroadextras.html](onroadextras.html) |
 | Device tab | [devicetab.html](devicetab.html) |
 | Pair the phone app | [pairing.html](pairing.html) |
 | Driver camera preview | [drivercamera.html](drivercamera.html) |
