@@ -308,7 +308,10 @@ class ListPanel(Component):
         cy += T.DIVIDER
     rl.end_scissor_mode()
     if content > viewport.height:
-      draw.scroll_glow(viewport, offset, content)
+      # The glow spans the pane; where the list meets the pane's own rounded edge (no header or footer between), it
+      # follows the corners.
+      at_top, at_bottom = viewport.y <= rect.y + 0.5, viewport.y + viewport.height >= rect.y + rect.height - 0.5
+      draw.scroll_glow(viewport, offset, content, T.RADIUS_PANEL if at_top else 0.0, T.RADIUS_PANEL if at_bottom else 0.0)
 
     if self._bottom is not None:
       by = rect.y + rect.height - footnote_h - footer_h - bottom_h

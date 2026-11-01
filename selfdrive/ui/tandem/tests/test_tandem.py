@@ -204,6 +204,13 @@ def test_scroll_glow_marks_the_edges_with_more_content(monkeypatch):
   assert edges(0, 300) == []                    # everything fits
 
 
+def test_scroll_glow_spans_the_pane_and_follows_rounded_corners():
+  from openpilot.selfdrive.ui.tandem import draw
+  assert draw._corner_inset(20, 25) == 0.0                      # past the curve: the full width
+  assert draw._corner_inset(20, 0) == 20                        # at the very edge, the curve starts a radius in
+  assert 0 < draw._corner_inset(20, 5) < draw._corner_inset(20, 1) < 20
+
+
 def test_paragraph_max_lines_ends_the_last_line_in_an_ellipsis(monkeypatch):
   import pyray as rl
   from openpilot.selfdrive.ui.tandem import draw

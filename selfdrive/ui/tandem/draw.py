@@ -1,6 +1,7 @@
 """Drawing primitives shared by every Essentials component."""
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import pyray as rl
@@ -39,6 +40,12 @@ def stroke(rect: rl.Rectangle, color: rl.Color, radius: float = 0, width: float 
   rl.draw_rectangle_rounded_lines_ex(inner, _roundness(inner, max(0.0, radius - width)), SEGMENTS, width, color)
 
 
+def lerp(a: rl.Color, b: rl.Color, t: float) -> rl.Color:
+  """The color t of the way from a to b."""
+  t = max(0.0, min(1.0, t))
+  return rl.Color(*(round(x + (y - x) * t) for x, y in ((a.r, b.r), (a.g, b.g), (a.b, b.b), (a.a, b.a))))
+
+
 def gradient_v(rect: rl.Rectangle, top: rl.Color, bottom: rl.Color) -> None:
   rl.draw_rectangle_gradient_v(int(rect.x), int(rect.y), int(rect.width), int(rect.height), top, bottom)
 
@@ -46,18 +53,46 @@ def gradient_v(rect: rl.Rectangle, top: rl.Color, bottom: rl.Color) -> None:
 GLOW_HEIGHT = T.px(40)
 
 
-def scroll_glow(rect: rl.Rectangle, offset: float, content: float) -> None:
-  """A soft accent glow at each edge of a scrolling list that has more past it: the top once scrolled down, the bottom
-  while there's more below. offset is the scroll offset (0 or less) and content the list's full height."""
-  inner = rl.Rectangle(rect.x + T.px(12), rect.y, rect.width - T.px(24), rect.height)   # clear of rounded corners
+def _corner_inset(radius: float, d: float) -> float:
+  """How far a rounded corner of radius cuts into a row d pixels from the edge it rounds."""
+  if d >= radius:
+    return 0.0
+  return radius - math.sqrt(max(0.0, radius * radius - (radius - d) ** 2))
+
+
+def _edge_glow(rect: rl.Rectangle, top: bool, radius: float) -> None:
+  """The glow along one edge, the pane's full width; where that edge has rounded corners, each row follows the curve."""
   edge, clear = alpha(T.ACCENT, 0.32), alpha(T.ACCENT, 0.0)
+  height = GLOW_HEIGHT
+  curved = min(radius, height)
+  # Past the corners: one gradient across the full width
+  if top:
+    gradient_v(rl.Rectangle(rect.x, rect.y + curved, rect.width, height - curved), lerp(edge, clear, curved / height), clear)
+  else:
+    gradient_v(rl.Rectangle(rect.x, rect.y + rect.height - height, rect.width, height - curved), clear,
+               lerp(edge, clear, curved / height))
+  # Through the corners: a line per pixel row, narrowed to the curve
+  for d in range(int(curved)):
+    x = _corner_inset(radius, d + 0.5)
+    y = rect.y + d if top else rect.y + rect.height - 1 - d
+    color = lerp(edge, clear, d / height)
+    if d < T.px(2):
+      color = alpha(T.ACCENT, 0.6)
+    rl.draw_rectangle(int(rect.x + x), int(y), int(rect.width - 2 * x), 1, color)
+  if curved < T.px(2):   # a straight edge: the bright line along it
+    y = rect.y if top else rect.y + rect.height - T.px(2)
+    fill(rl.Rectangle(rect.x, y, rect.width, T.px(2)), alpha(T.ACCENT, 0.6), T.px(1))
+
+
+def scroll_glow(rect: rl.Rectangle, offset: float, content: float, round_top: float = 0.0, round_bottom: float = 0.0) -> None:
+  """A soft accent glow at each edge of a scrolling list that has more past it: the top once scrolled down, the bottom
+  while there's more below. offset is the scroll offset (0 or less) and content the list's full height. round_top and
+  round_bottom are the corner radii where the list's edge is also its pane's rounded edge (0 where it meets a header or
+  footer), so the glow spans the pane and follows its corners."""
   if offset < -0.5:
-    gradient_v(rl.Rectangle(inner.x, inner.y, inner.width, GLOW_HEIGHT), edge, clear)
-    fill(rl.Rectangle(inner.x, inner.y, inner.width, T.px(2)), alpha(T.ACCENT, 0.6), T.px(1))
+    _edge_glow(rect, True, round_top)
   if content + offset > rect.height + 0.5:
-    bottom = inner.y + inner.height
-    gradient_v(rl.Rectangle(inner.x, bottom - GLOW_HEIGHT, inner.width, GLOW_HEIGHT), clear, edge)
-    fill(rl.Rectangle(inner.x, bottom - T.px(2), inner.width, T.px(2)), alpha(T.ACCENT, 0.6), T.px(1))
+    _edge_glow(rect, False, round_bottom)
 
 
 def hline(x: float, y: float, width: float, color: rl.Color = T.CONTROL) -> None:
