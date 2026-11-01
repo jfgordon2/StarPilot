@@ -26,17 +26,17 @@ class VolumeGroup:
   name: str
   subtitle: str
   keys: tuple[str, ...]
-  levels: tuple[int, int, int]   # Quiet (25% for every group, the safety floor), Normal, Loud
+  levels: tuple[int, int, int]   # Quiet (25% for every group, the safety floor), Normal (safety warnings louder), Loud
   safety: bool = False
 
 
 GROUPS = [
-  VolumeGroup("Engage and disengage chimes", "When openpilot turns on or off", ("EngageVolume", "DisengageVolume"), (25, 60, 85)),
+  VolumeGroup("Engage and disengage chimes", "When openpilot turns on or off", ("EngageVolume", "DisengageVolume"), (25, 35, 85)),
   VolumeGroup("Prompts and reminders", "Gentle nudges, like steering below its minimum speed",
-              ("PromptVolume", "RefuseVolume", "BelowSteerSpeedVolume"), (25, 70, 90)),
+              ("PromptVolume", "RefuseVolume", "BelowSteerSpeedVolume"), (25, 45, 90)),
   VolumeGroup("Driver attention", "The chime that asks you to look at the road", ("PromptDistractedVolume", "WarningSoftVolume"),
-              (25, 80, 100), safety=True),
-  VolumeGroup("Take control warnings", "When you need to steer or brake now", ("WarningImmediateVolume",), (25, 100, 100), safety=True),
+              (25, 60, 100), safety=True),
+  VolumeGroup("Take control warnings", "When you need to steer or brake now", ("WarningImmediateVolume",), (25, 80, 100), safety=True),
 ]
 PRESETS = ["Auto", "Quiet", "Normal", "Loud"]
 CUSTOM = -1

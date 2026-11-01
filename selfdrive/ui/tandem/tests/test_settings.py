@@ -506,7 +506,7 @@ def test_volume_presets_and_custom_levels():
   alerts = Alerts(store)
   assert alerts.preset == 0 and alerts.level_label(GROUPS[0]) == "Auto"
   alerts.set_preset(2)
-  assert cache.values["AlertVolumeControl"] and alerts.preset == 2 and alerts.level_label(GROUPS[2]) == "80%"
+  assert cache.values["AlertVolumeControl"] and alerts.preset == 2 and alerts.level_label(GROUPS[2]) == "60%"   # driver attention at Normal
   alerts.set_level(GROUPS[0], 40)
   assert alerts.preset == CUSTOM and cache.values["EngageVolume"] == cache.values["DisengageVolume"] == 40
 

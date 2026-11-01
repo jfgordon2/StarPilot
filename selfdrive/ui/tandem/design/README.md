@@ -251,7 +251,7 @@ Values in square brackets are placeholders, not proposed defaults.
   - Quick-pick chips and Reset to default.
   - This builds on the existing `AetherSliderDialog`, which already has min, max, step, unit and labels.
 - **Volume editor.** The same sheet plus Play sample, which uses the car speakers when they're connected.
-  - The slider marks the Quiet, Normal and Loud presets. Quiet is 25% for every group, the lowest the safety warnings can go.
+  - The slider marks the Quiet, Normal and Loud presets. Quiet is 25% for every group, the lowest the safety warnings can go. Normal is 35% for engage and disengage chimes, 45% for prompts, 60% for driver attention and 80% for take-control warnings, so safety sounds stay louder than routine ones.
   - For safety alerts, the area under 25% is hatched and can't be selected.
   - Changing a single level switches the Alert Volume preset to Custom.
 - **Choosing map regions.** Tabs for U.S. regions, U.S. states and other countries.
