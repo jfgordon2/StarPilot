@@ -346,10 +346,14 @@ class BluetoothDevices(Protocol):
   def tick(self) -> None: ...
   def set_active(self, active: bool) -> None: ...
   def status(self): ...
-  def select(self, address: str) -> None: ...
+  def select(self, address: str) -> bool: ...      # pairs or connects; True when it's connected and its actions should show
   def test_audio(self, address: str) -> None: ...
   def audio_test_text(self) -> str: ...            # the running test's countdown, result or error
   def forget(self, address: str) -> None: ...
+  def disconnect(self, address: str) -> None: ...
+  def use_for_audio(self, address: str) -> None: ...   # "" stops using any device for openpilot's sounds
+  def prompt(self) -> dict | None: ...             # a pairing prompt from the device: id, name, kind, value, display_only
+  def respond(self, prompt_id: str, accept: bool, value: str = "") -> None: ...
 
 
 def sound_test(bt: BluetoothDevices, address: str, window) -> None:
@@ -361,15 +365,71 @@ def sound_test(bt: BluetoothDevices, address: str, window) -> None:
                           glyph=lambda r, c, s: draw.icon(r, "volume", c, s)))
 
 
+def pairing_prompt(bt: BluetoothDevices, prompt: dict, window) -> None:
+  """A device's pairing request in our dialogs (upstream showed its own): a code to confirm, a PIN or passkey to type,
+  or a code to read off this screen."""
+  from openpilot.system.ui.widgets import DialogResult
+  from openpilot.selfdrive.ui.tandem.overlays import Dialog
+  prompt_id = str(prompt.get("id", ""))
+  name = str(prompt.get("name") or "Bluetooth device")
+  kind, value = str(prompt.get("kind") or ""), str(prompt.get("value") or "")
+  glyph = lambda r, c, s: draw.icon(r, "bluetooth", c, s)  # noqa: E731
+  if prompt.get("display_only"):
+    window.present(Dialog(f"Pairing with {name}", value or "Follow the steps on the device.", "OK", lambda _: window.dismiss(),
+                          cancel_label=None, glyph=glyph))
+  elif kind in ("pin", "passkey"):
+    from openpilot.system.ui.lib.application import gui_app
+    from openpilot.selfdrive.ui.tandem.keyboard import EssentialsKeyboard
+    keyboard = EssentialsKeyboard(max_text_size=32, min_text_size=1, action="Pair")
+    keyboard.set_title(f"Enter the {kind} for {name}", "It's shown on the device, or in its manual")
+    keyboard.set_callback(lambda result: bt.respond(prompt_id, result == DialogResult.CONFIRM,
+                                                     keyboard.text if result == DialogResult.CONFIRM else ""))
+    gui_app.push_widget(keyboard)
+  else:
+    def done(result) -> None:
+      window.dismiss()
+      bt.respond(prompt_id, result == DialogResult.CONFIRM)
+    message = f"Check that the device shows {value}." if value else "The device is asking to pair."
+    window.present(Dialog(f"Pair with {name}?", message, "Pair", done, glyph=glyph))
+
+
+def device_sheet(bt: BluetoothDevices, device, window) -> Sheet:
+  """A connected device's actions (upstream showed its option list): car audio, a sound test, disconnect and forget."""
+  from openpilot.selfdrive.ui.tandem.controls import Switch
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import confirm
+  offroad = lambda: bt.status().offroad  # noqa: E731
+  selected = lambda: bt.status().selected_audio.upper() == device.address.upper()  # noqa: E731
+  rows: list[Widget] = []
+  if device.audio:
+    audio = Switch(selected, lambda on: bt.use_for_audio(device.address if on else ""))
+    audio.set_enabled(offroad)
+    test = Button("Test", lambda: sound_test(bt, device.address, window))
+    test.set_enabled(offroad)
+    rows += [SettingRow("Alerts and Chimes", "Play openpilot's sounds through this device. Change it with the car off.", audio),
+             SettingRow("Sound Test", "Plays a sound through the car after a short countdown", test)]
+  forget = Button("Forget", lambda: confirm(window, f"Forget {device.name}?", "You'll need to pair it again to use it.", "Forget",
+                                            lambda: bt.forget(device.address)), ButtonStyle.DANGER_SOFT)
+  forget.set_enabled(offroad)
+  rows += [SettingRow("Disconnect", "It reconnects the next time you choose it", Button("Disconnect", lambda: (bt.disconnect(device.address),
+                                                                                                              window.dismiss()))),
+           SettingRow("Forget", "Removes the pairing. Change it with the car off.", forget)]
+  return Sheet(device.name, ListPanel(rows, header_divider=False), subtitle="Connected",
+               actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss)
+
+
 def devices_panel(bt: BluetoothDevices, window=None) -> Component:
+  def choose(device) -> None:
+    if bt.select(device.address) and window is not None:
+      window.present(device_sheet(bt, device, window))
+
   def audio_row(device) -> SettingRow:
     selected = lambda: bt.status().selected_audio.upper() == device.address.upper()  # noqa: E731
     return SettingRow(device.name, lambda: "Plays alerts and chimes" if selected() else ("Connected" if device.connected else "Paired"),
-                      Button("Test sound", lambda: sound_test(bt, device.address, window)), on_click=lambda: bt.select(device.address),
+                      Button("Test sound", lambda: sound_test(bt, device.address, window)), on_click=lambda: choose(device),
                       chevron=False)
 
   def nearby_row(device) -> SettingRow:
-    action = Button(lambda: "Connect" if device.paired else "Pair", lambda: bt.select(device.address))
+    action = Button(lambda: "Connect" if device.paired else "Pair", lambda: choose(device))
     action.set_enabled(lambda: bt.status().offroad)
     return SettingRow(device.name, lambda: "Paired" if device.paired else None, action)
 
@@ -390,7 +450,17 @@ def devices_panel(bt: BluetoothDevices, window=None) -> Component:
     status = bt.status()
     return tuple((d.address, d.paired, d.connected) for d in status.devices), status.discovering
 
-  return Rebuilding(key, build, bt.tick)
+  last_prompt = [""]
+
+  def tick() -> None:
+    bt.tick()
+    prompt = bt.prompt()
+    prompt_id = str(prompt.get("id", "")) if prompt else ""
+    if prompt_id and prompt_id != last_prompt[0] and window is not None:
+      pairing_prompt(bt, prompt, window)
+    last_prompt[0] = prompt_id
+
+  return Rebuilding(key, build, tick)
 
 
 class BluetoothPage(Component):
@@ -508,7 +578,7 @@ class UpstreamWheel:
 
 
 class UpstreamBluetooth:
-  """BluetoothDevices backed by upstream's manager; its own screen handles pairing prompts and the audio test."""
+  """BluetoothDevices backed by upstream's manager and its pairing policy; prompts, actions and forget use our dialogs."""
 
   def __init__(self):
     from openpilot.system.ui.lib.bluetooth_manager import BluetoothManager
@@ -518,7 +588,13 @@ class UpstreamBluetooth:
     self._ui = BluetoothManagerUI(self._manager)
 
   def tick(self) -> None:
-    self._ui._handle_prompt(self._manager.status)
+    pass   # pairing prompts are ours now (pairing_prompt); upstream's _handle_prompt would push its own dialogs
+
+  def prompt(self):
+    return self._manager.status.prompt
+
+  def respond(self, prompt_id: str, accept: bool, value: str = "") -> None:
+    self._manager.respond(prompt_id, accept, value)
 
   def set_active(self, active: bool) -> None:
     (self._ui.show_event if active else self._ui.hide_event)()
@@ -528,8 +604,23 @@ class UpstreamBluetooth:
   def status(self):
     return self._manager.status
 
-  def select(self, address: str) -> None:
-    self._ui._select_device(address)
+  def select(self, address: str) -> bool:
+    """Upstream's pair and connect, under its policy; a connected device gets our actions instead of its option list."""
+    from openpilot.system.ui.widgets.bluetooth import device_action_allowed
+    device = self._ui._find_device(address)
+    status = self._manager.status
+    if device is None or not device_action_allowed(device, self._ui._operation_for(device, status), status.offroad):
+      return False
+    if device.paired and device.connected:
+      return True
+    self._ui._select_device(address)   # pairs or connects; never reaches its option list
+    return False
+
+  def disconnect(self, address: str) -> None:
+    self._manager.disconnect(address)
+
+  def use_for_audio(self, address: str) -> None:
+    self._manager.select_audio(address)
 
   def test_audio(self, address: str) -> None:
     self._audio_error = ""
@@ -552,4 +643,7 @@ class UpstreamBluetooth:
 
 
   def forget(self, address: str) -> None:
-    self._ui._confirm_forget(address)
+    """Our sheet asked first, with the car off, as upstream's confirm required."""
+    device = self._ui._find_device(address)
+    if device is not None and device.paired and self._manager.status.offroad:
+      self._manager.forget(address)

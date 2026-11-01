@@ -253,6 +253,21 @@ class FakeBluetooth:
 
   def select(self, address):
     self.calls.append(("select", address))
+    device = next((d for d in self._status.devices if d.address == address), None)
+    return bool(device and device.paired and device.connected)
+
+  def disconnect(self, address):
+    self.calls.append(("disconnect", address))
+
+  def use_for_audio(self, address):
+    self.calls.append(("audio", address))
+    self._status.selected_audio = address
+
+  def prompt(self):
+    return getattr(self, "_prompt", None)
+
+  def respond(self, prompt_id, accept, value=""):
+    self.calls.append(("respond", prompt_id, accept, value))
 
   def test_audio(self, address):
     self.calls.append(("test", address))
