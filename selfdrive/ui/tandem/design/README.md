@@ -147,7 +147,7 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | --- | --- | --- | --- |
 | Slowing for curve | Curve | Blue | `CurveSpeedController` |
 | Stopping ahead (Stopped once stopped) | Stop | Blue | `CEStopLights`: the model predicts a stop, at a light or a sign |
-| Stopping for stop sign (Stopped for stop sign once stopped) | Octagon | Blue | `CEStopLights` (model stop detection) |
+| Stopping for stop sign (Stopped for stop sign once stopped) | Octagon | Blue | The car's dashboard confirms a stop sign (`stopSignConfirmed`) |
 | Slowing for traffic | Car rear | Blue | `CESlowerLead`, `CEStoppedLead` |
 | Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
 | Matching limit 45 | Gauge | Blue | `SetSpeedLimit`, after a limit change |
