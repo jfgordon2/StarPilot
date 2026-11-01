@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Path and lead marker</title>
+</head>
+<body>
+
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+
+<div style="width: 1560px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; padding: 36px 44px 40px; display: flex; flex-direction: column; gap: 22px;">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <h1 style="margin: 0; font-size: 34px; font-weight: 800;">Path and lead marker: proposals</h1>
+    <span style="font-size: 17px; color: #AEB6C2;">The path shows where openpilot is steering; the marker shows the car it's following. Today both take StarPilot's colors: the path from its color scheme, the marker's glow always yellow.</span>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;">
+    <div style="background: #13161A; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 700;">Today</span><span style="font-size: 13px; font-weight: 700; letter-spacing: 1.4px; color: #8FA0B5;">CURRENT</span></div>
+      <svg width="100%" viewBox="0 0 700 380" style="display: block; border-radius: 16px; background: #10161D;" aria-hidden="true">
+        <defs><linearGradient id="g7289" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E8C547" stop-opacity="0.55"/><stop offset="0.55" stop-color="#E8C547" stop-opacity="0.32"/><stop offset="1" stop-color="#E8C547" stop-opacity="0.08"/></linearGradient></defs>
+        <rect x="0" y="0" width="700" height="150" fill="#0D1218"/>
+        <path d="M330 150 L80 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M370 150 L620 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M343 150 L357 150 L470 380 L230 380 Z" fill="url(#g7289)"/>
+        <rect x="318" y="168" width="64" height="34" rx="8" fill="#2A3138"/><rect x="326" y="174" width="48" height="10" rx="3" fill="#3B444E"/>
+        <rect x="322" y="192" width="10" height="5" rx="2" fill="#C2414B"/><rect x="368" y="192" width="10" height="5" rx="2" fill="#C2414B"/>
+        <polygon points="350,232 330,252 370,252" fill="none" stroke="#DACA25" stroke-width="7" stroke-linejoin="round"/><polygon points="350,232 330,252 370,252" fill="#C9222F"/>
+      </svg>
+      <ul style="margin: 0; padding-left: 18px; font-size: 15px; color: #C9D0DA; line-height: 1.45;"><li style="margin: 0 0 4px 0;">Path: StarPilot's color scheme or its Path Color setting (here yellow). Standard doesn't choose one.</li><li style="margin: 0 0 4px 0;">Marker: a red arrow (the theme's lead color) with a hard yellow glow, drawn by upstream.</li><li style="margin: 0 0 4px 0;">Neither color says anything an Essentials color doesn't, and yellow reads as a warning.</li></ul>
+    </div>
+    <div style="background: #13161A; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 700;">A · Essentials blue</span><span style="font-size: 13px; font-weight: 700; letter-spacing: 1.4px; color: #6FD8A0;">RECOMMENDED</span></div>
+      <svg width="100%" viewBox="0 0 700 380" style="display: block; border-radius: 16px; background: #10161D;" aria-hidden="true">
+        <defs><linearGradient id="g4542" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5AAAF8" stop-opacity="0.5"/><stop offset="0.55" stop-color="#5AAAF8" stop-opacity="0.28"/><stop offset="1" stop-color="#5AAAF8" stop-opacity="0.06"/></linearGradient></defs>
+        <rect x="0" y="0" width="700" height="150" fill="#0D1218"/>
+        <path d="M330 150 L80 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M370 150 L620 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M343 150 L357 150 L470 380 L230 380 Z" fill="url(#g4542)"/>
+        <rect x="318" y="168" width="64" height="34" rx="8" fill="#2A3138"/><rect x="326" y="174" width="48" height="10" rx="3" fill="#3B444E"/>
+        <rect x="322" y="192" width="10" height="5" rx="2" fill="#C2414B"/><rect x="368" y="192" width="10" height="5" rx="2" fill="#C2414B"/>
+        <polygon points="350,232 330,252 370,252" fill="none" stroke="#5AAAF8" stroke-width="9" stroke-linejoin="round"/><polygon points="350,232 330,252 370,252" fill="#F2F5F9"/>
+      </svg>
+      <ul style="margin: 0; padding-left: 18px; font-size: 15px; color: #C9D0DA; line-height: 1.45;"><li style="margin: 0 0 4px 0;">Path: our blue, strongest at the car, fading toward the horizon, as the mocks draw it.</li><li style="margin: 0 0 4px 0;">Marker: a white arrow with a soft blue glow, so it reads as part of the path.</li><li style="margin: 0 0 4px 0;">Amber and red stay free for warnings: the steering arc, Help steer and alerts.</li></ul>
+    </div>
+    <div style="background: #13161A; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 700;">B · Quiet white</span><span style="font-size: 13px; font-weight: 700; letter-spacing: 1.4px; color: #8FA0B5;"></span></div>
+      <svg width="100%" viewBox="0 0 700 380" style="display: block; border-radius: 16px; background: #10161D;" aria-hidden="true">
+        <defs><linearGradient id="g9722" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F2F5F9" stop-opacity="0.28"/><stop offset="0.55" stop-color="#F2F5F9" stop-opacity="0.16"/><stop offset="1" stop-color="#F2F5F9" stop-opacity="0.04"/></linearGradient></defs>
+        <rect x="0" y="0" width="700" height="150" fill="#0D1218"/>
+        <path d="M330 150 L80 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M370 150 L620 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M343 150 L357 150 L470 380 L230 380 Z" fill="url(#g9722)"/>
+        <rect x="318" y="168" width="64" height="34" rx="8" fill="#2A3138"/><rect x="326" y="174" width="48" height="10" rx="3" fill="#3B444E"/>
+        <rect x="322" y="192" width="10" height="5" rx="2" fill="#C2414B"/><rect x="368" y="192" width="10" height="5" rx="2" fill="#C2414B"/>
+        <polygon points="350,232 330,252 370,252" fill="#F2F5F9"/><polygon points="350,232 330,252 370,252" fill="none" stroke="#0B0D10" stroke-width="3" stroke-linejoin="round"/>
+      </svg>
+      <ul style="margin: 0; padding-left: 18px; font-size: 15px; color: #C9D0DA; line-height: 1.45;"><li style="margin: 0 0 4px 0;">Path: a soft white wash, the least color on the road.</li><li style="margin: 0 0 4px 0;">Marker: a white arrow ringed in dark, like the radar dots, so it holds up over bright roads.</li><li style="margin: 0 0 4px 0;">The calmest option; the path recedes behind the chips and bar.</li></ul>
+    </div>
+    <div style="background: #13161A; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 700;">C · Blue, marker shows braking</span><span style="font-size: 13px; font-weight: 700; letter-spacing: 1.4px; color: #8FA0B5;"></span></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"><svg width="100%" viewBox="0 0 700 380" style="display: block; border-radius: 16px; background: #10161D;" aria-hidden="true">
+        <defs><linearGradient id="g4542" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5AAAF8" stop-opacity="0.5"/><stop offset="0.55" stop-color="#5AAAF8" stop-opacity="0.28"/><stop offset="1" stop-color="#5AAAF8" stop-opacity="0.06"/></linearGradient></defs>
+        <rect x="0" y="0" width="700" height="150" fill="#0D1218"/>
+        <path d="M330 150 L80 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M370 150 L620 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M343 150 L357 150 L470 380 L230 380 Z" fill="url(#g4542)"/>
+        <rect x="318" y="168" width="64" height="34" rx="8" fill="#2A3138"/><rect x="326" y="174" width="48" height="10" rx="3" fill="#3B444E"/>
+        <rect x="322" y="192" width="10" height="5" rx="2" fill="#C2414B"/><rect x="368" y="192" width="10" height="5" rx="2" fill="#C2414B"/>
+        <polygon points="350,232 330,252 370,252" fill="none" stroke="#5AAAF8" stroke-width="9" stroke-linejoin="round"/><polygon points="350,232 330,252 370,252" fill="#F2F5F9"/>
+      </svg><svg width="100%" viewBox="0 0 700 380" style="display: block; border-radius: 16px; background: #10161D;" aria-hidden="true">
+        <defs><linearGradient id="g4542" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5AAAF8" stop-opacity="0.5"/><stop offset="0.55" stop-color="#5AAAF8" stop-opacity="0.28"/><stop offset="1" stop-color="#5AAAF8" stop-opacity="0.06"/></linearGradient></defs>
+        <rect x="0" y="0" width="700" height="150" fill="#0D1218"/>
+        <path d="M330 150 L80 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M370 150 L620 380" stroke="#C8D2DC" stroke-opacity="0.55" stroke-width="4"/>
+        <path d="M343 150 L357 150 L470 380 L230 380 Z" fill="url(#g4542)"/>
+        <rect x="318" y="168" width="64" height="34" rx="8" fill="#2A3138"/><rect x="326" y="174" width="48" height="10" rx="3" fill="#3B444E"/>
+        <rect x="322" y="192" width="10" height="5" rx="2" fill="#C2414B"/><rect x="368" y="192" width="10" height="5" rx="2" fill="#C2414B"/>
+        <polygon points="350,232 330,252 370,252" fill="none" stroke="#F0B35A" stroke-width="9" stroke-linejoin="round"/><polygon points="350,232 330,252 370,252" fill="#F0B35A"/>
+      </svg></div>
+      <ul style="margin: 0; padding-left: 18px; font-size: 15px; color: #C9D0DA; line-height: 1.45;"><li style="margin: 0 0 4px 0;">Path: Essentials blue, as in A.</li><li style="margin: 0 0 4px 0;">Marker: white while following (left), amber while the car brakes for it (right), the same moment the Slowing for traffic chip shows.</li><li style="margin: 0 0 4px 0;">Says one more thing, at the cost of one more color on the road.</li></ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

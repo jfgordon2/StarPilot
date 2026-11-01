@@ -76,6 +76,10 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 - **Search settings** sits at the top right of the hub ([search.html](search.html)). It searches every setting's name, what it does and where it lives, with the Essentials keyboard; the best four show above the keyboard and Search lists them all. Picking one opens its page and section. Settings behind Tuner Mode are found only while it's on.
 - **Connections** replaces the Network and Bluetooth tabs ([connections.html](connections.html) and its sections).
 
+## Proposals (not built)
+
+- **Path and lead marker** ([proposals/pathlead.html](proposals/pathlead.html)): today the path takes StarPilot's color scheme and the lead marker is the theme's red with upstream's yellow glow. Options: A, Essentials blue path with a white marker in a blue glow (recommended); B, a quiet white path with a dark-ringed white marker; C, the blue path with a marker that turns amber while the car brakes for the lead.
+
 ## Principles
 
 1. **One control per decision a driver actually makes.** About 190 rows in `selfdrive/ui/layouts/settings/starpilot/` become 14 controls.
