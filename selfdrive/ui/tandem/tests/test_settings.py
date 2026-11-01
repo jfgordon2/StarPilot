@@ -428,6 +428,25 @@ def test_path_style_presets_round_trip():
   assert cache.values["PathWidth"] == 3.0 and not cache.values["AccelerationPath"]
 
 
+def test_turn_signal_whimsy_round_trip():
+  from openpilot.selfdrive.ui.tandem.settings.display import SIGNAL_STYLES, Display
+  from openpilot.selfdrive.ui.onroad.starpilot.turn_signals import BUNDLED_SIGNAL_PATHS
+  store, cache = _store({"SignalAnimation": "stock", "CustomThemes": False, "RandomThemes": True})
+  display = Display(store)
+  assert display.signal_style == 0 and display.signal_name() == "Standard"
+  assert [name for name, _ in SIGNAL_STYLES] == ["Standard", "Jumping frog", "Pouncing cat", "Bouncing ball"]
+  for i, (name, slug) in enumerate(SIGNAL_STYLES):
+    assert slug == "stock" or BUNDLED_SIGNAL_PATHS[slug].is_dir()          # StarPilot ships every Whimsy animation
+    display.set_signal_style(i)
+    assert display.signal_style == i and display.signal_name() == name
+  display.set_signal_style(1)   # as StarPilot's picker: themes on (it reads SignalAnimation only then), random themes off
+  assert cache.values["SignalAnimation"] == "frog" and cache.values["CustomThemes"] and not cache.values["RandomThemes"]
+  display.set_signal_style(0)
+  assert cache.values["SignalAnimation"] == "stock"
+  store, _ = _store({"SignalAnimation": "sequential", "CustomThemes": True})   # chosen in StarPilot's settings: not drawn here
+  assert Display(store).signal_name() == "Standard"
+
+
 def test_driving_style_banner_only_controls_the_profile_message():
   from openpilot.selfdrive.ui.tandem.settings.display import Display
   from openpilot.selfdrive.ui.tandem.settings.tuner import Tuner

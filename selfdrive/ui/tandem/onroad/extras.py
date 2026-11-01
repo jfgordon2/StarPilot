@@ -35,6 +35,13 @@ RADAR_DOT = T.TEXT
 RADAR_TEXTURE_CENTER = 11.0   # StarPilot's marker texture is 22 px square
 
 
+# ── Turn signal ──
+
+# StarPilot's signal animations Essentials offers as Whimsy, by SignalAnimation slug. Its renderer draws them (view.py).
+WHIMSY_SIGNALS = {"frog": "Jumping frog", "pouncing_cat": "Pouncing cat", "bouncing_ball": "Bouncing ball"}
+SIGNAL_GAP = T.px(12)   # between an animation and the bar
+
+
 # ── Pedals ──
 
 def pedal_levels(params, car_state, starpilot_car_state=None) -> tuple[float, float] | None:

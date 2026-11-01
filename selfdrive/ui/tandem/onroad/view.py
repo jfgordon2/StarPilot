@@ -189,7 +189,18 @@ class EssentialsOnroadView(StarPilotOnroadView):
                left, right, time.monotonic())
 
   def _render_turn_signals(self) -> None:
-    pass   # Essentials' turn signal is in the speed pill
+    """Essentials' turn signal is in the speed pill. A Whimsy animation (Display › Turn Signal) also crosses the road above
+    the bar, drawn by StarPilot's renderer with its frames, timing and blind spot frame; hidden while an alert shows."""
+    if ui_state.starpilot_toggles.get("signal_icons", "stock") not in extras.WHIMSY_SIGNALS:
+      self._turn_signals.close()
+      return
+    c = self._content_rect
+    rl.begin_scissor_mode(int(c.x), int(c.y), int(c.width), int(c.height))
+    try:
+      self._turn_signals.render(c, ui_state, enabled=self.alert_renderer.will_render()[0] is None,
+                                bottom_margin=BAR_HEIGHT + BAR_MARGIN + extras.SIGNAL_GAP)
+    finally:
+      rl.end_scissor_mode()
 
   def _render_speed_card(self):
     """The posted limit StarPilot's speed card would show, as the mock's sign; hidden while the new-limit card asks."""

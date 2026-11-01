@@ -16,6 +16,7 @@ from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.bundles import DEVELOPER_VIEW, LEAD_INSIGHTS, Bundle
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+from openpilot.selfdrive.ui.tandem.onroad.extras import WHIMSY_SIGNALS
 
 # Path Style -> the path and lane line params it sets. Standard is upstream's path without the acceleration tint.
 _STANDARD_PATH = {"ModelUI": True, "CustomUI": True, "PathWidth": 6.1, "PathEdgeWidth": 20.0, "LaneLinesWidth": 4.0,
@@ -26,6 +27,11 @@ PATH_STYLES = [
   ("Rainbow", "A rainbow path", _STANDARD_PATH | {"RainbowPath": True}),
   ("Acceleration", "Green when speeding up, amber when slowing", _STANDARD_PATH | {"AccelerationPath": True}),
 ]
+# Turn Signal: (name, SignalAnimation slug). Standard is Essentials' chevrons in the speed pill; the rest are StarPilot's
+# animations, offered as Whimsy. The chevrons stay with any of them.
+SIGNAL_STANDARD = ("Standard", "stock")
+PREVIEW_ROAD = T._hex("132231")   # the picture behind each Turn Signal choice, as the mock
+SIGNAL_STYLES = [SIGNAL_STANDARD] + [(name, slug) for slug, name in WHIMSY_SIGNALS.items()]
 # CameraView values: 0 Auto, 1 Driver, 2 Standard, 3 Wide. Driver is left to upstream's developer screens.
 CAMERA_VIEWS = [("Auto", 0), ("Standard", 2), ("Wide", 3)]
 # (BootLogo slug, name). Tandem's is the Essentials default; StarPilot installs it from its boot logos folder like any other.
@@ -71,6 +77,23 @@ class Display:
 
   def set_path_style(self, index: int) -> None:
     self._store.write(PATH_STYLES[index][2])
+
+  @property
+  def signal_style(self) -> int:
+    """The chosen Turn Signal. Another StarPilot animation (chosen in StarPilot's own settings) isn't drawn by Essentials,
+    so it reads as Standard."""
+    slug = self._store.get_str("SignalAnimation") or "stock"
+    if not self._store.get_bool("CustomThemes"):
+      return 0
+    return next((i for i, (_, s) in enumerate(SIGNAL_STYLES) if s == slug), 0)
+
+  def signal_name(self) -> str:
+    return SIGNAL_STYLES[self.signal_style][0]
+
+  def set_signal_style(self, index: int) -> None:
+    """As StarPilot's own picker: an animation turns on its themes (it reads SignalAnimation only then) and off random ones."""
+    slug = SIGNAL_STYLES[index][1]
+    self._store.write({"SignalAnimation": slug} if slug == "stock" else {"SignalAnimation": slug, "CustomThemes": True, "RandomThemes": False})
 
   @property
   def driving_style_banner(self) -> bool:
@@ -224,10 +247,16 @@ def driving_screen_panel(model: Display, window) -> ListPanel:
                          subtitle="Sets path color, width, edges and lane lines together",
                          actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
 
+  def signal_sheet():
+    window.present(Sheet("Turn Signal", SignalPicker(lambda: model.signal_style, model.set_signal_style),
+                         subtitle="Plays beside the speed while a blinker is on",
+                         actions=[Button("Done", window.dismiss, ButtonStyle.PRIMARY)], on_dismiss=window.dismiss))
+
   dev_get, dev_set = model.bundle(DEVELOPER_VIEW)
   lead_get, lead_set = model.bundle(LEAD_INSIGHTS)
   return ListPanel([
     SettingRow("Path Style", "Color, width and edges as one preset", ValueButton(lambda: PATH_STYLES[model.path_style][0], path_sheet)),
+    SettingRow("Turn Signal", "Chevrons by the speed, or a whimsical animation", ValueButton(model.signal_name, signal_sheet)),
     SettingRow("Driving Style Banner", "Shows the current style when it changes",
                Switch(lambda: model.driving_style_banner, model.set_driving_style_banner)),
     SettingRow("Blind Spot Highlights", "Colors the screen edge and lane when a car is beside you",
@@ -445,6 +474,123 @@ class PathStylePicker(Component):
                 T.FONT_BOLD if chosen else T.FONT_SEMIBOLD, Align.CENTER)
     note = rl.Rectangle(rect.x, rect.y + T.px(214) + T.px(14), rect.width, draw.line_height(T.SIZE_SUBTITLE))
     draw.text(note, "Acceleration tints the path green when speeding up and amber when slowing. Each value can be changed in Tuner Mode.",
+              T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
+
+
+class SignalThumb:
+  """One frame from the middle of a StarPilot signal animation, cropped to the figure, loaded the first time it's drawn."""
+
+  def __init__(self, slug: str):
+    self._slug = slug
+    self._texture = None
+    self._loaded = False
+
+  def _load(self):
+    self._loaded = True
+    from openpilot.selfdrive.ui.onroad.starpilot.turn_signals import BUNDLED_SIGNAL_PATHS, FRAME_PATTERN
+    directory = BUNDLED_SIGNAL_PATHS.get(self._slug)
+    frames = sorted((p for p in directory.glob("*") if FRAME_PATTERN.fullmatch(p.name)),
+                    key=lambda p: int(FRAME_PATTERN.fullmatch(p.name)[1] or 0)) if directory is not None and directory.is_dir() else []
+    if not frames:
+      return
+    image = rl.load_image(str(frames[len(frames) // 2]))
+    try:
+      if image.width > 0 and image.height > 0:
+        rl.image_alpha_crop(image, 0.3)   # as StarPilot's preview: ignore faint motion trails
+        texture = rl.load_texture_from_image(image)
+        if texture.id:
+          rl.set_texture_filter(texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+          self._texture = texture
+    finally:
+      rl.unload_image(image)
+
+  def draw(self, rect: rl.Rectangle) -> None:
+    if not self._loaded:
+      self._load()
+    if self._texture is None:
+      draw.text(rect, "No preview", T.SIZE_SUBTITLE, T.TEXT_TERTIARY, h=Align.CENTER)
+      return
+    t = self._texture
+    scale = min(rect.width * 0.8 / t.width, rect.height * 0.8 / t.height, 1.5)   # small figures (the ball) stay near their size on the road
+    box = place(rect, t.width * scale, t.height * scale)
+    rl.draw_texture_pro(t, rl.Rectangle(0, 0, t.width, t.height), box, rl.Vector2(0, 0), 0, rl.WHITE)
+
+
+def draw_signal_standard(rect: rl.Rectangle) -> None:
+  """Essentials' signal: the chevrons lit beside the speed in its pill."""
+  size = T.font_px(44)
+  w = T.px(18) + T.px(34) + T.px(10) + draw.text_width("62", size, T.FONT_EXTRABOLD) + T.px(18)
+  pill = place(rect, w, T.px(64))
+  draw.fill(pill, T.BG, T.px(16))
+  body = inset(pill, x=T.px(18))
+  chevrons = rl.Rectangle(body.x, body.y, T.px(34), body.height)
+  draw.icon(rl.Rectangle(chevrons.x, chevrons.y, T.px(20), chevrons.height), "back", draw.alpha(T.ACCENT, 0.35), T.px(22))
+  draw.icon(rl.Rectangle(chevrons.x + T.px(14), chevrons.y, T.px(20), chevrons.height), "back", T.ACCENT, T.px(22))
+  draw.text(inset(body, left=T.px(44)), "62", size, T.TEXT, T.FONT_EXTRABOLD)
+
+
+class SignalPicker(Component):
+  """Standard, then the Whimsy animations, side by side like the path styles: a picture of each with its name under it."""
+  GAP = T.px(14)
+  CARD_H = T.px(214)
+
+  def __init__(self, selected: Callable[[], int], on_change: Callable[[int], None]):
+    super().__init__()
+    self._selected = selected
+    self._on_change = on_change
+    self._pressed: int | None = None
+    self._thumbs = {slug: SignalThumb(slug) for _, slug in SIGNAL_STYLES[1:]}
+
+  def _label_h(self) -> float:
+    return draw.line_height(T.font_px(13)) + T.px(8)
+
+  def preferred_size(self, max_width: float) -> tuple[float, float]:
+    return max_width, self._label_h() + self.CARD_H + T.px(14) + draw.line_height(T.SIZE_SUBTITLE)
+
+  def _cards(self) -> list[rl.Rectangle]:
+    n = len(SIGNAL_STYLES)
+    w = (self._rect.width - self.GAP * (n - 1)) / n
+    y = self._rect.y + self._label_h()
+    return [rl.Rectangle(self._rect.x + i * (w + self.GAP), y, w, self.CARD_H) for i in range(n)]
+
+  def _hit(self, pos) -> int | None:
+    return next((i for i, r in enumerate(self._cards()) if rl.check_collision_point_rec(pos, r)), None)
+
+  def _handle_mouse_press(self, mouse_pos) -> None:
+    self._pressed = self._hit(mouse_pos)
+
+  def _handle_mouse_release(self, mouse_pos) -> None:
+    super()._handle_mouse_release(mouse_pos)
+    hit = self._hit(mouse_pos)
+    if hit is not None and hit == self._pressed and hit != self._selected():
+      self._on_change(hit)
+    self._pressed = None
+
+  def _render(self, rect: rl.Rectangle):
+    selected = self._selected()
+    cards = self._cards()
+    label = rl.Rectangle(rect.x, rect.y, rect.width, draw.line_height(T.font_px(13)))
+    for x, text in ((cards[0].x, "ESSENTIALS"), (cards[1].x, "WHIMSY")):
+      draw.text(rl.Rectangle(x, label.y, rect.width, label.height), text, T.font_px(13), T.TEXT_SECONDARY, T.FONT_BOLD, tracking=T.px(1.6))
+    for i, card in enumerate(cards):
+      chosen = i == selected
+      draw.fill(card, T.SURFACE_4, T.px(20))
+      if chosen:
+        draw.stroke(card, T.ACCENT, T.px(20), T.px(2))
+      elif self.is_pressed and i == self._pressed:
+        draw.pressed(card, T.px(20))
+      body = inset(card, T.px(12))
+      label_h = draw.line_height(T.font_px(18))
+      art = rl.Rectangle(body.x, body.y, body.width, body.height - label_h - T.px(12))
+      draw.fill(art, PREVIEW_ROAD, T.px(12))
+      if i == 0:
+        draw_signal_standard(art)
+      else:
+        self._thumbs[SIGNAL_STYLES[i][1]].draw(art)
+      draw.text(rl.Rectangle(body.x, body.y + body.height - label_h, body.width, label_h), SIGNAL_STYLES[i][0], T.font_px(18), T.TEXT,
+                T.FONT_BOLD if chosen else T.FONT_SEMIBOLD, Align.CENTER)
+    note = rl.Rectangle(rect.x, cards[0].y + self.CARD_H + T.px(14), rect.width, draw.line_height(T.SIZE_SUBTITLE))
+    draw.text(note, "Whimsy animations cross the road above the bar while you signal; the chevrons by the speed stay.",
               T.SIZE_SUBTITLE, T.TEXT_TERTIARY)
 
 
