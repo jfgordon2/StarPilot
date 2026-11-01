@@ -30,8 +30,11 @@ class Snapshot:
   speed: float = 0.0                       # m/s
   accel: float = 0.0                       # m/s², the car's own
   metric: bool = False
-  lateral_paused: bool = False
-  pause_lateral_speed: float = 0.0         # display units; 0 when the setting is off
+  lateral_paused: bool = False             # paused by hand (a wheel button's Pause steering action)
+  steering_held: bool = False              # StarPilot's planner is holding steering off (its lateralCheck) while engaged
+  pause_lateral_speed: float = 0.0         # StarPilot's Pause steering below setting, display units; 0 when off
+  pause_lateral_ms: float = 0.0            # the same, m/s
+  pause_on_signal: bool = False            # ...only while signalling (PauseLateralOnSignal)
   signal_on: bool = False
   signal_direction: str = "none"           # left, right, both, none
   always_on_lateral: bool = False          # steering with cruise off
@@ -74,12 +77,19 @@ def chips_for(s: Snapshot) -> list[Chip]:
   exclude each other (the two pauses, blocked or changing lanes, a sign or the model's stop) give one chip."""
   unit = "km/h" if s.metric else "mph"
   out: list[Chip] = []
-  if s.lateral_paused and s.signal_on:
-    icon = {"left": "signal", "right": "signal_right", "both": "warning"}.get(s.signal_direction, "wheel_pause")
-    out.append(Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon))
-  elif s.lateral_paused:
-    below = f" · under {s.pause_lateral_speed:.0f} {unit}" if s.pause_lateral_speed else ""
-    out.append(Chip("pause_speed", f"Steering paused{below}", ChipTone.PAUSED, "wheel_pause"))
+  # Why steering is off, as StarPilot's planner decides it. The car's own minimum steering speed isn't one of these:
+  # openpilot says it in its "Steer Unavailable Below …" alert, with the car's figure.
+  below = 0 < s.pause_lateral_ms and s.speed < s.pause_lateral_ms
+  if s.lateral_paused:
+    out.append(Chip("pause_button", "Steering paused", ChipTone.PAUSED, "wheel_pause"))
+  elif s.steering_held and not s.standstill:
+    if below and s.signal_on and s.pause_on_signal:
+      icon = {"left": "signal", "right": "signal_right", "both": "warning"}.get(s.signal_direction, "wheel_pause")
+      out.append(Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon))
+    elif below:
+      out.append(Chip("pause_speed", f"Steering paused · under {s.pause_lateral_speed:.0f} {unit}", ChipTone.PAUSED, "wheel_pause"))
+    else:   # StarPilot's short hold after a slow turn, so the driver can straighten the wheel
+      out.append(Chip("pause_turn", "Steering paused after turn", ChipTone.PAUSED, "wheel_pause"))
   if s.lane_change in ("pre", "starting") and s.blindspot:
     out.append(Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked"))
   elif s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
@@ -215,9 +225,12 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
   if valid.get("starpilotCarState", False):
     s.lateral_paused = bool(sm["starpilotCarState"].pauseLateral)
   toggles = ui_state.starpilot_toggles or {}
-  s.pause_lateral_speed = float(toggles.get("pause_lateral_below_speed", 0) or 0) * speed_conversion
+  s.pause_lateral_ms = float(toggles.get("pause_lateral_below_speed", 0) or 0)
+  s.pause_lateral_speed = s.pause_lateral_ms * speed_conversion
+  s.pause_on_signal = bool(toggles.get("pause_lateral_below_signal", False))
   if valid.get("starpilotPlan", False):
     plan = sm["starpilotPlan"]
+    s.steering_held = bool(not plan.lateralCheck and (s.engaged or s.always_on_lateral))
     s.curve_control = bool(plan.cscControllingSpeed)
     s.red_light = bool(plan.redLight or plan.forcingStop)
     s.stop_sign = bool(plan.stopSignConfirmed)

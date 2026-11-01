@@ -15,7 +15,7 @@ class StatusMessages(dict):
 
 def test_chip_priority_paused_then_stopping_then_slowing_then_waiting():
   s = Snapshot(lateral_paused=True, red_light=True, curve_control=True, engaged=True, standstill=True, waiting_for_resume=True)
-  assert chip_for(s).key == "pause_speed" and chip_for(s).tone == ChipTone.PAUSED
+  assert chip_for(s).key == "pause_button" and chip_for(s).tone == ChipTone.PAUSED
   s.lateral_paused = False
   assert chip_for(s).key == "red_light"
   s.red_light = False
@@ -27,8 +27,9 @@ def test_chip_priority_paused_then_stopping_then_slowing_then_waiting():
 
 
 def test_chip_labels_use_units_and_direction():
-  assert chip_for(Snapshot(lateral_paused=True, pause_lateral_speed=30, metric=True)).label == "Steering paused · under 30 km/h"
-  assert chip_for(Snapshot(lateral_paused=True, signal_on=True)).label == "Steering paused for signal"
+  slow = dict(steering_held=True, speed=5.0, pause_lateral_ms=8.33, pause_lateral_speed=30, metric=True)
+  assert chip_for(Snapshot(**slow)).label == "Steering paused · under 30 km/h"
+  assert chip_for(Snapshot(**slow, signal_on=True, pause_on_signal=True)).label == "Steering paused for signal"
   assert chip_for(Snapshot(lane_change="starting", lane_change_direction="right")).label == "Changing lanes right"
   assert chip_for(Snapshot(lane_change="pre", blindspot=True)).label == "Lane change blocked"
   assert chip_for(Snapshot(limit_changed=True, speed_limit=45)).label == "Matching limit 45"
@@ -116,7 +117,7 @@ def test_turn_chip_without_slowdown_when_driver_operates_pedals(direction, pedal
 
 
 @pytest.mark.parametrize("higher_status, expected", [
-  ({"lateral_paused": True}, "pause_speed"),
+  ({"lateral_paused": True}, "pause_button"),
   ({"lane_change": "pre", "blindspot": True}, "lane_blocked"),
   ({"lane_change": "starting", "lane_change_direction": "right"}, "lane_change"),
   ({"stop_sign": True}, "stop_sign"),

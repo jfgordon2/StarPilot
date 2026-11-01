@@ -153,7 +153,9 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
 | Matching limit 45 | Gauge | Blue | `SetSpeedLimit`, after a limit change |
 | Rain · longer gap | Cloud with rain | Blue | `WeatherPresets` |
-| Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed` |
+| Steering paused | Wheel with pause bars | Amber | The steering wheel's Pause steering button |
+| Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed`: the speed is the driver's setting, not the car's. A car's own minimum steering speed shows in openpilot's "Steer Unavailable Below …" alert |
+| Steering paused after turn | Wheel with pause bars | Amber | StarPilot's hold after a slow turn, until the wheel straightens (`lateralCheck`) |
 | Steering paused for signal | Signal chevrons | Amber | `PauseLateralOnSignal` |
 | Lane change blocked | Lane, car and cross | Amber | Blind spot during `NudgelessLaneChange` |
 | Changing lanes right | Lane-shift arrow | Blue | `NudgelessLaneChange` |

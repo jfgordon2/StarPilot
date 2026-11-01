@@ -314,4 +314,16 @@ def test_chip_stack_keeps_the_four_highest_priority():
   busy = Snapshot(lateral_paused=True, curve_control=True, limit_changed=True, speed_limit=45, weather="Rain",
                   always_on_lateral=True)
   shown = [c.key for c, _ in stack.update(busy, 0.0, False)]
-  assert len(shown) == 4 and "pause_speed" in shown and "steering_only" not in shown
+  assert len(shown) == 4 and "pause_button" in shown and "steering_only" not in shown
+
+
+def test_steering_pause_chip_names_the_real_reason():
+  from openpilot.selfdrive.ui.tandem.onroad.status import Snapshot, chip_for
+  setting = dict(pause_lateral_ms=8.94, pause_lateral_speed=20)          # StarPilot's Pause steering below 20 mph
+  assert chip_for(Snapshot(lateral_paused=True, speed=25.0, **setting)).label == "Steering paused"        # a button, not speed
+  assert chip_for(Snapshot(steering_held=True, speed=5.0, **setting)).label == "Steering paused · under 20 mph"
+  assert chip_for(Snapshot(steering_held=True, speed=5.0, signal_on=True, pause_on_signal=True, **setting)).label == \
+    "Steering paused for signal"
+  assert chip_for(Snapshot(steering_held=True, speed=12.0, **setting)).label == "Steering paused after turn"
+  assert chip_for(Snapshot(steering_held=True, standstill=True, **setting)) is None                   # stopped: nothing to say
+  assert chip_for(Snapshot(speed=2.0, **setting)) is None              # the planner isn't holding steering: no chip
