@@ -66,6 +66,14 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Offline maps › Downloading | [mapdownloading.html](mapdownloading.html) |
 | Driving Model › Browse and download | [modelcatalog.html](modelcatalog.html) |
 
+## Proposals (not built)
+
+Mocks in `proposals/` for bigger changes to the settings structure, each with a screenshot beside it. Nothing here is built yet.
+
+- **Assistance on the hub** (`assistancehub.html`, `assistance.html`): a sixth hub tile for openpilot's core switches, now the last section of Speed & Steering. Its page also gathers driver monitoring: Always-On Driver Monitoring (from Assistance), and the Driver Camera preview and Driver Monitoring reset (from Device › This Device).
+- **Settings search** (`searchhub.html`, `search.html`): a Search settings button on the hub opens a search over every row's name and subtitle, with the Essentials keyboard; each result shows where it lives and opens it there. Rows behind Tuner Mode are found too.
+- **Connections tab** (`connections.html`): Network and Bluetooth become one tab with Wi-Fi, Cellular, Bluetooth Remote, and Car Audio & Devices, leaving four tabs.
+
 ## Principles
 
 1. **One control per decision a driver actually makes.** About 190 rows in `selfdrive/ui/layouts/settings/starpilot/` become 14 controls.
