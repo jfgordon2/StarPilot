@@ -316,11 +316,11 @@ def test_this_device_buttons_call_the_device_and_respect_offroad():
   assert not rows["Driver Camera"]._control.enabled
   assert rows["Camera Calibration"]._control.enabled
   restart, power_off = panel._footer._buttons
-  assert not power_off.is_visible
+  assert power_off.is_visible and not power_off.enabled   # shown greyed out while driving
   restart._click_callback()
   assert device.calls == ["recalibrate", "restart"]
   device.offroad = True
-  assert power_off.is_visible and rows["Driver Camera"]._control.enabled
+  assert power_off.enabled and rows["Driver Camera"]._control.enabled
 
 
 def test_this_device_hides_pair_once_paired_and_refreshes_on_show():

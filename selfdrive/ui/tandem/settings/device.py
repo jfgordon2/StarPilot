@@ -75,7 +75,7 @@ class ThisDevicePanel(ListPanel):
     pair.set_visible(lambda: not device.is_paired())
     power_off = Button("Power Off", asking("Power off?", "The device stays off until the car starts again.", "Power Off", device.power_off,
                                            True, "power"), ButtonStyle.DANGER_SOFT, height=T.px(52))
-    power_off.set_visible(device.is_offroad)
+    power_off.set_enabled(device.is_offroad)   # shown while driving, greyed out, like the other car-off actions
     restart = Button("Restart", asking("Restart the device?", "openpilot shuts down and starts again. This takes about a minute.",
                                        "Restart", device.restart), height=T.px(52), weight=T.FONT_BOLD)
     recalibrate = action("Recalibrate", asking("Recalibrate the camera?", "Calibration starts over. openpilot relearns how the device is " +
