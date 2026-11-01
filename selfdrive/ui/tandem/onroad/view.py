@@ -129,8 +129,10 @@ class EssentialsOnroadView(StarPilotOnroadView):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     zones = self.layout_manager.zones
+    # StarPilot widgets Essentials replaces: the personality button, its driver monitor and steering wheel icons, and the
+    # Aether Gauge (Conditional Experimental's "STOPPED"/"SLOW"/curve/light indicator), which the status chip says instead.
     for zone, widget in (("bottom", self._personality_button_widget), ("bottom", self._driver_monitor_widget),
-                         ("right", self._steering_wheel_widget)):
+                         ("right", self._steering_wheel_widget), ("left", self._aethergauge_widget)):
       if widget in zones[zone]:
         zones[zone].remove(widget)
       widget.set_visible(False)
