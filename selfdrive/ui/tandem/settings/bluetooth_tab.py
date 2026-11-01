@@ -16,11 +16,10 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.blocks import Label, Stack
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
-from openpilot.selfdrive.ui.tandem.layout import FILL, Align, Fill, column, grid, inset, place, row
+from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, grid, inset, place, row
 from openpilot.selfdrive.ui.tandem.overlays import Sheet
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, OptionList, SectionHeader, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
-from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
 from openpilot.selfdrive.ui.tandem.settings.favorites import favorite_action_names
 
 LEARN_SECONDS = 20
@@ -462,34 +461,6 @@ def devices_panel(bt: BluetoothDevices, window=None) -> Component:
     last_prompt[0] = prompt_id
 
   return Rebuilding(key, build, tick)
-
-
-class BluetoothPage(Component):
-  """Wheel buttons on the left (wider); car audio and nearby devices on the right."""
-  grow_touch_target = False
-
-  def __init__(self, wheel: WheelButtons, bt: BluetoothDevices, window):
-    super().__init__()
-    self._wheel = wheel
-    self._bt = bt
-    self._left = self._child(wheel_panel(wheel, window))
-    self._right = self._child(devices_panel(bt, window))
-
-  def show_event(self):
-    self._bt.set_active(True)
-    self._wheel.start_testing()
-    super().show_event()
-
-  def hide_event(self):
-    super().hide_event()
-    self._wheel.source.cancel_learning()
-    self._wheel.source.stop_testing()
-    self._bt.set_active(False)
-
-  def _render(self, rect: rl.Rectangle):
-    left, right = row(body_rect(rect), [Fill(1.4), FILL], T.px(14))
-    self._left.render(left)
-    self._right.render(right)
 
 
 # Action names for the wheel's controller actions, by StarPilot key suffix.

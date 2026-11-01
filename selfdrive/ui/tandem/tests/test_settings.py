@@ -70,7 +70,7 @@ class Page(Widget):
 def _window():
   events = []
   window = SettingsWindow(store=SettingsStore(FakeCache(), lambda: None), live=FakeLive())
-  window._roots = [lambda n=n: Page(n, events) for n in ("driving", "device", "network", "bluetooth", "software")]
+  window._roots = [lambda n=n: Page(n, events) for n in ("driving", "device", "connections", "software")]
   closed = []
   window.set_callbacks(on_close=lambda: closed.append(1))
   return window, events, closed
@@ -149,8 +149,8 @@ def test_back_steps_out_of_inner_pages_then_pops_then_closes():
 def test_tabs_keep_their_own_stacks():
   window, _, _ = _window()
   window.push(Page("detail", []))
-  window.select_tab(Tab.NETWORK)
-  assert window.depth == 1 and window.top.name == "network"
+  window.select_tab(Tab.CONNECTIONS)
+  assert window.depth == 1 and window.top.name == "connections"
   window.select_tab(Tab.DRIVING)
   assert window.depth == 2 and window.top.name == "detail"
 
@@ -822,17 +822,58 @@ def test_cancelling_assignment_removes_a_learned_button():
   assert [m["id"] for m in source.maps] == ["a", "b"] and source.learning is None
 
 
+def _connections(window, wheel, bt, section):
+  from openpilot.selfdrive.ui.tandem.settings import connections
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import WheelButtons
+  from openpilot.selfdrive.ui.tandem.settings.network_tab import Network
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeWifi
+  page = connections.connections_page(Network(FakeWifi(), window.store), lambda: None, WheelButtons(wheel), bt, window)
+  page.select(section)
+  return page
+
+
+def test_connections_sections_keep_radios_busy_only_while_shown():
+  from openpilot.selfdrive.ui.tandem.settings import connections
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth, FakeWheel
+  source, bt = FakeWheel(), FakeBluetooth()
+  source.state["testing"] = False
+  window, _, _ = _window()
+  page = _connections(window, source, bt, connections.WIFI)
+  window._roots[Tab.CONNECTIONS] = lambda: page
+  window.show_event()
+  window.select_tab(Tab.CONNECTIONS)
+  assert [s.label for s in page._sections] == ["Wi-Fi", "Cellular", "Bluetooth Remote", "Car Audio & Devices"]
+  assert not source.state["testing"] and ("active", True) not in bt.calls     # Wi-Fi open: Bluetooth idle
+  page.select(connections.AUDIO)
+  assert bt.calls[-1] == ("active", True)
+  page.select(connections.CELLULAR)
+  assert bt.calls[-1] == ("active", False)
+
+
+def test_opening_upstream_network_and_bluetooth_lands_in_their_connections_sections():
+  from openpilot.selfdrive.ui.tandem.settings import connections
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth, FakeWheel
+  PanelType = IntEnum("PanelType", "STARPILOT DEVICE NETWORK BLUETOOTH TOGGLES SOFTWARE DEVELOPER")
+  window, _, _ = _window()
+  page = _connections(window, FakeWheel(), FakeBluetooth(), connections.CELLULAR)
+  window._roots[Tab.CONNECTIONS] = lambda: page
+  window.set_current_panel(PanelType.BLUETOOTH)
+  assert window.tab == Tab.CONNECTIONS and page.selected == connections.REMOTE
+  window.set_current_panel(PanelType.NETWORK)
+  assert page.selected == connections.WIFI
+
+
 def test_bluetooth_page_tests_unmapped_buttons_and_cancels_learning_when_hidden():
-  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
+  from openpilot.selfdrive.ui.tandem.settings import connections
   from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth, FakeWheel
   source = FakeWheel()
   source.maps.clear()
   source.state["testing"] = False
   bt = FakeBluetooth()
   window, _, _ = _window()
-  window._roots[Tab.BLUETOOTH] = lambda: BluetoothPage(WheelButtons(source), bt, window)
+  window._roots[Tab.CONNECTIONS] = lambda: _connections(window, source, bt, connections.REMOTE)
   window.show_event()
-  window.select_tab(Tab.BLUETOOTH)
+  window.select_tab(Tab.CONNECTIONS)
   assert source.state["testing"] and bt.calls[-1] == ("active", True)
 
   source.start_learning(3)
@@ -842,7 +883,8 @@ def test_bluetooth_page_tests_unmapped_buttons_and_cancels_learning_when_hidden(
 
 
 def test_bluetooth_test_mode_suppresses_real_actions_only_while_the_page_is_shown():
-  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, UpstreamWheel, WheelButtons
+  from openpilot.selfdrive.ui.tandem.settings import connections
+  from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import UpstreamWheel
   from openpilot.selfdrive.ui.tandem.tests.fakes import FakeBluetooth
   from openpilot.starpilot.common import controller_actions
   from openpilot.starpilot.system.wheel_controls import wheel_controlsd
@@ -858,7 +900,7 @@ def test_bluetooth_test_mode_suppresses_real_actions_only_while_the_page_is_show
   wheel._wc, wheel._ca = wheel_controlsd, controller_actions
   wheel.favorite_slots = wheel_controlsd.FAVORITE_SLOT_COUNT
   window, _, _ = _window()
-  window._roots[Tab.BLUETOOTH] = lambda: BluetoothPage(WheelButtons(wheel), FakeBluetooth(), window)
+  window._roots[Tab.CONNECTIONS] = lambda: _connections(window, wheel, FakeBluetooth(), connections.REMOTE)
   window.show_event()
 
   def press(expected_clips):
@@ -867,15 +909,15 @@ def test_bluetooth_test_mode_suppresses_real_actions_only_while_the_page_is_show
 
   try:
     press(1)
-    window.select_tab(Tab.BLUETOOTH)
+    window.select_tab(Tab.CONNECTIONS)
     press(1)
     assert daemon.testing and daemon.last_tested["mapped"]
 
-    window.select_tab(Tab.NETWORK)
+    window.select_tab(Tab.DEVICE)
     press(2)
     assert not daemon.testing
 
-    window.select_tab(Tab.BLUETOOTH)
+    window.select_tab(Tab.CONNECTIONS)
     press(2)
     window.push(Page("another page", []))
     press(3)

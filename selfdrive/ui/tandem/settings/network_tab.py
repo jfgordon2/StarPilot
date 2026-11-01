@@ -12,10 +12,8 @@ import pyray as rl
 from openpilot.selfdrive.ui.tandem import tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle, Switch, ValueButton
-from openpilot.selfdrive.ui.tandem.layout import FILL, Fill, row
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, SettingRow, Text
 from openpilot.selfdrive.ui.tandem.settings.model import Rebuilding
-from openpilot.selfdrive.ui.tandem.settings.pages import body_rect
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 MIN_PASSWORD = 8
@@ -187,30 +185,6 @@ def advanced_panel(model: Network) -> ListPanel:
     SettingRow("APN", lambda: model.apn() or "Automatic", ValueButton(lambda: "Edit", model.edit_apn)),
     SettingRow("IP Address", lambda: model.wifi.ipv4_address or "Not connected"),
   ], title="Roaming, APN and IP address")
-
-
-class NetworkPage(Component):
-  """Wi-Fi on the left (wider), cellular on the right."""
-  grow_touch_target = False
-
-  def __init__(self, model: Network, open_advanced: Callable[[], None]):
-    super().__init__()
-    self._model = model
-    self._wifi = self._child(wifi_panel(model))
-    self._cellular = self._child(cellular_panel(model, open_advanced))
-
-  def show_event(self):
-    self._model.wifi.set_active(True)    # scan only while the screen is open
-    super().show_event()
-
-  def hide_event(self):
-    super().hide_event()
-    self._model.wifi.set_active(False)
-
-  def _render(self, rect: rl.Rectangle):
-    left, right = row(body_rect(rect), [Fill(1.3), FILL], T.px(14))
-    self._wifi.render(left)
-    self._cellular.render(right)
 
 
 def upstream_wifi():

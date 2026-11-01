@@ -42,8 +42,10 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 | Pair the phone app | [pairing.html](pairing.html) |
 | Driver camera preview | [drivercamera.html](drivercamera.html) |
 | Remote Access (Galaxy) | [remoteaccess.html](remoteaccess.html), set up: [remoteaccessqr.html](remoteaccessqr.html) |
-| Network tab | [networktab.html](networktab.html) |
-| Bluetooth tab | [bluetoothtab.html](bluetoothtab.html) |
+| Connections: Wi-Fi | [connections.html](connections.html) |
+| Connections: Cellular | [connectionscellular.html](connectionscellular.html) |
+| Connections: Bluetooth Remote | [connectionsremote.html](connectionsremote.html) |
+| Connections: Car Audio & Devices | [connectionsaudio.html](connectionsaudio.html) |
 | Software tab | [softwaretab.html](softwaretab.html) |
 | Assign a wheel button | [wheelbuttonlearn.html](wheelbuttonlearn.html) |
 | Driving › Vehicle Profile | [drivingvehicle.html](drivingvehicle.html) |
@@ -68,11 +70,10 @@ Open any `.html` file in this folder in a browser. Each screen is 1125×563, the
 
 ## Proposals (not built)
 
-Mocks in `proposals/` for bigger changes to the settings structure, each with a screenshot beside it. Nothing here is built yet.
+Mocks in `proposals/` for bigger changes to the settings structure, each with a screenshot beside it. The Connections tab was built and its mocks moved up as `connections*.html`.
 
 - **Assistance on the hub** (`assistancehub.html`, `assistance.html`): a sixth hub tile for openpilot's core switches, now the last section of Speed & Steering. Its page also gathers driver monitoring: Always-On Driver Monitoring (from Assistance), and the Driver Camera preview and Driver Monitoring reset (from Device › This Device).
 - **Settings search** (`searchhub.html`, `search.html`): a Search settings button on the hub opens a search over every row's name and subtitle, with the Essentials keyboard; each result shows where it lives and opens it there. Rows behind Tuner Mode are found too.
-- **Connections tab** (`connections.html`): Network and Bluetooth become one tab with Wi-Fi, Cellular, Bluetooth Remote, and Car Audio & Devices, leaving four tabs.
 
 ## Principles
 
@@ -126,7 +127,7 @@ Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel *
 
 ## Navigation changes
 
-- The bottom bar has five tabs: **Driving**, Device, Network, Bluetooth, Software. The **Toggles** and **Developer** tabs are gone. Metric units and language move to Device › General. SSH, ADB and joystick move under Tuner Mode.
+- The bottom bar has four tabs: **Driving**, Device, Connections, Software. The **Toggles** and **Developer** tabs are gone. Metric units and language move to Device › General. SSH, ADB and joystick move under Tuner Mode.
 - The Driving tab opens on a hub with five tiles: Speed & Steering, Display, Alerts, Driving Model, Vehicle. A "Power user" strip below them holds the three bundle switches.
 - **Labels describe what things do** rather than naming the product: "Reset Settings", "How It Works", "Phone App", "Version [version]".
 - The onroad bar drops the Experimental flask, because Smart Slowdowns switches modes automatically. A status chip such as "Slowing for curve" shows when it acts.
@@ -183,19 +184,19 @@ Rules:
 - Chips hide while an alert is showing. Driver attention warnings and takeover requests always use the alert levels instead.
 - Each chip is an icon plus four words or fewer.
 
-## Device, Network, Bluetooth and Software tabs
+## Device, Connections and Software tabs
 
-The bottom bar has five tabs: Driving, Device, Network, Bluetooth and Software. The current tab is highlighted.
+The bottom bar has four tabs: Driving, Device, Connections and Software. The current tab is highlighted. Connections holds what were the Network and Bluetooth tabs, as four sections: Wi-Fi, Cellular, Bluetooth Remote, and Car Audio & Devices.
 
 - **Device** has a sidebar: This Device, General, Backups, Storage & Data, Report a Problem. Everything about the hardware and its data lives here.
   - This Device: Phone App pairing (Pair opens [pairing.html](pairing.html): three steps for comma connect beside the QR code, on a white tile so it scans; the Galaxy web app is Remote Access, under More, which opens [remoteaccess.html](remoteaccess.html): choose a password to create the link, then its code and Unpair), driver camera preview, camera recalibration, and "How It Works" (the training guide).
   - Restart and Power Off.
   - Serial, device ID and driver monitoring reset move to Developer View.
-- **Network:**
+- **Connections › Wi-Fi and Cellular:**
   - The Wi-Fi list, with the connected network on top, plus "Join a hidden network".
-  - Cellular status, Hotspot (tethering), and Save Data, which is on by default and covers metered Wi-Fi.
+  - Cellular status, Hotspot (tethering) with its password, and Save Data, which is on by default and covers metered Wi-Fi.
   - Roaming, APN and IP address sit behind one row.
-- **Bluetooth:** leads with **Bluetooth Remote**, because a remote mounted on the steering wheel is the main reason to pair something. It's named apart from the car's own Steering Wheel Buttons (Vehicle).
+- **Connections › Bluetooth Remote and Car Audio & Devices:** Bluetooth Remote comes first in the Bluetooth sections, because a remote mounted on the steering wheel is the main reason to pair something. It's named apart from the car's own Steering Wheel Buttons (Vehicle).
   - The connected remote is listed with its assigned buttons, each with its action.
   - New remotes start with four presets: engage, disengage, change driving style, and screen off / on.
   - **Press to find.** While this tab is open, the wheel controls test mode (`WheelControlTestActive`) is on, both parked and onroad. Pressing a button on the remote highlights its row and marks it PRESSED, and its action does not run. An unassigned button highlights Add a button instead, including before any buttons are mapped. Leaving the tab or closing settings ends testing and cancels pending button learning; normal mapped actions keep their previous enabled state. This replaces the separate Test button.

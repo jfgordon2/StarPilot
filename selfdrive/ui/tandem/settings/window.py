@@ -1,4 +1,4 @@
-"""The settings window: five tabs along the bottom, each with its own stack of pages.
+"""The settings window: four tabs along the bottom, each with its own stack of pages.
 
 The button left of the tabs closes settings on a tab's first page and steps back everywhere deeper.
 """
@@ -16,13 +16,14 @@ from openpilot.selfdrive.ui.tandem.chrome import BottomNav
 from openpilot.selfdrive.ui.tandem.layout import FILL, column
 from openpilot.selfdrive.ui.tandem.settings.device import ThisDevicePanel, UpstreamDevice, pairing_page, regulatory_panel, remote_access_page
 from openpilot.selfdrive.ui.tandem.settings.bundles import TUNER_MODE
-from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import BluetoothPage, WheelButtons
+from openpilot.selfdrive.ui.tandem.settings.bluetooth_tab import WheelButtons
+from openpilot.selfdrive.ui.tandem.settings import connections
 from openpilot.selfdrive.ui.tandem.settings.defaults import apply_essentials
 from openpilot.selfdrive.ui.tandem.settings.device_sections import (General, Report, backups_panel, confirm, general_panel,
                                                                     report_panel, storage_panel)
 from openpilot.selfdrive.ui.tandem.settings.developer import Developer, DeveloperPage
 from openpilot.selfdrive.ui.tandem.settings.model import Models
-from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, NetworkPage, advanced_panel
+from openpilot.selfdrive.ui.tandem.settings.network_tab import Network, advanced_panel
 from openpilot.selfdrive.ui.tandem.settings.software_tab import Software, SoftwarePage
 from openpilot.selfdrive.ui.tandem.settings.driving_tab import driving_hub
 from openpilot.selfdrive.ui.tandem.settings.live import Live
@@ -33,13 +34,13 @@ from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 class Tab(IntEnum):
   DRIVING = 0
   DEVICE = 1
-  NETWORK = 2
-  BLUETOOTH = 3
-  SOFTWARE = 4
+  CONNECTIONS = 2
+  SOFTWARE = 3
 
 
-TABS = ["Driving", "Device", "Network", "Bluetooth", "Software"]
+TABS = ["Driving", "Device", "Connections", "Software"]
 DEVELOPER_SECTION = 5
+SECTIONS = {"NETWORK": connections.WIFI, "BLUETOOTH": connections.REMOTE}   # where upstream's Network and Bluetooth panels went
 
 # Upstream PanelType names -> where they live here. Home and the sidebar open TOGGLES; it is part of Driving.
 PANEL_TABS = {
@@ -47,8 +48,8 @@ PANEL_TABS = {
   "TOGGLES": Tab.DRIVING,
   "DEVICE": Tab.DEVICE,
   "DEVELOPER": Tab.DEVICE,
-  "NETWORK": Tab.NETWORK,
-  "BLUETOOTH": Tab.BLUETOOTH,
+  "NETWORK": Tab.CONNECTIONS,
+  "BLUETOOTH": Tab.CONNECTIONS,
   "SOFTWARE": Tab.SOFTWARE,
 }
 
@@ -133,7 +134,7 @@ class SettingsWindow(Widget):
     self.car_extras = car_extras or _upstream_car_extras
     self.boot_logos = boot_logos or _upstream_boot_logos
     self._tab = Tab.DRIVING
-    self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._network, self._bluetooth, self._software]
+    self._roots: list[Callable[[], Widget]] = [self._driving, self._device, self._connections, self._software]
     self._stacks: list[list[Widget]] = [[] for _ in TABS]
     self._shown = False
     self._overlay: Widget | None = None
@@ -153,6 +154,8 @@ class SettingsWindow(Widget):
     self._unwind(tab)
     if name == "DEVELOPER":
       self._stack(tab)[0].select(DEVELOPER_SECTION)
+    elif name in SECTIONS:
+      self._stack(tab)[0].select(SECTIONS[name])
     self.select_tab(tab)
 
   def show_event(self):
@@ -311,12 +314,10 @@ class SettingsWindow(Widget):
               visible=lambda: TUNER_MODE.is_on(self.store)),
     ])
 
-  def _network(self) -> Widget:
-    model = Network(self.wifi(), self.store)
-    return NetworkPage(model, lambda: self.push(PanelPage(advanced_panel(model))))
-
-  def _bluetooth(self) -> Widget:
-    return BluetoothPage(WheelButtons(self.wheel()), self.bluetooth(), self)
+  def _connections(self) -> Widget:
+    network = Network(self.wifi(), self.store)
+    return connections.connections_page(network, lambda: self.push(PanelPage(advanced_panel(network))), WheelButtons(self.wheel()),
+                                        self.bluetooth(), self)
 
   def _software(self) -> Widget:
     model = Software(self.store, self.updates(), lambda: apply_essentials(self.store, self.boot_logos))

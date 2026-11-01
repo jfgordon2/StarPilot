@@ -106,7 +106,7 @@ After a merge, check what Tandem reads from StarPilot, which can change without 
 
 ### How it's built
 
-- **Window:** `window.py` has five tabs, each with its own page stack, and the close/back button. It also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. Sheets and dialogs are drawn over the page by the window itself (`present`/`dismiss`), because the app draws only the top widget of its own stack.
+- **Window:** `window.py` has four tabs (Driving, Device, Connections, Software), each with its own page stack, and the close/back button. It also takes upstream `PanelType`s, so the home screen and sidebar open the right tab. Sheets and dialogs are drawn over the page by the window itself (`present`/`dismiss`), because the app draws only the top widget of its own stack.
 - **Models and panels:** each screen is a small model class that reads and writes params through `SettingsStore`, plus a function that builds its panel. One control usually writes several params, and the model owns that mapping. Tests drive the models with a fake param cache.
 - **Upstream logic:** anything with real logic behind it goes through an adapter class named `Upstream…` that calls upstream code. That covers downloads, Wi-Fi, Bluetooth, wheel remotes, the updater, the car list, and calibration and power. Upstream keeps its checks, threads and confirmations, and we only draw. The window takes each adapter as a constructor argument, so tests and headless renders pass fakes (`tests/fakes.py`).
 - **Signalling:** `SettingsStore.write` signals the driving processes once per call. `SettingsStore.batch()` groups many writes into one signal; Reset Settings uses it.
@@ -123,8 +123,7 @@ After a merge, check what Tandem reads from StarPilot, which can change without 
 | | Tuner Mode: Steering, Gas & Brake, Following & Stops, Bundle Overrides | `tuner.py`, `editors.py` | |
 | Device | This Device, the pairing page, Remote Access, Regulatory and the driver camera (`drivercamera.py`) | `device.py` | `DeviceLayout` handlers; the pairing code is upstream's `PairingDialog`'s (token and 5-minute refresh). Remote Access uses upstream's Galaxy keyboard, files, link and `GalaxyQRDialog` code, and its unpair; the password setup writes the same three files upstream's handler does, without its QR dialog |
 | | General, Backups, Storage & Data, Report a Problem | `device_sections.py` | Same folders and report as StarPilot's System screen; one storage measurement shared with Offline Maps and the model catalog; offline maps and unused models can also be removed here |
-| Network | Wi-Fi, Cellular, and Roaming, APN and IP address | `network_tab.py` | `WifiManager` |
-| Bluetooth | Bluetooth Remote, car audio, nearby devices | `bluetooth_tab.py` | Wheel controls service, `BluetoothManager` |
+| Connections | Sections: Wi-Fi; Cellular (with Roaming, APN and IP address); Bluetooth Remote; Car Audio & Devices | `connections.py`, `network_tab.py`, `bluetooth_tab.py` | `WifiManager`, wheel controls service, `BluetoothManager` |
 | Software | Updates, release channel, Reset Settings, Uninstall | `software_tab.py`, `defaults.py` | `SoftwareLayout` actions |
 
 ### Upstream screens still shown, one tap away
@@ -146,7 +145,7 @@ These are reached from a row or button, never as a tab:
   - "Attach last drive" in Report a Problem.
   - Automatic matching of the speed limit sign style to your region, so the choice is US or Vienna.
 - **Wheel remotes** don't come with four preset buttons. A button has to be pressed before it can be mapped.
-- **Wheel-button testing** captures remote presses while the Bluetooth tab is shown, including onroad and with no mappings yet. Leaving the tab or closing settings ends testing and cancels pending learning. Testing does not change the saved enable setting for normal remote actions.
+- **Wheel-button testing** captures remote presses while Connections › Bluetooth Remote is shown, including onroad and with no mappings yet. Leaving the tab or closing settings ends testing and cancels pending learning. Testing does not change the saved enable setting for normal remote actions.
 - **Button favorites** run the existing settings/action favorites. Car and remote pickers show each saved action's name; these are separate from saved destinations. Removing or moving a remote mapping frees its controller action slot once no other button uses it.
 - **openpilot's core switches** live in Speed & Steering › Assistance. Upstream's "Experimental mode" switch is gone; Smart Slowdowns switches modes automatically.
 
