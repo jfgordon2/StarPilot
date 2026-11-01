@@ -341,10 +341,18 @@ class CatalogPage(Component):
 class UpstreamModels:
   """ModelSource backed by StarPilot's driving model screen controller."""
 
-  def __init__(self):
+  def __init__(self, notify: Callable[[str], None] | None = None):
+    """notify shows a message StarPilot would have shown in its own alert box (e.g. "Cannot download models while
+    driving"); without it the message is dropped."""
     from openpilot.selfdrive.ui.layouts.settings.starpilot import driving_model as dm
     self._dm = dm
     self._layout = dm.StarPilotDrivingModelLayout()
+    self._notify = notify or (lambda message: None)
+
+  def _run(self, action: Callable[[], None]) -> None:
+    from openpilot.selfdrive.ui.tandem.settings.upstream import notices
+    for message in notices(action):
+      self._notify(message)
 
   def refresh(self) -> None:
     self._layout.show_event()   # fetches the manifest in the background
@@ -377,16 +385,16 @@ class UpstreamModels:
     return bool(self._dm.external_gpu_available())
 
   def use(self, key: str) -> None:
-    self._layout.select_model(key)
+    self._run(lambda: self._layout.select_model(key))
 
   def download(self, key: str) -> None:
-    self._layout.start_download(key)
+    self._run(lambda: self._layout.start_download(key))
 
   def cancel(self) -> None:
     self._layout.cancel_active_download()
 
   def remove(self, key: str) -> None:
-    self._layout.delete_model(key)
+    self._run(lambda: self._layout.delete_model(key))
 
   def removal_blocked(self) -> str:
     """StarPilot's rules for deleting model files: not while driving, not during a download."""

@@ -145,3 +145,17 @@ def confirmed(prompt: Callable[[], None]) -> None:
         callback(DialogResult.CONFIRM)
   finally:
     gui_app.push_widget = push
+
+
+def notices(action: Callable[[], None]) -> list[str]:
+  """Runs an upstream action and returns the messages of the notices it pushed (its alert_dialog boxes), so our screen
+  can say them in our own dialog instead."""
+  from openpilot.system.ui.lib.application import gui_app
+  caught: list = []
+  push = gui_app.push_widget
+  gui_app.push_widget = caught.append
+  try:
+    action()
+  finally:
+    gui_app.push_widget = push
+  return [str(text) for dialog in caught if (text := getattr(dialog, "_text", ""))]

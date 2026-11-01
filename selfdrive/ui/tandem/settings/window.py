@@ -53,9 +53,9 @@ PANEL_TABS = {
 }
 
 
-def _upstream_models():
+def _upstream_models(notify=None):
   from openpilot.selfdrive.ui.tandem.settings.model import UpstreamModels
-  return UpstreamModels()
+  return UpstreamModels(notify)
 
 
 def _upstream_data():
@@ -120,7 +120,7 @@ class SettingsWindow(Widget):
     super().__init__()
     self._store = store
     self._live = live
-    self.model_source = model_source or _upstream_models
+    self.model_source = model_source or (lambda: _upstream_models(self.notice))
     self.car_catalog = car_catalog or _upstream_cars
     self.device_data = device_data or _upstream_data
     self.device = device or _upstream_device
@@ -242,6 +242,13 @@ class SettingsWindow(Widget):
     if self._overlay is not None:
       overlay, self._overlay = self._overlay, None
       overlay.hide_event()
+
+  def notice(self, message: str) -> None:
+    """A message from StarPilot (e.g. why a model can't download now) in our dialog, where it showed its own alert box."""
+    from openpilot.selfdrive.ui.tandem import draw
+    from openpilot.selfdrive.ui.tandem.overlays import Dialog
+    self.present(Dialog("Driving model", message, "OK", lambda _: self.dismiss(), cancel_label=None,
+                        glyph=lambda r, c, s: draw.icon(r, "model", c, s)))
 
   def back(self) -> None:
     if self._overlay is not None:

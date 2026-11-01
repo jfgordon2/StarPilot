@@ -106,3 +106,17 @@ def test_pairing_prompts_use_our_dialog_and_answer_the_device():
   assert bt.calls[-1] == ("respond", "p1", True, "")
   pairing_prompt(bt, {"id": "p2", "name": "Pixel 9", "display_only": True, "value": "Enter 0000 on the device"}, window)
   assert not window.top._cancel.is_visible                # a notice; nothing to answer
+
+
+def test_model_notices_come_back_as_messages_not_upstream_boxes(monkeypatch):
+  from openpilot.system.ui.lib.application import gui_app
+  from openpilot.selfdrive.ui.tandem.settings.upstream import notices
+  pushed = []
+  monkeypatch.setattr(gui_app, "push_widget", pushed.append)
+
+  class Alert:
+    _text = "Cannot download models while driving."
+  messages = notices(lambda: gui_app.push_widget(Alert()))
+  assert messages == ["Cannot download models while driving."] and not pushed   # caught, not shown
+  gui_app.push_widget("after")
+  assert pushed == ["after"]                                                         # pushing restored
