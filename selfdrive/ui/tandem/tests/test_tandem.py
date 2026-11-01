@@ -268,3 +268,26 @@ def test_steer_saturated_is_the_alert_help_steer_replaces():
   from openpilot.selfdrive.ui.tandem.onroad.alerts import replaced_by_headroom
   assert replaced_by_headroom("steerSaturated/warning")
   assert not replaced_by_headroom("promptDriverDistracted/warning") and not replaced_by_headroom("")
+
+
+def test_light_is_green_outranks_stopped_at_a_stop():
+  from openpilot.selfdrive.ui.tandem.onroad.status import Snapshot, chip_for
+  s = Snapshot(red_light=True, standstill=True, events={"greenLight"})
+  assert chip_for(s).label == "Light is green"
+  s.events = set()
+  assert chip_for(s).label == "Stopped"
+
+
+def test_every_steering_limit_alert_is_replaced_by_help_steer():
+  from types import SimpleNamespace
+  from openpilot.selfdrive.ui.tandem.onroad.alerts import replaced_by_headroom, steer_limit_alert
+  for name in ("steerSaturated/warning", "goatSteerSaturated/warning", "firefoxSteerSaturated/warning", "thisIsFineSteerSaturated/warning"):
+    assert replaced_by_headroom(name)
+  assert not replaced_by_headroom("promptDriverDistracted/warning")
+
+  class SM(dict):
+    valid = {"selfdriveState": True, "starpilotSelfdriveState": True}
+  sm = SM(selfdriveState=SimpleNamespace(alertType=""), starpilotSelfdriveState=SimpleNamespace(alertType="goatSteerSaturated/warning"))
+  assert steer_limit_alert(sm)
+  sm["starpilotSelfdriveState"] = SimpleNamespace(alertType="greenLight/permanent")
+  assert not steer_limit_alert(sm)

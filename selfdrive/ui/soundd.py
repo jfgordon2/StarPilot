@@ -353,13 +353,16 @@ class Soundd:
         self.starpilot_toggles.goat_scream_critical_alerts and critical_full_alert,
       )
 
-      if new_alert_type.startswith("steerSaturated/") and self.headroom_warning_active():
-        new_alert = AudibleAlert.none  # the headroom warning already chimed once for this turn
+      steer_limit_muted = self.headroom_warning_active()  # the UI's headroom warning already chimed once for this turn
+      if steer_limit_muted and is_turn_steering_limit_alert(new_alert_type):
+        new_alert = AudibleAlert.none
 
       new_starpilot_alert = sm['starpilotSelfdriveState'].alertSound.raw
       if new_alert == AudibleAlert.none and new_starpilot_alert != StarPilotAudibleAlert.none:
         new_alert = starpilot_alert_key(new_starpilot_alert)
         new_alert_type = sm['starpilotSelfdriveState'].alertType
+        if steer_limit_muted and is_turn_steering_limit_alert(new_alert_type):
+          new_alert = AudibleAlert.none
 
       self.current_alert_type = new_alert_type
       self.update_alert(new_alert)

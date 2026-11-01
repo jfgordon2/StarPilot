@@ -57,11 +57,16 @@ def shown_as_chip(alert_type: str) -> bool:
   return (alert_type or "").split("/", 1)[0] in CHIP_ALERTS
 
 
-HEADROOM_ALERTS = {"steerSaturated"}   # "Turn exceeds steering limit": the Help steer warning already says it
-
-
 def replaced_by_headroom(alert_type: str) -> bool:
-  return (alert_type or "").split("/", 1)[0] in HEADROOM_ALERTS
+  """"Turn exceeds steering limit" in any of its forms (openpilot's steerSaturated and StarPilot's goat, Firefox and This is
+  fine versions, all named …SteerSaturated, as soundd's is_turn_steering_limit_alert reads them): Help steer says it."""
+  return (alert_type or "").split("/", 1)[0].lower().endswith("steersaturated")
+
+
+def steer_limit_alert(sm) -> bool:
+  """Whether openpilot or StarPilot is raising a steering-limit alert now."""
+  return any(sm.valid.get(service, False) and replaced_by_headroom(str(getattr(sm[service], "alertType", "") or ""))
+             for service in ("selfdriveState", "starpilotSelfdriveState"))
 
 
 def border(alert_level: str | None) -> rl.Color | None:

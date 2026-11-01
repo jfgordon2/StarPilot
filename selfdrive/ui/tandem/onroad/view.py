@@ -269,17 +269,19 @@ class EssentialsOnroadView(StarPilotOnroadView):
     now = time.monotonic()
     stage = self._headroom.stage(usage, now, active)
     self._arc_state = ArcState(usage, self._preview() if active else 0.0, active, stage)
-    # Stock/custom alerts, including their exit animation, retain visual priority.
-    clear = self.alert_renderer.get_alert(sm) is None and self.alert_renderer.will_render()[0] is None
-    warning = active and stage == AT_LIMIT and clear
+    # Other alerts, including their exit animation, keep visual priority. A steering-limit alert doesn't: Help steer is
+    # the one prompt for it, whether our estimate or openpilot's saturation check reaches the limit first.
+    showing = (self.alert_renderer.get_alert(sm), self.alert_renderer.will_render()[0])
+    clear = all(a is None or alerts.replaced_by_headroom(a.alert_type) for a in showing)
+    warning = active and (stage == AT_LIMIT or alerts.steer_limit_alert(sm)) and clear
     self.model_renderer.lane_line_color_override = LIMIT_LANE_COLOR if warning else None
     if warning and not self._headroom_chimed:
       self._memory.put_nonblocking("SteeringHeadroomWarning", now)
       self._headroom_chimed = True
     elif self._headroom_warning and not warning:
       self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
-    if stage != AT_LIMIT:
-      self._headroom_chimed = False
+    if not warning:
+      self._headroom_chimed = False   # one chime per warning
     self._headroom_warning = warning
 
   def _get_border_color(self):

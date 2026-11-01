@@ -82,6 +82,8 @@ def chip_for(s: Snapshot) -> Chip | None:
     return Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked")
   if s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
     return Chip("lane_change", f"Changing lanes {s.lane_change_direction}", ChipTone.INFO, f"lane_{s.lane_change_direction}")
+  if s.standstill and "greenLight" in s.events:   # at a stop the news is the light changing, not that we're stopped
+    return Chip("green_light", "Light is green", ChipTone.WAITING, "light_green")
   stop = "Stopped" if s.standstill else "Stopping"   # once the car is stopped, the chip says so
   if s.stop_sign:
     return Chip("stop_sign", f"{stop} for stop sign", ChipTone.INFO, "stop_sign")
@@ -186,4 +188,9 @@ def snapshot(ui_state, nav_active: bool = False) -> Snapshot:
     if toggles.get("weather_presets"):
       s.weather = weather_name(int(plan.weatherId))
     s.events = {str(e.name) for e in plan.starpilotEvents}
+  # StarPilot raises greenLight and leadDeparting for a single planner frame, which the UI can miss; the alerts they start
+  # are held for seconds, so their names count too (the chip stands in for the hidden banner).
+  for service in ("selfdriveState", "starpilotSelfdriveState"):
+    if valid.get(service, False) and sm[service].alertType:
+      s.events.add(str(sm[service].alertType).split("/", 1)[0])
   return s
