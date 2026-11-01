@@ -127,15 +127,15 @@ class OnroadBar(Component):
 
 
 def heading_width(heading: str) -> float:
-  return draw.text_width(heading, T.font_px(15), T.FONT_EXTRABOLD, tracking=T.px(1)) + T.px(16)
+  return draw.text_width(heading, T.font_px(20), T.FONT_EXTRABOLD, tracking=T.px(1)) + T.px(20)
 
 
 def heading_tag(rect: rl.Rectangle, heading: str) -> float:
-  """The compass heading as a small blue tag, vertically centered at the start of rect. Returns its width."""
+  """The compass heading as a blue tag, vertically centered at the start of rect. Returns its width."""
   w = heading_width(heading)
-  tag = place(rl.Rectangle(rect.x, rect.y, w, rect.height), w, T.px(28))
-  draw.fill(tag, T.ACCENT_SURFACE, T.px(8))
-  draw.text(tag, heading, T.font_px(15), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER, tracking=T.px(1))
+  tag = place(rl.Rectangle(rect.x, rect.y, w, rect.height), w, T.px(36))
+  draw.fill(tag, T.ACCENT_SURFACE, T.px(10))
+  draw.text(tag, heading, T.font_px(20), T.ACCENT_TEXT, T.FONT_EXTRABOLD, Align.CENTER, tracking=T.px(1))
   return w
 
 
