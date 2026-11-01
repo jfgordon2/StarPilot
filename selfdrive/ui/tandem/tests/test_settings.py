@@ -1290,3 +1290,13 @@ def test_compass_switch_writes_starpilots_compass():
   assert not row._control.value
   display.set_compass(True)
   assert cache.values["Compass"] and display.compass
+
+
+def test_quiet_is_25_percent_for_every_alert_sound():
+  from openpilot.selfdrive.ui.tandem.settings.alerts import GROUPS, SAFETY_FLOOR, Alerts
+  store, cache = _store({"AlertVolumeControl": False})
+  alerts = Alerts(store)
+  alerts.set_preset(1)
+  keys = [k for g in GROUPS for k in g.keys]
+  assert all(cache.values[k] == 25 == SAFETY_FLOOR for k in keys) and cache.values["AlertVolumeControl"]
+  assert alerts.preset == 1

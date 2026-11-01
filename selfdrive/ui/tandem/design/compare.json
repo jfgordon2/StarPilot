@@ -81,7 +81,7 @@
   {
    "mock": "volumeeditor",
    "title": "Volume editor",
-   "note": "Matches the layout. Quiet and Normal sit at the real preset levels, not the mock's placeholders.",
+   "note": "Matches the layout, with Quiet at 25% as in the mock. Normal and Loud sit at each group's real levels, not the mock's placeholders.",
    "match": true
   },
   {
