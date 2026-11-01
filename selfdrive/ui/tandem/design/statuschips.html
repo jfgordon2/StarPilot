@@ -62,12 +62,20 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
     <div style="background: #13161A; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
       <span style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; color: #F0B35A;">STEERING · AMBER WHEN PAUSED OR BLOCKED</span>
       <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 9v6M14 9v6"></path></svg>Steering paused</div>
+        <span style="font-size: 13px; color: #9FAABA;">Wheel with pause · the wheel's Pause steering button</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 9v6M14 9v6"></path></svg>Steering paused · under 20 mph</div>
-        <span style="font-size: 13px; color: #9FAABA;">Wheel with pause · <span style="font-family: 'JetBrains Mono', monospace;">PauseLateralSpeed</span></span>
+        <span style="font-size: 13px; color: #9FAABA;">Wheel with pause · <span style="font-family: 'JetBrains Mono', monospace;">PauseLateralSpeed</span>, your setting, not the car's minimum (openpilot shows that in its own alert)</span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 6l-6 6 6 6"></path><path d="M18 6l-6 6 6 6"></path></svg>Steering paused for signal</div>
         <span style="font-size: 13px; color: #9FAABA;">Signal chevrons · <span style="font-family: 'JetBrains Mono', monospace;">PauseLateralOnSignal</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 9v6M14 9v6"></path></svg>Steering paused after turn</div>
+        <span style="font-size: 13px; color: #9FAABA;">Wheel with pause · StarPilot holds steering after a slow turn until the wheel straightens · <span style="font-family: 'JetBrains Mono', monospace;">lateralCheck</span></span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 9.5v3M12 16v3"></path><rect x="15" y="7" width="6" height="10" rx="2"></rect><path d="M4 8l5 5M9 8l-5 5"></path></svg>Lane change blocked</div>
