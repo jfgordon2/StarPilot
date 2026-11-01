@@ -291,3 +291,27 @@ def test_every_steering_limit_alert_is_replaced_by_help_steer():
   assert steer_limit_alert(sm)
   sm["starpilotSelfdriveState"] = SimpleNamespace(alertType="greenLight/permanent")
   assert not steer_limit_alert(sm)
+
+
+def test_chip_stack_newest_nearest_the_bar_each_with_its_own_hold():
+  from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
+  stack = ChipStack()
+  keys = lambda shown: [c.key for c, _ in shown]  # noqa: E731
+  assert keys(stack.update(Snapshot(curve_control=True), 0.0, False)) == ["curve"]
+  shown = stack.update(Snapshot(curve_control=True, weather="Rain"), 0.5, False)
+  assert keys(shown) == ["weather", "curve"]                    # the newer one sits nearest the bar
+  shown = stack.update(Snapshot(weather="Rain"), 1.0, False)    # the curve ended at 0.5: still held
+  assert keys(shown) == ["weather", "curve"] and shown[1][1] == 1.0
+  shown = stack.update(Snapshot(weather="Rain"), 2.6, False)    # past its hold: fading
+  assert keys(shown) == ["weather", "curve"] and 0.0 < shown[1][1] < 1.0
+  assert keys(stack.update(Snapshot(weather="Rain"), 3.0, False)) == ["weather"]   # gone
+  assert stack.update(Snapshot(weather="Rain"), 3.1, True) == []                     # hidden under an alert
+
+
+def test_chip_stack_keeps_the_four_highest_priority():
+  from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
+  stack = ChipStack()
+  busy = Snapshot(lateral_paused=True, curve_control=True, limit_changed=True, speed_limit=45, weather="Rain",
+                  always_on_lateral=True)
+  shown = [c.key for c, _ in stack.update(busy, 0.0, False)]
+  assert len(shown) == 4 and "pause_speed" in shown and "steering_only" not in shown

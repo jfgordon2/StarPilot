@@ -7,7 +7,7 @@ from cereal import custom
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.tandem.onroad import view as onroad
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
-from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, Snapshot
+from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ def test_limit_changes_are_observed_while_an_alert_covers_the_card(limit_view, m
   plan.slcSpeedLimitSource = "Map Data"  # a live 55 after the dismissed 65
   view.alert_renderer = SimpleNamespace(will_render=lambda: (object(), False))
   view._draw_hud_controls = True
-  view._chips = ChipPicker()
+  view._chips = ChipStack()
   view._navigating = lambda: False
   view._render_driver_monitor = lambda: None  # this state-only fixture has no driver-camera renderer
   monkeypatch.setattr(onroad.StarPilotOnroadView, "_render", lambda self, rect: None)

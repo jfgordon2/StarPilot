@@ -38,7 +38,7 @@ from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, B
                                                          Headroom, HeadroomArc, HelpSteer, ARC, DEV_ARC, LimitCard, LimitOffer, OnroadBar, StatusChip,
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
-from openpilot.selfdrive.ui.tandem.onroad.status import ChipPicker, snapshot
+from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
@@ -149,15 +149,15 @@ class EssentialsOnroadView(StarPilotOnroadView):
 
     self._memory = Params(memory=True)
     self._memory.put_nonblocking("SteeringHeadroomWarning", 0.0)
-    self._chips = ChipPicker()
-    self._chip = None
+    self._chips = ChipStack()
+    self._chip_list: list = []   # (chip, opacity), nearest the bar first
     self._headroom = Headroom()
     self._arc_state = ArcState()
     self._headroom_warning = False
     self._headroom_chimed = False
     self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
-    self._chip_view = StatusChip(lambda: self._chip)
+    self._chip_view = StatusChip(lambda: self._chip_list)
     self._arc = HeadroomArc(lambda: self._arc_state, lambda: DEV_ARC if self._dev is not None else ARC)   # each mock's curve
     self._help = HelpSteer()
     self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit)   # in the sign's place, top left
@@ -383,7 +383,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._offer()   # observe limit changes even when an alert is covering the card
     alert, _ = self.alert_renderer.will_render()
     self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
-    self._chip = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
+    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating()), time.monotonic(), alert is not None)
     if not self._layers_visible:
       return
     c = self._content_rect

@@ -141,30 +141,37 @@ def heading_tag(rect: rl.Rectangle, heading: str) -> float:
 
 
 class StatusChip(Component):
-  """What the car is doing on its own, bottom left just above the bar."""
+  """What the car is doing on its own, bottom left just above the bar: a stack of up to four chips, the newest nearest
+  the bar (status.ChipStack decides which, and their opacity). Chips slide to their new place as others come and go."""
   grow_touch_target = False
   INK = {ChipTone.INFO: T.ACCENT_TEXT, ChipTone.PAUSED: T.WARNING, ChipTone.WAITING: T.SUCCESS_TEXT}
-  HEIGHT, GAP = T.px(44), T.px(12)
+  HEIGHT, GAP, STEP = T.px(44), T.px(12), T.px(52)
+  SLIDE = 0.25   # share of the remaining distance a chip moves each frame
 
-  def __init__(self, chip: Callable[[], Chip | None]):
+  def __init__(self, chips: Callable[[], list[tuple[Chip, float]]]):
     super().__init__()
-    self._chip = chip
+    self._chips = chips
+    self._slot: dict[str, float] = {}   # each chip's drawn place (0 nearest the bar), easing toward its target
 
   def size(self, chip: Chip) -> tuple[float, float]:
     return draw.text_width(chip.label, T.font_px(17), T.FONT_SEMIBOLD) + T.px(70), self.HEIGHT
 
   def _render(self, rect: rl.Rectangle):
-    chip = self._chip()
-    if chip is None:
-      return
-    w, h = self.size(chip)
+    chips = self._chips()
+    self._slot = {chip.key: self._slot.get(chip.key, float(i)) for i, (chip, _) in enumerate(chips)}
     bar_top = rect.y + rect.height - BAR_MARGIN - BAR_HEIGHT
-    box = rl.Rectangle(rect.x + BAR_MARGIN, bar_top - self.GAP - h, w, h)
-    draw.fill(box, draw.alpha(T.BG, 0.8), T.px(12))
-    body = inset(box, x=T.px(16))
-    ink = self.INK[chip.tone]
-    draw.icon(rl.Rectangle(body.x, body.y, T.px(22), body.height), chip.icon, ink, T.px(22))
-    draw.text(inset(body, left=T.px(32)), chip.label, T.font_px(17), T.TEXT if chip.tone == ChipTone.INFO else ink, T.FONT_SEMIBOLD)
+    for i, (chip, alpha) in enumerate(chips):
+      slot = self._slot[chip.key] = self._slot[chip.key] + (i - self._slot[chip.key]) * self.SLIDE
+      if alpha <= 0.01:
+        continue
+      w, h = self.size(chip)
+      box = rl.Rectangle(rect.x + BAR_MARGIN, bar_top - self.GAP - h - slot * self.STEP, w, h)
+      draw.fill(box, draw.alpha(T.BG, 0.8 * alpha), T.px(12))
+      body = inset(box, x=T.px(16))
+      ink = self.INK[chip.tone]
+      draw.icon(rl.Rectangle(body.x, body.y, T.px(22), body.height), chip.icon, draw.alpha(ink, alpha), T.px(22))
+      draw.text(inset(body, left=T.px(32)), chip.label, T.font_px(17), draw.alpha(T.TEXT if chip.tone == ChipTone.INFO else ink, alpha),
+                T.FONT_SEMIBOLD)
 
 
 # ── Steering headroom ──

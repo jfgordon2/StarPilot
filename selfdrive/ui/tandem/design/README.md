@@ -163,8 +163,8 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | Light is green | Traffic light, bottom lit | Green | `GreenLightAlert` |
 
 Rules:
-- Show one chip at a time. Priority runs from steering paused or blocked, to stopping, to slowing, to waiting.
-- A chip stays up while its reason holds, plus 2 seconds, so it doesn't flicker.
+- Show up to four chips at once, stacked up from the bar, newest nearest it. With more reasons than that, the highest priority show: steering paused or blocked, then stopping, then slowing, then waiting.
+- Each chip stays up while its reason holds, renews whenever it fires again, and fades 2 seconds after it ends; the chips above slide down into its place.
 - Chips hide while an alert is showing. Driver attention warnings and takeover requests always use the alert levels instead.
 - Each chip is an icon plus four words or fewer.
 

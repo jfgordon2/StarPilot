@@ -17,7 +17,7 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
 <div style="width: 1560px; height: 1282px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; padding: 40px 48px; display: flex; flex-direction: column; gap: 24px;">
   <div style="display: flex; flex-direction: column; gap: 8px;">
     <h1 style="margin: 0; font-size: 36px; font-weight: 800;">Status chips: why is the car doing that?</h1>
-    <span style="font-size: 18px; color: #AEB6C2;">Bottom left of the onroad view, just above the bar. Shown only while the car changes speed or steering on its own. One chip at a time.</span>
+    <span style="font-size: 18px; color: #AEB6C2;">Bottom left of the onroad view, just above the bar. Shown only while the car changes speed or steering on its own. Up to four at once, newest nearest the bar.</span>
   </div>
   <div style="display: grid; grid-template-columns: 1.15fr 1fr 0.85fr; gap: 20px;">
     <div style="background: #13161A; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
@@ -100,8 +100,8 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
       </div>
       <div style="background: #13161A; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1;">
         <span style="font-size: 18px; font-weight: 700;">Rules</span>
-        <span style="font-size: 15px; color: #C9D0DA; line-height: 1.45;">Priority: paused or blocked, then stopping, then slowing, then waiting.</span>
-        <span style="font-size: 15px; color: #C9D0DA; line-height: 1.45;">Stays while the reason holds, plus 2 s. Hidden while an alert is up.</span>
+        <span style="font-size: 15px; color: #C9D0DA; line-height: 1.45;">Up to four at once, newest nearest the bar. With more, the highest priority show: paused or blocked, then stopping, then slowing, then waiting.</span>
+        <span style="font-size: 15px; color: #C9D0DA; line-height: 1.45;">Each stays while its reason holds, renews when it fires again, then after 2 s fades and the ones above slide down. All hide while an alert is up.</span>
         <span style="font-size: 15px; color: #C9D0DA; line-height: 1.45;">Icon plus four words or fewer. Nothing shown means nothing unusual.</span>
       </div>
     </div>
@@ -115,6 +115,7 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
         <path d="M354 100 L368 100 L483 280 L239 280 Z" fill="#3A73B3" fill-opacity="0.5"></path>
       </svg>
       <div style="position: absolute; left: 50%; top: 12px; transform: translateX(-50%); font-size: 40px; font-weight: 800;">34</div>
+      <div style="position: absolute; left: 14px; bottom: 66px; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 15a4 4 0 1 1 .9-7.9A5 5 0 0 1 17.5 9a3.5 3.5 0 0 1-.5 6z"></path><path d="M8 18.5l-1 2M12 18.5l-1 2M16 18.5l-1 2"></path></svg>Rain · longer gap</div>
       <div style="position: absolute; left: 14px; bottom: 14px; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>Stopping ahead</div>
     </div>
     <div style="border: 5px solid #1F9A55; border-radius: 16px; background: #0F1A24; position: relative; overflow: hidden;">

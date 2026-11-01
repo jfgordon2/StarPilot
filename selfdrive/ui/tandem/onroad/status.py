@@ -69,51 +69,96 @@ SLOWING_ACCEL = -0.3     # m/s²: below this the car is braking, not just follow
 MOVING_SPEED = 0.5       # m/s
 
 
-def chip_for(s: Snapshot) -> Chip | None:
-  """The one chip to show now, highest priority first: paused or blocked, stopping, slowing, then waiting."""
+def chips_for(s: Snapshot) -> list[Chip]:
+  """Every chip that applies now, highest priority first: paused or blocked, stopping, slowing, then waiting. Reasons that
+  exclude each other (the two pauses, blocked or changing lanes, a sign or the model's stop) give one chip."""
   unit = "km/h" if s.metric else "mph"
+  out: list[Chip] = []
   if s.lateral_paused and s.signal_on:
     icon = {"left": "signal", "right": "signal_right", "both": "warning"}.get(s.signal_direction, "wheel_pause")
-    return Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon)
-  if s.lateral_paused:
+    out.append(Chip("pause_signal", "Steering paused for signal", ChipTone.PAUSED, icon))
+  elif s.lateral_paused:
     below = f" · under {s.pause_lateral_speed:.0f} {unit}" if s.pause_lateral_speed else ""
-    return Chip("pause_speed", f"Steering paused{below}", ChipTone.PAUSED, "wheel_pause")
+    out.append(Chip("pause_speed", f"Steering paused{below}", ChipTone.PAUSED, "wheel_pause"))
   if s.lane_change in ("pre", "starting") and s.blindspot:
-    return Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked")
-  if s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
-    return Chip("lane_change", f"Changing lanes {s.lane_change_direction}", ChipTone.INFO, f"lane_{s.lane_change_direction}")
-  if s.standstill and "greenLight" in s.events:   # at a stop the news is the light changing, not that we're stopped
-    return Chip("green_light", "Light is green", ChipTone.WAITING, "light_green")
-  stop = "Stopped" if s.standstill else "Stopping"   # once the car is stopped, the chip says so
-  if s.stop_sign:
-    return Chip("stop_sign", f"{stop} for stop sign", ChipTone.INFO, "stop_sign")
-  if s.red_light:
-    # StarPilot's redLight is the model predicting a stop, for a light or a sign alike; only the dashboard confirms a sign.
-    return Chip("red_light", "Stopped" if s.standstill else "Stopping ahead", ChipTone.INFO, "stop")
+    out.append(Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked"))
+  elif s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
+    out.append(Chip("lane_change", f"Changing lanes {s.lane_change_direction}", ChipTone.INFO, f"lane_{s.lane_change_direction}"))
+  green = "greenLight" in s.events
+  if s.standstill and green:   # at a stop the news is the light changing, not that we're stopped
+    out.append(Chip("green_light", "Light is green", ChipTone.WAITING, "light_green"))
+  else:
+    stop = "Stopped" if s.standstill else "Stopping"   # once the car is stopped, the chip says so
+    if s.stop_sign:
+      out.append(Chip("stop_sign", f"{stop} for stop sign", ChipTone.INFO, "stop_sign"))
+    elif s.red_light:
+      # StarPilot's redLight is the model predicting a stop, for a light or a sign alike; only the dashboard confirms a sign.
+      out.append(Chip("red_light", "Stopped" if s.standstill else "Stopping ahead", ChipTone.INFO, "stop"))
   if s.curve_control:
-    return Chip("curve", "Slowing for curve", ChipTone.INFO, "curve")
+    out.append(Chip("curve", "Slowing for curve", ChipTone.INFO, "curve"))
   if s.nav_turn:
-    return Chip("turn", "Slowing for turn", ChipTone.INFO, turn_icon(s.nav_turn_maneuver, s.nav_turn_modifier))
+    out.append(Chip("turn", "Slowing for turn", ChipTone.INFO, turn_icon(s.nav_turn_maneuver, s.nav_turn_modifier)))
   # Turn events stand on their own, including steering-only turns with the driver on the pedals.
   if "turningLeft" in s.events:
-    return Chip("turning", "Turning left", ChipTone.INFO, "turn_left")
-  if "turningRight" in s.events:
-    return Chip("turning", "Turning right", ChipTone.INFO, "turn_right")
+    out.append(Chip("turning", "Turning left", ChipTone.INFO, "turn_left"))
+  elif "turningRight" in s.events:
+    out.append(Chip("turning", "Turning right", ChipTone.INFO, "turn_right"))
   if s.slowing_for_lead and not s.standstill and s.speed > MOVING_SPEED and s.accel < SLOWING_ACCEL:
-    return Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car")
+    out.append(Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car"))
   if s.limit_changed and s.speed_limit:
-    return Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge")
+    out.append(Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge"))
   if s.weather:
-    return Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, {"Snow": "snow", "Fog": "fog"}.get(s.weather, "rain"))
-  if "greenLight" in s.events:
-    return Chip("green_light", "Light is green", ChipTone.WAITING, "light_green")
+    out.append(Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, {"Snow": "snow", "Fog": "fog"}.get(s.weather, "rain")))
+  if green and not s.standstill:
+    out.append(Chip("green_light", "Light is green", ChipTone.WAITING, "light_green"))
   if "leadDeparting" in s.events:
-    return Chip("lead_moved", "Car ahead moved", ChipTone.WAITING, "car_up")
+    out.append(Chip("lead_moved", "Car ahead moved", ChipTone.WAITING, "car_up"))
   if s.engaged and s.standstill and s.waiting_for_resume:   # cars that resume on their own aren't waiting on you
-    return Chip("ready", "Ready · tap resume", ChipTone.WAITING, "play")
+    out.append(Chip("ready", "Ready · tap resume", ChipTone.WAITING, "play"))
   if s.always_on_lateral and not s.engaged:
-    return Chip("steering_only", "Steering only", ChipTone.INFO, "wheel")
-  return None
+    out.append(Chip("steering_only", "Steering only", ChipTone.INFO, "wheel"))
+  return out
+
+
+def chip_for(s: Snapshot) -> Chip | None:
+  """The highest-priority chip, or None."""
+  chips = chips_for(s)
+  return chips[0] if chips else None
+
+
+@dataclass
+class _Shown:
+  chip: Chip
+  born: float        # when it joined the stack (its place: newest nearest the bar)
+  until: float       # its reason was last seen at until - HOLD
+  rank: int          # its priority when last seen
+
+
+class ChipStack:
+  """Up to MAX chips at once, newest nearest the bar. Each keeps its own hold: it stays while its reason holds, renews
+  whenever the reason is seen again, then fades over FADE once HOLD has passed. With more reasons than MAX, the
+  highest-priority ones show. The whole stack hides while an alert shows."""
+  MAX = 4
+  HOLD = 2.0
+  FADE = 0.3
+
+  def __init__(self):
+    self._shown: dict[str, _Shown] = {}
+
+  def update(self, s: Snapshot, now: float, alert_showing: bool) -> list[tuple[Chip, float]]:
+    """(chip, opacity) nearest the bar first."""
+    for rank, chip in enumerate(chips_for(s)):
+      held = self._shown.get(chip.key)
+      if held is None:
+        self._shown[chip.key] = _Shown(chip, now, now + self.HOLD, rank)
+      else:
+        held.chip, held.until, held.rank = chip, now + self.HOLD, rank   # renewed; a changed label (Stopping → Stopped) updates
+    self._shown = {k: v for k, v in self._shown.items() if now < v.until + self.FADE}
+    if alert_showing:
+      return []
+    visible = sorted(self._shown.values(), key=lambda v: v.rank)[:self.MAX]
+    visible.sort(key=lambda v: v.born, reverse=True)
+    return [(v.chip, 1.0 if now < v.until else max(0.0, 1.0 - (now - v.until) / self.FADE)) for v in visible]
 
 
 class ChipPicker:
