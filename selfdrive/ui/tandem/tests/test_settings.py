@@ -1326,3 +1326,12 @@ def test_connected_network_shows_the_local_ip_address():
   assert wifi.ipv4_address not in network.status_line(other)
   wifi.ipv4_address = ""
   assert network.status_line(wifi.connected_ssid) == "Connected"
+
+
+def test_download_tiles_show_codes_in_a_steady_order():
+  from openpilot.selfdrive.ui.tandem.settings.maps import RegionProgress, region_tiles
+  assert RegionProgress("us_state.IA", 0, 1).code == "IA" and RegionProgress("nation.DE", 0, 1).code == "DE"
+  first = region_tiles([("us_state.IL", 1, 9), ("us_state.IA", 9, 9)])
+  again = region_tiles([("us_state.IA", 9, 9), ("us_state.IL", 2, 9)])   # mapd's next update, in another order
+  assert [r.code for r in first] == [r.code for r in again] == ["IA", "IL"]
+

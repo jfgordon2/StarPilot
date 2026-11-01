@@ -36,18 +36,27 @@ class Region:
 
 @dataclass(frozen=True)
 class RegionProgress:
-  location: str        # mapd's name for it, e.g. "US_ID"
+  location: str        # mapd's name for it, e.g. "us_state.ID" or "nation.DE"
   done: int
   total: int
 
   @property
   def code(self) -> str:
-    """The short name a tile shows: a U.S. state's code ("ID"), otherwise the name."""
-    return self.location[3:] if self.location.startswith("US_") else self.location.replace("_", " ")
+    """The short name a tile shows: the state's or country's code ("ID", "DE"), otherwise the name."""
+    for prefix in ("us_state.", "nation.", "US_"):   # mapd's selection keys (starpilot/common/maps_selection.py), and older ones
+      if self.location.startswith(prefix):
+        return self.location[len(prefix):]
+    return self.location.replace("_", " ")
 
   @property
   def finished(self) -> bool:
     return self.total > 0 and self.done >= self.total
+
+
+def region_tiles(details) -> tuple[RegionProgress, ...]:
+  """mapd's per-location (name, files done, files total), sorted by the name a tile shows: mapd lists them in no fixed
+  order, so unsorted tiles would trade places as updates arrive."""
+  return tuple(sorted((RegionProgress(*d) for d in details), key=lambda r: r.code))
 
 
 @dataclass(frozen=True)
@@ -323,8 +332,8 @@ class UpstreamMaps:
     regions: tuple[RegionProgress, ...] = ()
     sm = self._layout._map_sm
     if sm.valid.get("mapdExtendedOut", False):   # mapd's per-location counts, already received by the layout's own update
-      regions = tuple(RegionProgress(str(d.location), int(d.downloadedFiles), int(d.totalFiles))
-                      for d in sm["mapdExtendedOut"].downloadProgress.locationDetails)
+      regions = region_tiles((str(d.location), int(d.downloadedFiles), int(d.totalFiles))
+                             for d in sm["mapdExtendedOut"].downloadProgress.locationDetails)
     return Progress(state.active or self._layout._download_requested(), state.downloaded_files, state.total_files, state.primary_location,
                     regions)
 
