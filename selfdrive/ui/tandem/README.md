@@ -20,6 +20,7 @@ Tandem is this fork of StarPilot. Its design language is **Essentials**: fewer c
 | More for your car (`settings/vehicle.py`) | StarPilot's car-specific options for the detected car, on its params and handlers; restarts and panda flashing ask first in our dialogs. |
 | `overlays.py` dialogs over upstream actions | Restart, Power Off, Recalibrate and the driver monitoring reset ask in our `Dialog`, then run upstream's action (the confirm-only prompts are run with their dialog caught and answered, so upstream's checks still apply). Software's Release Channel and Uninstall (upstream's three steps), What's new and the Bluetooth sound test use our sheets and dialogs too. How It Works stays upstream's training guide: its steps are pre-drawn images. |
 | `keyboard.py` | `EssentialsKeyboard`: upstream's `Keyboard` (typing, shift and caps, the 123 and #+= layers, backspace repeat, password masking, minimum length) drawn as `design/keyboard.html`, with a named action key. Used by every text entry our screens open: Wi-Fi and hotspot passwords, APN, Report a Problem, the startup message and the Galaxy password. Destination search holds it in the page as a `KeyPad`. |
+| `tools/` | `build_icons.js` (icons), `shoot_mocks.js` (mock screenshots), `render/` (headless renders of every built screen with sample data, and the test stand-ins), and `compare.py` (the mock-beside-build page from `design/compare.json`). How to run them is in the repo's `AGENTS.md`. |
 
 ## Building a screen
 
