@@ -135,7 +135,7 @@ This builds on the existing torque bar in `selfdrive/ui/onroad/starpilot/torque_
 - **Three stages instead of a gradual fade:**
   - **Comfortable (under 60%):** a thin white arc and no sound.
   - **Working (60–85%):** the arc turns amber and gets thicker.
-  - **At limit (over 85%, held for about half a second):** the arc turns orange-red, the lane lines tint, and the Warning alert "Help steer" plays one chime.
+  - **At limit (over 85%, held for about half a second):** the arc turns orange-red, the lane lines tint, and the Warning alert "Help steer" plays one chime. It draws like every other Warning alert, the amber card along the bottom in the bar's place, with the arc moved above it.
     The border turns amber. The warning clears below 80% to avoid repeated chimes near the threshold, and clears whenever steering becomes inactive. Existing driving alerts take priority.
 - **Preview of the curve ahead.** A faint extension of the arc shows the steering the planned path will need 2–3 seconds out, based on the model's desired curvature at the current speed. The driver sees trouble before the car reaches it.
 - The arc sits on the road view just above the onroad bar, where the driver is already looking. It replaces the flat "STEERING" bar from the earlier mocks.

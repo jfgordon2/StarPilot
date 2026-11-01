@@ -161,7 +161,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._limit_offer = LimitOfferState()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
     self._chip_view = StatusChip(lambda: self._chip_list)
-    self._arc = HeadroomArc(lambda: self._arc_state, lambda: DEV_ARC if self._dev is not None else ARC)   # each mock's curve
+    self._arc = HeadroomArc(lambda: self._arc_state, lambda: DEV_ARC if self._dev is not None else ARC,   # each mock's curve
+                            lambda: self._headroom_warning)
     self._help = HelpSteer()
     self._limit = LimitCard(self._offer, self._match_limit, self._ignore_limit)   # in the sign's place, top left
     # StarPilot's HUD keeps deciding when the speed and turn card show; they're drawn in the Essentials style.
@@ -397,9 +398,11 @@ class EssentialsOnroadView(StarPilotOnroadView):
   def _render_layers(self) -> None:
     self._offer()   # observe limit changes even when an alert is covering the card
     alert, _ = self.alert_renderer.will_render()
-    self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None)
+    # Help steer is a Warning alert drawn by us: like StarPilot's alerts, it takes the bar's place at the bottom.
+    self._layers_visible = bool(ui_state.started and self._draw_hud_controls and alert is None and not self._headroom_warning)
     now = time.monotonic()
-    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating(), self._limits, now), now, alert is not None)
+    self._chip_list = self._chips.update(snapshot(ui_state, self._navigating(), self._limits, now), now,
+                                         alert is not None or self._headroom_warning)
     if not self._layers_visible:
       return
     c = self._content_rect

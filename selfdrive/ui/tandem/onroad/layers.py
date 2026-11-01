@@ -15,6 +15,7 @@ from openpilot.selfdrive.ui.tandem import draw, tokens as T
 from openpilot.selfdrive.ui.tandem.base import Component
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
+from openpilot.selfdrive.ui.tandem.onroad import alerts
 from openpilot.selfdrive.ui.tandem.onroad.status import Chip, ChipTone, turn_icon
 
 BAR_HEIGHT = T.px(74)
@@ -256,15 +257,22 @@ class HeadroomArc(Component):
   """The arc above the bar. A faint track, the current use toward the turn, and a lighter preview of the curve ahead."""
   grow_touch_target = False
 
-  def __init__(self, state: Callable[[], ArcState], shape: Callable[[], ArcShape] = lambda: ARC):
+  ABOVE_CARD = T.px(23)   # the gap the mock leaves between the arc's ends and the bar, kept above the Help steer card
+
+  def __init__(self, state: Callable[[], ArcState], shape: Callable[[], ArcShape] = lambda: ARC,
+               help_steer: Callable[[], bool] = lambda: False):
+    """help_steer: whether the Help steer card is up, in the bar's place; the arc then sits above the card."""
     super().__init__()
     self._state = state
     self._shape = shape
+    self._help_steer = help_steer
 
   def _render(self, rect: rl.Rectangle):
     s, shape = self._state(), self._shape()
     half = rect.width * shape.chord / 2
     cx, end_y = rect.x + rect.width / 2, rect.y + rect.height - T.px(shape.lift)   # rect is the whole road view
+    if self._help_steer():
+      end_y = min(end_y, help_steer_box(rect).y - self.ABOVE_CARD)
     rise = rect.width * shape.rise
 
     def at(t: float) -> rl.Vector2:
@@ -291,16 +299,20 @@ class HeadroomArc(Component):
       rl.draw_circle_v(at(0.5), T.px(5), draw.alpha(T.TEXT, 0.8 * alpha))
 
 
+HELP_STEER = ("Help steer", "Steering is at its limit for this curve")
+
+
+def help_steer_box(rect: rl.Rectangle) -> rl.Rectangle:
+  return alerts.box(rect, alerts.WARNING, *HELP_STEER)
+
+
 class HelpSteer(Component):
-  """The at-limit banner; the view requests its one-shot warning through soundd."""
+  """The at-limit warning, drawn as every other Warning alert is: the amber card along the bottom, in the bar's place (the
+  view hides the bar and chips while it shows, as for other alerts). The view requests its one-shot sound through soundd."""
   grow_touch_target = False
 
   def _render(self, rect: rl.Rectangle):
-    box = place(rl.Rectangle(rect.x, rect.y + T.px(130), rect.width, T.px(84)), T.px(340), T.px(84))
-    draw.fill(box, draw.alpha(T.WARNING_SURFACE, 0.92), T.px(16))
-    title, line = column(place(inset(box, x=T.px(22)), box.width - T.px(44), T.px(58)), [T.px(32), FILL])
-    draw.text(title, "Help steer", T.font_px(22), T.WARNING_TITLE, T.FONT_EXTRABOLD)
-    draw.text(line, "Steering is at its limit for this curve", T.font_px(15), T.TEXT_SECONDARY)
+    alerts.draw_alert(help_steer_box(rect), alerts.WARNING, *HELP_STEER, 1.0)
 
 
 # ── New speed limit ──
