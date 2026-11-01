@@ -14,7 +14,7 @@ body{margin:0}
 a{color:#7DBBF9}a:hover{color:#A9D3FB}
 </style>
 
-<div style="width: 1560px; height: 1282px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; padding: 40px 48px; display: flex; flex-direction: column; gap: 24px;">
+<div style="width: 1560px; height: 1500px; box-sizing: border-box; background: #0A0C0F; color: #F2F5F9; font-family: Figtree, system-ui, sans-serif; padding: 40px 48px; display: flex; flex-direction: column; gap: 24px;">
   <div style="display: flex; flex-direction: column; gap: 8px;">
     <h1 style="margin: 0; font-size: 36px; font-weight: 800;">Status chips: why is the car doing that?</h1>
     <span style="font-size: 18px; color: #AEB6C2;">Bottom left of the onroad view, just above the bar. Shown only while the car changes speed or steering on its own. Up to four at once, newest nearest the bar.</span>
@@ -79,7 +79,7 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 9.5v3M12 16v3"></path><rect x="15" y="7" width="6" height="10" rx="2"></rect><path d="M4 8l5 5M9 8l-5 5"></path></svg>Lane change blocked</div>
-        <span style="font-size: 13px; color: #9FAABA;">Lane with car and cross · blind spot, <span style="font-family: 'JetBrains Mono', monospace;">NudgelessLaneChange</span></span>
+        <span style="font-size: 13px; color: #9FAABA;">Lane with car and cross · a car in the blind spot; replaces openpilot's Car Detected in Blindspot banner, chime kept</span>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px;">
         <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21v-5c0-3 8-3 8-7V3"></path><path d="M13 6l3-3 3 3"></path></svg>Changing lanes right</div>
@@ -104,6 +104,25 @@ a{color:#7DBBF9}a:hover{color:#A9D3FB}
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #13301F; color: #D2F5E1; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6FD8A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="20" rx="3"></rect><circle cx="12" cy="17" r="1.8" fill="#6FD8A0"></circle></svg>Light is green</div>
           <span style="font-size: 13px; color: #9FAABA;">Traffic light, bottom lit · <span style="font-family: 'JetBrains Mono', monospace;">GreenLightAlert</span></span>
+        </div>
+      </div>
+      <div style="background: #13161A; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+        <span style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; color: #9FAABA;">YOUR WHEEL-BUTTON MODES</span>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #3A2E1B; color: #FFE3B8; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0B35A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16a9 9 0 0 1 18 0"></path><path d="M10 11v5M14 11v5"></path></svg>Speed control paused</div>
+          <span style="font-size: 13px; color: #9FAABA;">Gauge with pause · Pause speed control: you drive the gas and brake · <span style="font-family: 'JetBrains Mono', monospace;">pauseLongitudinal</span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h14M13 8l4 4-4 4M21 6v12"></path></svg>Coasting</div>
+          <span style="font-size: 13px; color: #9FAABA;">Coast arrow · Force coast, until either pedal · <span style="font-family: 'JetBrains Mono', monospace;">forceCoast</span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-10 5 10 4-6 4 6"></path></svg>Pulse &amp; glide</div>
+          <span style="font-size: 13px; color: #9FAABA;">Pulse wave · speeding up or holding · <span style="font-family: 'JetBrains Mono', monospace;">pulseAndGlide</span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 12px; border-radius: 14px; background: #1F2E45; color: #DCEBFF; font-size: 17px; font-weight: 600;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7DBBF9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-10 5 10 4-6 4 6"></path></svg>Pulse &amp; glide · gliding</div>
+          <span style="font-size: 13px; color: #9FAABA;">Pulse wave · coasting down to the lower speed · <span style="font-family: 'JetBrains Mono', monospace;">pulseGlideCoasting</span></span>
         </div>
       </div>
       <div style="background: #13161A; border-radius: 22px; padding: 22px 24px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1;">

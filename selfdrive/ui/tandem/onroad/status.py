@@ -38,6 +38,10 @@ class Snapshot:
   signal_on: bool = False
   signal_direction: str = "none"           # left, right, both, none
   always_on_lateral: bool = False          # steering with cruise off
+  speed_paused: bool = False               # Pause speed control from a wheel button: the driver has the pedals
+  coasting: bool = False                   # Force coast from a wheel button, until either pedal
+  pulse_glide: bool = False                # Pulse and glide from a wheel button
+  gliding: bool = False                    # ...in its glide phase
   lane_change: str = "off"                 # off, pre, starting, finishing
   lane_change_direction: str = "none"      # left, right, none
   blindspot: bool = False                  # on the side of the requested lane change
@@ -95,7 +99,12 @@ def chips_for(s: Snapshot) -> list[Chip]:
       out.append(Chip("pause_speed", f"Steering paused · under {s.pause_lateral_speed:.0f} {unit}", ChipTone.PAUSED, "wheel_pause"))
     else:
       out.append(Chip("pause_held", "Steering paused", ChipTone.PAUSED, "wheel_pause"))
-  if s.lane_change in ("pre", "starting") and s.blindspot:
+  if s.speed_paused and s.engaged:
+    out.append(Chip("speed_paused", "Speed control paused", ChipTone.PAUSED, "gauge_pause"))
+  # Also whenever openpilot or StarPilot raises Car Detected in Blindspot (camera blind spot too, and StarPilot's loud
+  # version while signalling without steering): the chip stands in for that banner, so it must show whenever it would.
+  blocked_alert = bool(s.events & {"laneChangeBlocked", "laneChangeBlockedLoud"})
+  if (s.lane_change in ("pre", "starting") and s.blindspot) or blocked_alert:
     out.append(Chip("lane_blocked", "Lane change blocked", ChipTone.PAUSED, "lane_blocked"))
   elif s.lane_change in ("starting", "finishing") and s.lane_change_direction in ("left", "right"):
     out.append(Chip("lane_change", f"Changing lanes {s.lane_change_direction}", ChipTone.INFO, f"lane_{s.lane_change_direction}"))
@@ -122,6 +131,10 @@ def chips_for(s: Snapshot) -> list[Chip]:
     out.append(Chip("traffic", "Slowing for traffic", ChipTone.INFO, "car"))
   if s.limit_changed and s.speed_limit:
     out.append(Chip("limit", f"Matching limit {s.speed_limit:.0f}", ChipTone.INFO, "gauge"))
+  if s.coasting and s.engaged and not s.speed_paused:
+    out.append(Chip("coasting", "Coasting", ChipTone.INFO, "coast"))
+  if s.pulse_glide and s.engaged and not s.speed_paused:
+    out.append(Chip("pulse_glide", "Pulse & glide · gliding" if s.gliding else "Pulse & glide", ChipTone.INFO, "pulse_glide"))
   if s.weather and s.weather_gap:
     out.append(Chip("weather", f"{s.weather} · longer gap", ChipTone.INFO, {"Snow": "snow", "Fog": "fog"}.get(s.weather, "rain")))
   if green and not s.standstill:
@@ -263,6 +276,7 @@ def snapshot(ui_state, nav_active: bool = False, limits: LimitWatch | None = Non
   if valid.get("starpilotCarState", False):
     spcs = sm["starpilotCarState"]
     s.lateral_paused = bool(spcs.pauseLateral)
+    s.speed_paused, s.coasting, s.pulse_glide = bool(spcs.pauseLongitudinal), bool(spcs.forceCoast), bool(spcs.pulseAndGlide)
     # Always On Lateral turns itself off while StarPilot pauses steering, so read whether it would be steering.
     steering_on |= bool(toggles.get("always_on_lateral", False) and spcs.alwaysOnLateralAllowed)
   s.pause_lateral_ms = float(toggles.get("pause_lateral_below_speed", 0) or 0)
@@ -290,6 +304,7 @@ def snapshot(ui_state, nav_active: bool = False, limits: LimitWatch | None = Non
       s.weather, suffix = weather_group(int(plan.weatherId))
       s.weather_gap = bool(suffix and float(toggles.get(f"increase_following_distance_{suffix}", 0) or 0) > 0)
     s.events = {str(e.name) for e in plan.starpilotEvents}
+    s.gliding = bool(plan.pulseGlideCoasting)
   # StarPilot raises greenLight and leadDeparting for a single planner frame, which the UI can miss; the alerts they start
   # are held for seconds, so their names count too (the chip stands in for the hidden banner).
   for service in ("selfdriveState", "starpilotSelfdriveState"):

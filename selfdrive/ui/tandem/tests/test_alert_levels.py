@@ -32,8 +32,8 @@ def test_routine_status_banners_go_to_chips():
   assert alerts.shown_as_chip("laneChange/warning")
   assert alerts.shown_as_chip("turningLeft/warning")
   assert alerts.shown_as_chip("turningRight/warning")
-  assert not alerts.shown_as_chip("laneChangeBlocked/warning")
-  assert not alerts.shown_as_chip("laneChangeBlockedLoud/warning")
+  assert alerts.shown_as_chip("laneChangeBlocked/warning")       # Lane change blocked; the chime still plays
+  assert alerts.shown_as_chip("laneChangeBlockedLoud/warning")
   assert not alerts.shown_as_chip("preLaneChangeLeft/warning")
   assert not alerts.shown_as_chip("preLaneChangeRight/warning")
   assert not alerts.shown_as_chip("personalityChanged/warning")

@@ -346,3 +346,27 @@ def test_matching_limit_follows_an_accepted_change_until_reached():
   assert w.update(25.0, 25.0, True, False, 0.0, 15.0, 6.0)            # a raise under the set speed: speeding up to it
   assert not w.update(30.0, 30.0, False, False, 0.0, 15.0, 7.0)       # above the set speed: the limit isn't holding the car
   assert not w.update(30.0, 30.0, True, False, 0.0, 15.0, 30.0)       # too long ago
+
+
+def test_wheel_button_mode_chips():
+  from openpilot.selfdrive.ui.tandem.onroad.status import ChipTone, Snapshot, chip_for, chips_for
+  assert chip_for(Snapshot(engaged=True, speed_paused=True)).label == "Speed control paused"
+  assert chip_for(Snapshot(engaged=True, speed_paused=True)).tone == ChipTone.PAUSED
+  assert chip_for(Snapshot(engaged=True, coasting=True)).label == "Coasting"
+  assert chip_for(Snapshot(engaged=True, pulse_glide=True)).label == "Pulse & glide"
+  assert chip_for(Snapshot(engaged=True, pulse_glide=True, gliding=True)).label == "Pulse & glide · gliding"
+  assert chip_for(Snapshot(speed_paused=True, coasting=True, pulse_glide=True)) is None              # not engaged: nothing applies
+  # Paused speed control outranks the modes it switches off, and sits with the other pauses
+  both = Snapshot(engaged=True, speed_paused=True, coasting=True, pulse_glide=True, lateral_paused=True)
+  assert [c.key for c in chips_for(both)] == ["pause_button", "speed_paused"]
+  from openpilot.selfdrive.ui.tandem import draw
+  for name in ("gauge_pause", "pulse_glide", "coast"):
+    assert (draw.ICON_DIR / f"{name}.png").is_file()
+
+
+def test_lane_change_blocked_follows_the_blindspot_banner_it_replaces():
+  from openpilot.selfdrive.ui.tandem.onroad.status import Snapshot, chip_for
+  assert chip_for(Snapshot(events={"laneChangeBlocked"})).label == "Lane change blocked"
+  assert chip_for(Snapshot(events={"laneChangeBlockedLoud"})).label == "Lane change blocked"   # also without steering
+  assert chip_for(Snapshot(lane_change="pre", blindspot=True)).label == "Lane change blocked"
+

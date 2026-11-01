@@ -157,9 +157,12 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | Steering paused · under 20 mph | Wheel with pause bars | Amber | `PauseLateralSpeed`: the speed is the driver's setting, not the car's. A car's own minimum steering speed shows in openpilot's "Steer Unavailable Under …" alert. Not shown with `PauseLateralOnSignal`, where speed alone doesn't pause |
 | Steering paused after turn | Wheel with pause bars | Amber | `LateralResumeDelay`: StarPilot's hold for a few seconds after the signal ends, when the car slowed for the turn |
 | Steering paused for signal | Signal chevrons | Amber | `PauseLateralOnSignal`: signalling below the Pause steering speed |
-| Lane change blocked | Lane, car and cross | Amber | Blind spot during `NudgelessLaneChange` |
+| Lane change blocked | Lane, car and cross | Amber | A car in the blind spot: shown whenever openpilot or StarPilot raises Car Detected in Blindspot (`laneChangeBlocked`, `laneChangeBlockedLoud`), in place of that banner; its chime still plays |
 | Changing lanes right | Lane-shift arrow | Blue | `NudgelessLaneChange` |
 | Steering only | Steering wheel | Blue | `AlwaysOnLateral` with cruise off |
+| Speed control paused | Gauge with pause bars | Amber | Pause speed control from a wheel button (`pauseLongitudinal`): the driver has the pedals |
+| Coasting | Coast arrow | Blue | Force coast from a wheel button (`forceCoast`), until either pedal |
+| Pulse & glide (Pulse & glide · gliding in the glide phase) | Pulse wave | Blue | Pulse and glide from a wheel button (`pulseAndGlide`, `pulseGlideCoasting`) |
 | Ready · tap resume | Play | Green | Stopped and waiting for the driver |
 | Car ahead moved | Car with up arrow | Green | `LeadDepartingAlert` |
 | Light is green | Traffic light, bottom lit | Green | `GreenLightAlert` |
