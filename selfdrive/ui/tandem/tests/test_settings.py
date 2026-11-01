@@ -967,6 +967,7 @@ def test_reset_settings_applies_essentials_with_one_signal():
   speed = SpeedSteering(store)
   assert speed.style == 1 and speed.matching and speed.offset == 3 and speed.higher_limits == 1 and speed.lane_changes == 0
   assert not DEVELOPER_VIEW.is_on(store) and cache.values["GreenLightAlert"] and not cache.values["HolidayThemes"]
+  assert cache.values["Compass"]   # the heading beside the street name in the bar
 
 
 def test_maps_download_waits_for_parked_online_and_a_selection():

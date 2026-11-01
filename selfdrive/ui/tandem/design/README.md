@@ -124,7 +124,7 @@ Lane-change and turn progress always use the status chips; their full-width stat
 
 ## Fixed values, no longer shown
 
-Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel **on**, stopped timer **on**, compass off, wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
+Holiday themes off (`HolidayThemes`; this redesign drops them), rotating wheel **on**, stopped timer **on**, compass **on** (its heading shows beside the street name in the bar), wheel speed off, reverse cruise increase off, pulse and glide off, map gears off, force stops and force standstill off, model randomizer off. The onroad personality button (`OnroadDistanceButton`) is removed.
 
 ## Navigation changes
 

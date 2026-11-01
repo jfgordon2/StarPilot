@@ -47,4 +47,5 @@ def _apply(store: SettingsStore, boot_logos=None) -> None:
   for bundle in BUNDLES:
     bundle.set(store, False)
   Tuner(store).reset_all()
-  store.write({"HolidayThemes": False})   # this redesign has no holiday themes
+  store.write({"HolidayThemes": False,   # this redesign has no holiday themes
+               "Compass": True})        # the heading beside the street name in the onroad bar
