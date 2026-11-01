@@ -141,7 +141,7 @@ Open: the 60% and 85% thresholds, and whether the preview should use the model's
 
 ## Status chips
 
-The top-right corner of the onroad view answers "why is the car doing that?". A chip shows only while the car changes speed or steering on its own. When the corner is empty, nothing unusual is happening.
+The bottom-left corner of the onroad view, just above the bar, answers "why is the car doing that?". A chip shows only while the car changes speed or steering on its own. When the corner is empty, nothing unusual is happening.
 
 | Chip | Icon | Color | Triggered by |
 | --- | --- | --- | --- |
@@ -252,7 +252,7 @@ Values in square brackets are placeholders, not proposed defaults.
 - **Destinations are one tap from the parked home screen** ("Where to?"), not buried under Driving Controls › Navigation & Maps.
 - Destinations shows Home, Work, up to 3 more favorites and recent places. Search uses the on-device keyboard.
 - **The route preview has no toggles.** While a route is active, `NavDesiresAllowed` and `NavLongitudinalAllowed` are always on: the car slows for turns and uses route speed limits where signs are missing.
-- Onroad, the turn instruction sits top-left and the speed limit sign moves top-right. Arrival time, remaining distance and End route replace the steering bar.
+- Onroad, the speed limit sign stays top left and the turn instruction sits below it. Arrival time, remaining distance and End route replace the steering bar.
 - **Offline maps start from one detected region**, with weekly updates by default (only while parked on Wi-Fi). The full state and region picker stays behind "Add another region".
 
 ## Alerts and dialogs
