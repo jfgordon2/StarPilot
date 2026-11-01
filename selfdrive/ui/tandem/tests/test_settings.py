@@ -1264,3 +1264,18 @@ def test_picking_a_result_opens_its_page_and_section():
   assert window.top.selected == 1                                                     # Speed & Steering › Vehicle Profile
   window.open_at(Tab.CONNECTIONS, None, 1)
   assert window.tab == Tab.CONNECTIONS and window.top.selected == 1
+
+
+def test_language_shows_its_name_after_a_restart():
+  from openpilot.selfdrive.ui.tandem.settings.device_sections import General, same_language
+  from openpilot.selfdrive.ui.tandem.tests.fakes import FakeData
+  data = FakeData()
+  data.languages = lambda: [("English", "main_en"), ("Deutsch", "main_de")]
+  general = General(SettingsStore(FakeCache(), lambda: None), data, FakeLive())
+  for code in ("en", "main_en"):            # loaded at startup, and just chosen
+    data.language = lambda code=code: code
+    assert general.language_name() == "English"
+  data.language = lambda: "de"
+  assert general.language_name() == "Deutsch"
+  assert same_language("main_de", "de") and not same_language("main_de", "main_en")
+

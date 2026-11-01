@@ -64,7 +64,7 @@ class General:
 
   def language_name(self) -> str:
     code = self.data.language()
-    return next((name for name, c in self.data.languages() if c == code), code)
+    return next((name for name, c in self.data.languages() if same_language(c, code)), code)
 
   @property
   def brightness(self) -> int:
@@ -122,6 +122,11 @@ def confirm(window, title: str, message: str, label: str, action: Callable[[], N
                         glyph=lambda r, c, s: draw.icon(r, icon, c, s)))
 
 
+def same_language(a: str, b: str) -> bool:
+  """StarPilot's codes are "main_en" in its list and when just chosen, but plain "en" once loaded at startup."""
+  return a.removeprefix("main_") == b.removeprefix("main_")
+
+
 def open_language(data: DeviceData, window) -> None:
   """The language sheet, opened from General."""
   languages = data.languages()
@@ -130,7 +135,7 @@ def open_language(data: DeviceData, window) -> None:
     data.set_language(languages[index][1])
     window.dismiss()
   window.present(Sheet("Language", OptionList([name for name, _ in languages],
-                                              lambda: next((i for i, (_, c) in enumerate(languages) if c == data.language()), 0),
+                                              lambda: next((i for i, (_, c) in enumerate(languages) if same_language(c, data.language())), 0),
                                               pick, weight=T.FONT_UNIFONT), subtitle="For menus and alerts", on_dismiss=window.dismiss))
 
 
