@@ -86,7 +86,8 @@ def chip_for(s: Snapshot) -> Chip | None:
   if s.stop_sign:
     return Chip("stop_sign", f"{stop} for stop sign", ChipTone.INFO, "stop_sign")
   if s.red_light:
-    return Chip("red_light", f"{stop} for light", ChipTone.INFO, "light_red")
+    # StarPilot's redLight is the model predicting a stop, for a light or a sign alike; only the dashboard confirms a sign.
+    return Chip("red_light", "Stopped" if s.standstill else "Stopping ahead", ChipTone.INFO, "stop")
   if s.curve_control:
     return Chip("curve", "Slowing for curve", ChipTone.INFO, "curve")
   if s.nav_turn:

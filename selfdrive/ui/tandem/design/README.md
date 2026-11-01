@@ -146,7 +146,7 @@ The bottom-left corner of the onroad view, just above the bar, answers "why is t
 | Chip | Icon | Color | Triggered by |
 | --- | --- | --- | --- |
 | Slowing for curve | Curve | Blue | `CurveSpeedController` |
-| Stopping for light (Stopped for light once stopped) | Traffic light | Blue | `CEStopLights` |
+| Stopping ahead (Stopped once stopped) | Stop | Blue | `CEStopLights`: the model predicts a stop, at a light or a sign |
 | Stopping for stop sign (Stopped for stop sign once stopped) | Octagon | Blue | `CEStopLights` (model stop detection) |
 | Slowing for traffic | Car rear | Blue | `CESlowerLead`, `CEStoppedLead` |
 | Slowing for turn | Turn arrow | Blue | `NavDesiresAllowed`, while a route is active |
