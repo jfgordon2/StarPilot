@@ -556,12 +556,15 @@ class EssentialsOnroadView(StarPilotOnroadView):
     pending = pending_ms * conversion
     current = float(plan.slcSpeedLimit) * conversion
     since = self._limit_offer.since
-    if since is None or not (plan.speedLimitChanged and pending > current + 0.5) or self._limit_offer.ignored:
+    if since is None or not (plan.speedLimitChanged and abs(pending - current) > 0.5) or self._limit_offer.ignored:
       return None
+    # Lower or higher than the limit in use: the last one StarPilot adopted, as it compares (its target can lag).
+    adopted = self._follower.limit * conversion if self._follower.limit > 1 else current
     offset = float(plan.slcSpeedLimitOffset) * conversion
     return LimitOffer(pending, pending + offset, "km/h" if ui_state.is_metric else "mph",
                       str(plan.slcPresentedSpeedLimitSource or plan.slcSpeedLimitSource or "map"),
-                      CONFIRM_TIMEOUT - (now - since), CONFIRM_TIMEOUT, ui_state.ui_params.get_bool("UseVienna"))
+                      CONFIRM_TIMEOUT - (now - since), CONFIRM_TIMEOUT, ui_state.ui_params.get_bool("UseVienna"),
+                      lower=pending < adopted)
 
   def _offroad_transition(self) -> None:
     super()._offroad_transition()

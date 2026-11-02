@@ -26,6 +26,7 @@ def _apply(store: SettingsStore, boot_logos=None) -> None:
   speed.set_speed_limits(2)               # Match
   speed.set_offset(SPEED_LIMIT_OFFSET)
   speed.set_higher_limits(1)              # Tap to confirm
+  speed.set_lower_limits(0)               # Update automatically
   speed.set_max_follows(True)
   speed.set_lane_changes(0)               # Nudge
   speed.set_smart_slowdowns(True)

@@ -11,7 +11,7 @@ from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
 
 STYLES = ["Relaxed", "Standard", "Sport"]
 SPEED_LIMITS = ["Off", "Show", "Match"]
-HIGHER_LIMITS = ["Update automatically", "Tap to confirm"]
+LIMIT_CHANGES = ["Update automatically", "Tap to confirm"]
 LANE_CHANGES = ["Nudge", "Auto"]
 
 # Driving Style -> (LongitudinalPersonality, AccelerationProfile, DecelerationProfile). Standard is StarPilot's default.
@@ -75,16 +75,26 @@ class SpeedSteering:
   def lane_change_speed(self) -> int:
     return round(self._store.get_float("MinimumLaneChangeSpeed"))
 
+  def _asks(self, key: str) -> int:
+    return 1 if self._store.get_bool("SLCConfirmation") and self._store.get_bool(key) else 0
+
+  def _set_asks(self, higher: bool, lower: bool) -> None:
+    """StarPilot's Confirm New Limits is on while either direction asks; Confirm Higher and Confirm Lower say which."""
+    self._store.write({"SLCConfirmation": higher or lower, "SLCConfirmationHigher": higher, "SLCConfirmationLower": lower})
+
   @property
   def higher_limits(self) -> int:
-    return 1 if self._store.get_bool("SLCConfirmation") else 0
+    return self._asks("SLCConfirmationHigher")
 
   def set_higher_limits(self, index: int) -> None:
-    confirm = index == 1
-    values: dict[str, bool | int | float] = {"SLCConfirmation": confirm}
-    if confirm:
-      values |= {"SLCConfirmationHigher": True, "SLCConfirmationLower": False}
-    self._store.write(values)
+    self._set_asks(index == 1, bool(self.lower_limits))
+
+  @property
+  def lower_limits(self) -> int:
+    return self._asks("SLCConfirmationLower")
+
+  def set_lower_limits(self, index: int) -> None:
+    self._set_asks(bool(self.higher_limits), index == 1)
 
   @property
   def max_follows(self) -> bool:
@@ -133,12 +143,15 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
   offset = SettingRow("Offset", "Added to every matched limit", indent=True,
                       control=Stepper(lambda: model.offset, model.set_offset, 0, OFFSET_MAX,
                                       fmt=lambda v: f"+{v:g} {model.unit}", value_width=T.px(104)))
-  higher = SettingRow("Higher limits", "Lower limits always apply on their own", indent=True,
-                      control=Segmented(HIGHER_LIMITS, lambda: model.higher_limits, model.set_higher_limits,
+  higher = SettingRow("Higher limits", "When a posted limit goes up", indent=True,
+                      control=Segmented(LIMIT_CHANGES, lambda: model.higher_limits, model.set_higher_limits,
                                         height=T.px(42), font_size=T.font_px(15)))
+  lower = SettingRow("Lower limits", "When a posted limit goes down", indent=True,
+                     control=Segmented(LIMIT_CHANGES, lambda: model.lower_limits, model.set_lower_limits,
+                                       height=T.px(42), font_size=T.font_px(15)))
   follows = SettingRow("MAX follows limits", "Each new limit sets MAX, so it slows promptly for lower ones", indent=True,
                        control=Switch(lambda: model.max_follows, model.set_max_follows))
-  for row in (offset, higher, follows):
+  for row in (offset, higher, lower, follows):
     row.set_visible(lambda: model.matching)
 
   rows = [
@@ -147,6 +160,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
                Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits)),
     offset,
     higher,
+    lower,
     follows,
     SettingRow("Lane Changes", lambda: f"Auto starts one change per signal, above {model.lane_change_speed} {model.unit}",
                Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes)),

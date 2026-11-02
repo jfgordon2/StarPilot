@@ -7,6 +7,7 @@ Tandem 2026.11.01
   * Tuner Mode for fine tuning; Developer View and Lead Insights as one switch each
 * Driving screen: the speed, sign and a bar with Menu, MAX, the street and Engage
   * MAX follows each new speed limit, so the car slows promptly when the limit drops
+  * Choose whether higher and lower speed limits apply on their own or ask first
   * Status chips say why the car is slowing, stopping or paused
   * The steering arc warns before steering runs out, with Help steer at the limit
   * Alerts in three levels: info, warning and critical

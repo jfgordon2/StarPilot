@@ -328,13 +328,14 @@ class LimitOffer:
   seconds_left: float
   total: float = 30.0   # how long the offer lasts, for the countdown bar
   vienna: bool = False  # the round sign used outside the US
+  lower: bool = False   # below the limit in use: Slow down to, rather than Speed up to
 
 
 VIENNA_RED = rl.Color(0xD9, 0x43, 0x4F, 255)
 
 
 class LimitCard(Component):
-  """Asks before speeding up to a higher limit; lower limits never ask. It sits over StarPilot's speed limit sign, top left,
+  """Asks before matching a new limit, higher or lower, when Speed Limits says to ask for that direction. It sits over StarPilot's speed limit sign, top left,
   with the new limit's sign in it, and a bar that drains until the offer is ignored."""
   grow_touch_target = False
   WIDTH, PAD = T.px(360), T.px(12)   # the pad puts the card's sign exactly where the plain sign sits
@@ -368,7 +369,8 @@ class LimitCard(Component):
     lines = [draw.line_height(T.font_px(22)), draw.line_height(T.font_px(16)), draw.line_height(T.font_px(13))]
     title, question, source = column(place(text, text.width, sum(lines) + T.px(8)), lines, T.px(4))
     draw.text(title, f"New limit {offer.limit:.0f}", T.font_px(22), T.TEXT, T.FONT_EXTRABOLD)
-    draw.text(question, f"Speed up to {offer.target:.0f} {offer.unit}?", T.font_px(16), T.TEXT_SECONDARY)
+    verb = "Slow down" if offer.lower else "Speed up"
+    draw.text(question, f"{verb} to {offer.target:.0f} {offer.unit}?", T.font_px(16), T.TEXT_SECONDARY)
     draw.text(source, f"From {offer.source.lower() or 'map'} · ignored in {max(0, math.ceil(offer.seconds_left))} s", T.font_px(13),
               T.TEXT_MUTED)
     ignore, match = row(buttons, [FILL, FILL], T.px(10))

@@ -6,7 +6,7 @@ from cereal import custom
 
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.tandem.onroad import view as onroad
-from openpilot.selfdrive.ui.tandem.onroad.limits import LimitOfferState
+from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
 
 
@@ -27,6 +27,7 @@ def limit_view(monkeypatch):
   view = onroad.EssentialsOnroadView.__new__(onroad.EssentialsOnroadView)
   view._closed = True  # state-only view: no camera or GPU resources to clean up
   view._limit_offer = LimitOfferState()
+  view._follower = LimitFollower()
 
   def update(current=55, pending=65, source="None"):
     plan.slcSpeedLimit = current * CV.MPH_TO_MS
@@ -59,6 +60,13 @@ def test_an_intervening_limit_up_or_down_allows_the_ignored_limit_again(limit_vi
   view._ignore_limit()
   update(current=current, pending=pending, source=source)
   assert update().limit == pytest.approx(65)
+
+
+def test_a_lower_limit_asks_to_slow_down(limit_view):
+  _, update, _, _ = limit_view
+  offer = update(current=65, pending=55)
+  assert offer.limit == pytest.approx(55) and offer.lower
+  assert not update(current=55, pending=65).lower
 
 
 def test_unit_changes_do_not_clear_a_dismissal(limit_view):

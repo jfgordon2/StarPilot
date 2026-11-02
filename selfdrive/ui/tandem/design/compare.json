@@ -21,7 +21,7 @@
   {
    "mock": "driving",
    "title": "Speed & Steering › Everyday",
-   "note": "Matches, including MAX follows limits under Match, the settings count and dividers. Adds an Assistance section and a Tuner Mode button.",
+   "note": "Matches, including Higher and Lower limits and MAX follows limits under Match, the settings count and dividers. Adds an Assistance section and a Tuner Mode button.",
    "match": true
   },
   {
