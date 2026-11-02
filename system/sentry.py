@@ -13,6 +13,7 @@ from openpilot.system.hardware import HARDWARE, PC
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.hardware.hw import Paths
 from openpilot.system.version import get_build_metadata, get_version
+from openpilot.starpilot.tandem.diagnostics import AUTOMATIC_DIAGNOSTICS_ENABLED, sentry_options
 
 from openpilot.starpilot.common.starpilot_variables import ERROR_LOGS_PATH, params
 
@@ -101,6 +102,7 @@ def capture_report(discord_user, report, starpilot_toggles):
     error_content = error_file_path.read_text()
 
   with sentry_sdk.push_scope() as scope:
+    scope.set_tag("report_type", "manual_issue_report")
     scope.set_context("Error Log", {"content": error_content})
     scope.set_context("Toggle Values", starpilot_toggles)
     sentry_sdk.capture_message(f"{discord_user} submitted report: {report}", level="fatal")
@@ -157,16 +159,17 @@ def init(project: SentryProject) -> bool:
   updated = params.get("Updated", encoding="utf-8")
 
   integrations = []
-  if project == SentryProject.SELFDRIVE:
+  if AUTOMATIC_DIAGNOSTICS_ENABLED and project == SentryProject.SELFDRIVE:
     integrations.append(ThreadingIntegration(propagate_hub=True))
 
   sentry_sdk.init(project.value,
                   default_integrations=False,
                   release=get_version(),
                   integrations=integrations,
-                  traces_sample_rate=1.0,
+                  traces_sample_rate=1.0 if AUTOMATIC_DIAGNOSTICS_ENABLED else None,
                   max_value_length=8192,
-                  environment=env)
+                  environment=env,
+                  **sentry_options())
 
   sentry_sdk.set_user({"id": dongle_id})
   sentry_sdk.set_tag("origin", build_metadata.openpilot.git_origin)
@@ -176,7 +179,7 @@ def init(project: SentryProject) -> bool:
   sentry_sdk.set_tag("installed", installed)
   sentry_sdk.set_tag("device", HARDWARE.get_device_type())
 
-  if project == SentryProject.SELFDRIVE:
+  if AUTOMATIC_DIAGNOSTICS_ENABLED and project == SentryProject.SELFDRIVE:
     sentry_sdk.Hub.current.start_session()
 
   return True

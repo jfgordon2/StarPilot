@@ -330,6 +330,12 @@ class StarPilotPlanner:
     starpilotPlan.cscOverridden = self.starpilot_vcruise.csc_override
     starpilotPlan.cscLearnedLatAccel = float(self.starpilot_vcruise.csc.learned_lat_accel(self.road_curvature))
     starpilotPlan.cscBindingDistance = float(self.starpilot_vcruise.csc.binding_distance)
+    starpilotPlan.navTurnControllingSpeed = bool(
+      sm["carControl"].longActive and not self.starpilot_vcruise.forcing_stop
+      and 0.0 < self.starpilot_vcruise.nav_turn_target == self.v_cruise
+    )
+    starpilotPlan.navTurnManeuver = self.starpilot_vcruise.nav_turn_maneuver if starpilotPlan.navTurnControllingSpeed else ""
+    starpilotPlan.navTurnModifier = self.starpilot_vcruise.nav_turn_modifier if starpilotPlan.navTurnControllingSpeed else ""
 
     starpilotPlan.desiredFollowDistance = int(self.starpilot_following.desired_follow_distance)
     starpilotPlan.disableThrottle = (

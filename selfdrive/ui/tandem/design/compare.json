@@ -1,0 +1,403 @@
+{
+ "entries": [
+  {
+   "mock": "hub",
+   "title": "Driving hub",
+   "note": "Matches the mock.",
+   "match": true
+  },
+  {
+   "mock": "assistance",
+   "title": "Driving › Assistance",
+   "note": "Matches: openpilot's core switches beside Driver Monitoring, which gathers Always-On Driver Monitoring, the Driver Camera preview and the reset.",
+   "match": true
+  },
+  {
+   "mock": "search",
+   "title": "Settings search",
+   "note": "Matches the layout. The results are the build's real ones for \"gas\", best first; Search lists them all without the keyboard. The mic key sits beside 123, as on destination search.",
+   "match": true
+  },
+  {
+   "mock": "driving",
+   "title": "Speed & Steering › Everyday",
+   "note": "Matches, including Higher and Lower limits and MAX follows limits under Match, the settings count and dividers. Adds an Assistance section and a Tuner Mode button.",
+   "match": true
+  },
+  {
+   "mock": "drivingvehicle",
+   "title": "Speed & Steering › Vehicle Profile",
+   "note": "Matches: tiles fill the panel, no line under the title.",
+   "match": true
+  },
+  {
+   "mock": "drivingweather",
+   "title": "Speed & Steering › Weather",
+   "note": "Matches: the four conditions are icon cards. Auto also writes preset amounts.",
+   "match": true
+  },
+  {
+   "mock": "drivingnav",
+   "title": "Speed & Steering › Navigation",
+   "note": "Matches, with the mock's row icons. Set and Change open StarPilot's destination search.",
+   "match": true
+  },
+  {
+   "mock": "display",
+   "title": "Display › Driving Screen",
+   "note": "Matches: Camera View, Driver Camera in Reverse, Driving Style Banner, Compass and Blind Spot Highlights, then the power-user bundles. The rows are taller than the mock's, so the panel scrolls to Lead Insights.",
+   "match": true
+  },
+  {
+   "mock": "displaytheme",
+   "title": "Display › Theme & Startup",
+   "note": "Boot Logo is a StarPilot / comma choice; downloaded logos stay on StarPilot's screen.",
+   "match": false
+  },
+  {
+   "mock": "displaymap",
+   "title": "Display › Map",
+   "note": "Matches, with the note at the bottom. No Auto sign option: StarPilot's setting is US or Vienna.",
+   "match": true
+  },
+  {
+   "mock": "pathstylepicker",
+   "title": "Path Style picker",
+   "note": "Matches: a drawn preview of each style.",
+   "match": true
+  },
+  {
+   "mock": "signalpicker",
+   "title": "Turn Signal picker",
+   "note": "Matches: Standard, then the Whimsy animations, each shown by a frame of StarPilot's own animation. On the road they cross above the bar while signalling; the chevrons by the speed stay.",
+   "match": true
+  },
+  {
+   "mock": "alerts",
+   "title": "Alerts",
+   "note": "Matches: Volume and Chimes side by side. The presets add Auto.",
+   "match": true
+  },
+  {
+   "mock": "volumeeditor",
+   "title": "Volume editor",
+   "note": "Matches: the slider marks Quiet at 25% and Normal at this group's 60%, as in the mock. Loud sits at the group's real level, not the mock's placeholder.",
+   "match": true
+  },
+  {
+   "mock": "model",
+   "title": "Driving Model",
+   "note": "Matches: the active model on an accent card, other models beside it.",
+   "match": true
+  },
+  {
+   "mock": "modelcatalog",
+   "title": "Model catalog",
+   "note": "Matches, with the shared storage bar. The first tab is All models: StarPilot doesn't filter models by car. The bottom bar replaces the mock's back button.",
+   "match": true
+  },
+  {
+   "mock": "vehicle",
+   "title": "Vehicle",
+   "note": "Matches: your car and Auto-Lock on the left, wheel buttons on the right. Adds a \"More for your car\" row.",
+   "match": true
+  },
+  {
+   "mock": "vehiclepicker",
+   "title": "Choose your car",
+   "note": "Matches the mock.",
+   "match": true
+  },
+  {
+   "mock": "mapdata",
+   "title": "Offline Maps",
+   "note": "Matches the two columns, with the same storage bar as Storage & Data. Adds Update now.",
+   "match": true
+  },
+  {
+   "mock": "mapregions",
+   "title": "Choose map regions",
+   "note": "Matches: region cards, the selection and its checks beside them. No YOUR REGION badge or size estimates.",
+   "match": true
+  },
+  {
+   "mock": "mapdownloading",
+   "title": "Map download progress",
+   "note": "Matches: percent, files and time left, the four steps, and a tile per region from mapd's per-location counts. It shows in place of Offline Maps while a download runs; Back is in the bottom bar.",
+   "match": true
+  },
+  {
+   "mock": "tuner",
+   "title": "Tuner › Steering",
+   "note": "Matches the mock.",
+   "match": true
+  },
+  {
+   "mock": "tunergas",
+   "title": "Tuner › Gas & Brake",
+   "note": "Matches: each profile shows its value, FROM STYLE or OVERRIDE, and Override or Reset. Built keeps a title and separate Start and Stop Acceleration rows.",
+   "match": true
+  },
+  {
+   "mock": "tunerfollowing",
+   "title": "Tuner › Following & Stops",
+   "note": "Matches: the four gaps in one row of cells; a changed gap shows in amber and a tap edits it.",
+   "match": true
+  },
+  {
+   "mock": "tunerbundles",
+   "title": "Tuner › Bundle Overrides",
+   "note": "Matches: Bundle on at the right, two columns with OVERRIDE badges.",
+   "match": true
+  },
+  {
+   "mock": "bundlesheet",
+   "title": "Display › What a bundle sets",
+   "note": "Matches: the options each bundle sets as tiles of name and param, with tabs for the two bundles. Built lists the bundles' real contents.",
+   "match": true
+  },
+  {
+   "mock": "valueeditor",
+   "title": "Number editor",
+   "note": "Matches: separate − and + squares, the value with its unit below, and the step note beside Reset. Start Acceleration has no quick picks, so none show.",
+   "match": true
+  },
+  {
+   "mock": "devicetab",
+   "title": "This Device",
+   "note": "Adds a More section: remote access, driver monitoring reset, language, regulatory, device ID and serial, and the modem IMEI (read once in the background).",
+   "match": false
+  },
+  {
+   "mock": "pairing",
+   "title": "Pair the phone app",
+   "note": "Matches: the comma connect steps beside the QR code on a white tile. The code is upstream's, refreshed every 5 minutes.",
+   "match": true
+  },
+  {
+   "mock": "drivercamera",
+   "title": "Driver camera preview",
+   "note": "Matches: back, the status pill, the face box, the driver monitor tile and the hint. Built uses a flat stand-in where the camera image goes.",
+   "match": true
+  },
+  {
+   "mock": "remoteaccess",
+   "title": "Remote Access",
+   "note": "Matches: the Galaxy steps and Set up, with an empty tile until a password creates the link.",
+   "match": true
+  },
+  {
+   "mock": "remoteaccessqr",
+   "title": "Remote Access, set up",
+   "note": "Matches: the device's link as a QR code with the link under it, and Unpair, which asks first.",
+   "match": true
+  },
+  {
+   "mock": "keyboard",
+   "title": "Keyboard",
+   "note": "Matches: the destination search mock's keys under our header, with the password field and its eye. The blue key names the action.",
+   "match": true
+  },
+  {
+   "mock": "system",
+   "title": "General",
+   "note": "Uploads is Off, Parked or Always. Automatic weekly backups have no upstream support.",
+   "match": false
+  },
+  {
+   "mock": "systembackups",
+   "title": "Backups",
+   "note": "No automatic schedule, for the same reason.",
+   "match": false
+  },
+  {
+   "mock": "systemstorage",
+   "title": "Storage & Data",
+   "note": "Matches, with the Offline Maps and Unused Models rows, the note at the bottom and no line under the title. The rows scroll, with a glow.",
+   "match": true
+  },
+  {
+   "mock": "systemreport",
+   "title": "Report a Problem",
+   "note": "Matches the two columns. No Attach last drive: StarPilot's report doesn't attach drives.",
+   "match": true
+  },
+  {
+   "mock": "confirmdialog",
+   "title": "Confirm dialog",
+   "note": "Matches, with icon wells.",
+   "match": true
+  },
+  {
+   "mock": "connections",
+   "title": "Connections › Wi-Fi",
+   "note": "Matches: the Wi-Fi list in the Connections tab's first section. Wi-Fi scans only while this section is open.",
+   "match": true
+  },
+  {
+   "mock": "connectionscellular",
+   "title": "Connections › Cellular",
+   "note": "Matches: Hotspot with its password, Save Data, and Roaming, APN and IP address behind one row.",
+   "match": true
+  },
+  {
+   "mock": "connectionsremote",
+   "title": "Connections › Bluetooth Remote",
+   "note": "Matches: the remote's buttons and their actions, with press-to-find. Bluetooth and button testing run only while a Bluetooth section is open.",
+   "match": true
+  },
+  {
+   "mock": "connectionsaudio",
+   "title": "Connections › Car Audio & Devices",
+   "note": "Matches: car audio for alerts, and nearby devices to pair.",
+   "match": true
+  },
+  {
+   "mock": "wheelbuttonlearn",
+   "title": "Assign a button",
+   "note": "Matches. The action grid lists what the remote offers, including each favorite by its saved name, so it differs from the mock's sample list.",
+   "match": true
+  },
+  {
+   "mock": "softwaretab",
+   "title": "Software",
+   "note": "Matches: the version card beside the update settings.",
+   "match": true
+  },
+  {
+   "mock": "onroad",
+   "title": "Onroad",
+   "note": "Matches: Essentials' speed with its turn signal, the sign, the chip bottom left and the driver monitor tile top right. The stand-in road stands for the camera.",
+   "match": true,
+   "built": "onroad_default"
+  },
+  {
+   "mock": "leadmarker",
+   "title": "Onroad › Path and lead marker",
+   "note": "Matches: the white ground bar with its dark outline while following (top, with a faint bar for a car in the next lane) and amber while braking with the Slowing for traffic chip (bottom). The stand-in road's path is a flat blue; on the device the path is our blue fading toward the horizon.",
+   "match": true,
+   "built": [
+    "lead_following",
+    "lead_braking"
+   ]
+  },
+  {
+   "mock": "steeringheadroom",
+   "title": "Steering headroom",
+   "note": "This shows the at-limit stage: Help steer is the bottom Warning card in the bar's place, like StarPilot's alerts, with the arc moved above it. On the car the border also turns amber and the lane lines tint; this stand-in render keeps the green border.",
+   "match": true,
+   "built": "onroad_helpsteer"
+  },
+  {
+   "mock": "confirmlimit",
+   "title": "Confirm new speed limit",
+   "note": "Shown here together with the at-limit stage and its Help steer banner.",
+   "match": false,
+   "built": "onroad_limit"
+  },
+  {
+   "mock": "onroadnav",
+   "title": "Onroad, navigating",
+   "note": "Matches: the sign top left with the turn card below it, the driver monitor tile top right, the bar with the street name.",
+   "match": true,
+   "built": "onroad_nav"
+  },
+  {
+   "mock": "alertstyles",
+   "title": "Onroad alert levels",
+   "note": "Matches the three levels, drawn from StarPilot's real alerts: openpilot Unavailable (info), Pay Attention (warning), BRAKE! (critical). Light Turned Green and Lead Departed show as their status chips instead.",
+   "match": true,
+   "built": [
+    "alert_unavailable",
+    "alert_pay_attention",
+    "alert_fcw"
+   ]
+  },
+  {
+   "mock": "home",
+   "title": "Parked home",
+   "note": "The sidebar adds comma connect.",
+   "match": false,
+   "built": "sidebar_home"
+  },
+  {
+   "mock": "homealerts",
+   "title": "Home: alerts",
+   "note": "Matches: alert cards by severity with short titles, and StarPilot's one action (here Snooze update).",
+   "match": true
+  },
+  {
+   "mock": "homeupdate",
+   "title": "Home: update ready",
+   "note": "Matches: the new version, its release notes and Restart and update.",
+   "match": true
+  },
+  {
+   "mock": "onroaddev",
+   "title": "Onroad, Developer View",
+   "note": "Matches, in JetBrains Mono, with the 18 px metrics strip. The tag shows only when the lead isn't the adjacent car.",
+   "match": true
+  },
+  {
+   "mock": "onroadextras",
+   "title": "Onroad › StarPilot extras",
+   "note": "Matches: pedal tiles and the model chip under the driver monitor, the compass tag at the start of the bar (where it sits while navigating), the stopping line, lane and blind-spot washes, radar dots and the border halves, over a stand-in road.",
+   "match": true,
+   "built": "onroad_extras"
+  },
+  {
+   "mock": "statuschips",
+   "title": "Onroad › Status chips",
+   "note": "Text, icons and order match. Top: the four steering pauses. Middle: the wheel-button modes with Lane change blocked, which replaces the blind spot banner. Each set is shown together here; on the road one pause and one Pulse & glide show at a time. Bottom: a real stack, the curve chip fading. Built chips use the dark fill from the onroad mock; this sheet tints each chip by tone, so the two mocks differ there.",
+   "match": false,
+   "built": [
+    "onroad_pauses",
+    "onroad_modes",
+    "onroad_stack"
+   ]
+  },
+  {
+   "mock": "destinations",
+   "title": "Where to?",
+   "note": "Matches: Home, Work and Add favorite, then favorites and recents with stars. Offline maps shows only when opened from Settings.",
+   "match": true
+  },
+  {
+   "mock": "navsearch",
+   "title": "Destination search",
+   "note": "Matches: the field and two results above the Essentials keyboard, with the mic key beside 123 while parked. Results update as you type; Search lists them all.",
+   "match": true
+  },
+  {
+   "mock": "voicelistening",
+   "title": "Voice typing: listening",
+   "note": "Matches: the mic (tap to stop), the page's hint and a live level meter, with Type instead. Listening also stops after a 1.5 s pause. The empty field has no placeholder, as when typing.",
+   "match": true
+  },
+  {
+   "mock": "voicetranscribing",
+   "title": "Voice typing: writing it down",
+   "note": "Matches: a spinner while Whisper works. The words land in the field for editing.",
+   "match": true
+  },
+  {
+   "mock": "voicedownload",
+   "title": "Voice typing: first use",
+   "note": "Matches: the one-time model download with its progress; listening starts when it's done.",
+   "match": true
+  },
+  {
+   "mock": "routepreview",
+   "title": "Route preview",
+   "note": "Matches. The route comes from Mapbox before Start, drawn on the stylized map; the decorative highway band is left out so only the real route shows.",
+   "match": true
+  },
+  {
+   "mock": "setup",
+   "title": "First-run setup",
+   "note": "Matches: three tall cards with progress dots. Adds Back from step 2.",
+   "match": true,
+   "built": "setup0"
+  }
+ ]
+}

@@ -1,3 +1,22 @@
+Tandem 2026.11.01
+========================
+* Essentials: a new look for every screen, in Figtree
+* Settings: four tabs (Driving, Device, Connections, Software)
+  * Driving hub: Speed & Steering, Display, Alerts, Driving Model, Vehicle and Assistance
+  * Search settings from the hub
+  * Tuner Mode for fine tuning; Developer View and Lead Insights as one switch each
+* Driving screen: the speed, sign and a bar with Menu, MAX, the street and Engage
+  * MAX follows each new speed limit, so the car slows promptly when the limit drops
+  * Choose whether higher and lower speed limits apply on their own or ask first
+  * Status chips say why the car is slowing, stopping or paused
+  * The steering arc warns before steering runs out, with Help steer at the limit
+  * Alerts in three levels: info, warning and critical
+  * Turn Signal: chevrons by the speed, or a jumping frog, pouncing cat or bouncing ball
+* Where to?: destination search, favorites and a route preview with arrival time
+* Voice typing while parked: tap the mic and say a place, a setting or any text but a password
+* First-run setup: three questions, or Essentials defaults
+* Automatic crash and diagnostics reports are off; reports you send are kept
+
 Version 0.10.3 (2025-12-17)
 ========================
 * New driving model #36249

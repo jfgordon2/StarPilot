@@ -205,6 +205,8 @@ class StarPilotVCruise:
     self.stop_sign_confirmed = False
     self.stop_seen_on_approach_at = None
     self.nav_turn_target = 0.0
+    self.nav_turn_maneuver = ""
+    self.nav_turn_modifier = ""
     self._nav_instruction_state_raw = None
     self._nav_instruction_state = {}
     self._applied_slc_control_target = 0.0
@@ -308,6 +310,8 @@ class StarPilotVCruise:
     return max(float(getattr(car_params, "minSteerSpeed", 0.0) or 0.0), 0.0)
 
   def _get_nav_turn_control_target(self, v_cruise, sm, starpilot_toggles):
+    self.nav_turn_maneuver = ""
+    self.nav_turn_modifier = ""
     self._update_nav_instruction_state()
     if not getattr(starpilot_toggles, "nav_longitudinal_allowed", False):
       return 0.0
@@ -336,6 +340,8 @@ class StarPilotVCruise:
 
       target = max(target_speed, self._nav_target_for_distance(target_speed, maneuver_distance))
       if target + NAV_TURN_MIN_TARGET_DELTA < v_cruise:
+        self.nav_turn_maneuver = str(maneuver_type or "").strip().lower()
+        self.nav_turn_modifier = str(maneuver_modifier or "").strip()
         return target
 
     return 0.0

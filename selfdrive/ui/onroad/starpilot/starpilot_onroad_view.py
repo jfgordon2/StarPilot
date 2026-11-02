@@ -232,10 +232,13 @@ class StarPilotOnroadView(AugmentedRoadView):
     rl.draw_rectangle_lines_ex(rect, border_width, rl.BLACK)
     border_rect = rl.Rectangle(rect.x + border_width, rect.y + border_width,
                                 rect.width - 2 * border_width, rect.height - 2 * border_width)
-    border_color = get_pulse_glide_border_color(ui_state.sm, get_screen_edge_color(ui_state))
+    border_color = self._get_border_color()
     rl.draw_rectangle_rounded_lines_ex(border_rect, get_border_roundness(border_rect, border_width), 10, border_width, border_color)
     render_background_effects(rect, border_width)
     render_overlay(border_rect, border_width)
+
+  def _get_border_color(self):
+    return get_pulse_glide_border_color(ui_state.sm, get_screen_edge_color(ui_state))
 
   def _render_speed_card(self):
     if self._full_alert_showing():

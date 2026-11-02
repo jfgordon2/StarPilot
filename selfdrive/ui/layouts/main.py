@@ -4,14 +4,12 @@ from cereal import log
 import cereal.messaging as messaging
 from openpilot.system.hardware import PC
 from openpilot.system.ui.lib.application import gui_app
-from openpilot.selfdrive.ui.layouts.sidebar import Sidebar, SIDEBAR_WIDTH
-from openpilot.selfdrive.ui.onroad.starpilot.developer_sidebar import DeveloperSidebar
-from openpilot.selfdrive.ui.layouts.home import HomeLayout
-from openpilot.selfdrive.ui.layouts.settings.settings import SettingsLayout, PanelType
-from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
+from openpilot.selfdrive.ui.layouts.settings.settings import PanelType
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.system.ui.widgets import Widget
 from openpilot.selfdrive.ui.layouts.onboarding import OnboardingWindow
+from openpilot.selfdrive.ui.tandem.screens import (DEVELOPER_SIDEBAR_WIDTH, MAIN_SIDEBAR_WIDTH, developer_sidebar, home_layout, onroad_view,
+                                                   settings_window, sidebar)
 
 
 class MainState(IntEnum):
@@ -26,12 +24,12 @@ class MainLayout(Widget):
 
     self._pm = messaging.PubMaster(['bookmarkButton'])
 
-    self._sidebar = Sidebar()
-    self._dev_sidebar = DeveloperSidebar()
+    self._sidebar = sidebar()
+    self._dev_sidebar = developer_sidebar()
     self._current_mode = MainState.HOME
     self._prev_onroad = False
 
-    self._layouts = {MainState.HOME: HomeLayout(), MainState.SETTINGS: SettingsLayout(), MainState.ONROAD: StarPilotOnroadView()}
+    self._layouts = {MainState.HOME: home_layout(), MainState.SETTINGS: settings_window(), MainState.ONROAD: onroad_view()}
 
     self._sidebar_rect = rl.Rectangle(0, 0, 0, 0)
     self._dev_sidebar_rect = rl.Rectangle(0, 0, 0, 0)
@@ -78,13 +76,13 @@ class MainLayout(Widget):
     device.add_interactive_timeout_callback(self._set_mode_for_state)
 
   def _update_layout_rects(self):
-    left_w = SIDEBAR_WIDTH if self._sidebar.is_visible else 0
-    right_w = SIDEBAR_WIDTH if (self._current_mode == MainState.ONROAD and self._dev_sidebar.visible) else 0
+    left_w = MAIN_SIDEBAR_WIDTH if self._sidebar.is_visible else 0
+    right_w = DEVELOPER_SIDEBAR_WIDTH if (self._current_mode == MainState.ONROAD and self._dev_sidebar.visible) else 0
 
-    self._sidebar_rect = rl.Rectangle(self._rect.x, self._rect.y, SIDEBAR_WIDTH, self._rect.height)
+    self._sidebar_rect = rl.Rectangle(self._rect.x, self._rect.y, MAIN_SIDEBAR_WIDTH, self._rect.height)
     self._dev_sidebar_rect = rl.Rectangle(
-      self._rect.x + self._rect.width - SIDEBAR_WIDTH, self._rect.y,
-      SIDEBAR_WIDTH, self._rect.height
+      self._rect.x + self._rect.width - DEVELOPER_SIDEBAR_WIDTH, self._rect.y,
+      DEVELOPER_SIDEBAR_WIDTH, self._rect.height
     )
 
     self._content_rect = rl.Rectangle(

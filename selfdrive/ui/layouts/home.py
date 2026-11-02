@@ -80,6 +80,7 @@ class HomeLayout(Widget):
     self.settings_callback = callback
 
   def _set_state(self, state: HomeLayoutState):
+    had_header = self._show_header()
     # propagate show/hide events
     if state != self.current_state:
       if state == HomeLayoutState.HOME:
@@ -91,6 +92,8 @@ class HomeLayout(Widget):
         self._layout_widgets[self.current_state].hide_event()
 
     self.current_state = state
+    if self._show_header() != had_header:
+      self._update_state()
 
   def _render(self, rect: rl.Rectangle):
     current_time = time.monotonic()
@@ -98,7 +101,8 @@ class HomeLayout(Widget):
       self._refresh()
       self.last_refresh = current_time
 
-    self._render_header()
+    if self._show_header():
+      self._render_header()
 
     # Render content based on current state
     if self.current_state == HomeLayoutState.HOME:
@@ -108,13 +112,18 @@ class HomeLayout(Widget):
     elif self.current_state == HomeLayoutState.ALERTS:
       self._render_alerts_view()
 
+  def _show_header(self) -> bool:
+    return True
+
   def _update_state(self):
+    header_height = HEADER_HEIGHT if self._show_header() else 0
     self.header_rect = rl.Rectangle(
-      self._rect.x + CONTENT_MARGIN, self._rect.y + CONTENT_MARGIN, self._rect.width - 2 * CONTENT_MARGIN, HEADER_HEIGHT
+      self._rect.x + CONTENT_MARGIN, self._rect.y + CONTENT_MARGIN, self._rect.width - 2 * CONTENT_MARGIN, header_height
     )
 
-    content_y = self._rect.y + CONTENT_MARGIN + HEADER_HEIGHT + SPACING
-    content_height = self._rect.height - CONTENT_MARGIN - HEADER_HEIGHT - SPACING - CONTENT_MARGIN
+    header_space = header_height + SPACING if header_height else 0
+    content_y = self._rect.y + CONTENT_MARGIN + header_space
+    content_height = self._rect.height - CONTENT_MARGIN - header_space - CONTENT_MARGIN
 
     self.content_rect = rl.Rectangle(
       self._rect.x + CONTENT_MARGIN, content_y, self._rect.width - 2 * CONTENT_MARGIN, content_height
@@ -137,6 +146,8 @@ class HomeLayout(Widget):
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
+    if not self._show_header():
+      return
 
     if self.update_available and rl.check_collision_point_rec(mouse_pos, self.update_notif_rect):
       self._set_state(HomeLayoutState.UPDATE)

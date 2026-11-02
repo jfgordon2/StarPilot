@@ -18,6 +18,7 @@ except ModuleNotFoundError:
   from openpilot.common.constants import CV
 from openpilot.system.hardware import HARDWARE
 from openpilot.system.version import get_build_metadata
+from openpilot.starpilot.tandem.diagnostics import AUTOMATIC_DIAGNOSTICS_ENABLED
 
 from openpilot.starpilot.common.starpilot_utilities import clean_model_name, run_cmd
 from openpilot.starpilot.common.starpilot_variables import get_starpilot_toggles, params
@@ -196,6 +197,8 @@ def is_up_to_date(build_metadata):
   return True
 
 def send_stats():
+  if not AUTOMATIC_DIAGNOSTICS_ENABLED:
+    return
   try:
     build_metadata = get_build_metadata()
     starpilot_toggles = get_starpilot_toggles()

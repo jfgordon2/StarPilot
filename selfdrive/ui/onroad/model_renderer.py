@@ -67,6 +67,7 @@ class ModelRenderer(Widget):
     self._blend_filter = FirstOrderFilter(1.0, 0.25, 1 / gui_app.target_fps)
     self._prev_allow_throttle = True
     self._lane_line_probs = np.zeros(4, dtype=np.float32)
+    self.lane_line_color_override: rl.Color | None = None
     self._road_edge_stds = np.zeros(2, dtype=np.float32)
     self._lead_vehicles = [LeadVehicle(), LeadVehicle()]
     self._adjacent_lead_vehicles = [LeadVehicle(), LeadVehicle()]
@@ -408,7 +409,9 @@ class ModelRenderer(Widget):
     """Draw lane lines and road edges"""
     lane_centering_direction = self._lane_centering_direction()
     lane_lines_override = get_param_color(self._params, "LaneLinesColor", STOCK_LANE_LINES_COLOR.a)
-    if lane_lines_override is not None:
+    if self.lane_line_color_override is not None:
+      lane_lines_color = self.lane_line_color_override
+    elif lane_lines_override is not None:
       lane_lines_color = lane_lines_override
     elif is_stock_color_scheme(self._params):
       lane_lines_color = STOCK_LANE_LINES_COLOR
@@ -422,7 +425,7 @@ class ModelRenderer(Widget):
       alpha = np.clip(self._lane_line_probs[i], 0.0, 0.7)
       lane_centering_line = (lane_centering_direction > 0 and i == 2) or \
                             (lane_centering_direction < 0 and i == 1)
-      line_color = OCEAN_BLUE_LANE_LINES_COLOR if lane_centering_line else lane_lines_color
+      line_color = OCEAN_BLUE_LANE_LINES_COLOR if lane_centering_line and self.lane_line_color_override is None else lane_lines_color
       color = with_alpha(line_color, int(alpha * line_color.a))
       draw_polygon(self._rect, lane_line.projected_points, color)
 

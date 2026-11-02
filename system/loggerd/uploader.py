@@ -18,6 +18,7 @@ from openpilot.common.realtime import set_core_affinity
 from openpilot.system.hardware.hw import Paths
 from openpilot.system.loggerd.xattr_cache import getxattr, setxattr
 from openpilot.common.swaglog import cloudlog
+from openpilot.starpilot.tandem.diagnostics import AUTOMATIC_DIAGNOSTICS_ENABLED
 
 NetworkType = log.DeviceState.NetworkType
 UPLOAD_ATTR_NAME = 'user.upload'
@@ -95,6 +96,8 @@ class Uploader:
     requested_routes = [] if r is None else [route for route in r.split(",") if route]
 
     for logdir in listdir_by_creation(self.root):
+      if logdir == "crash" and not AUTOMATIC_DIAGNOSTICS_ENABLED:
+        continue  # keep native crash artifacts locally, outside unattended uploads
       path = os.path.join(self.root, logdir)
       try:
         names = os.listdir(path)

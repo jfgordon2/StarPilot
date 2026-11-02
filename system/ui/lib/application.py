@@ -151,17 +151,17 @@ FONT_DIR = ASSETS_DIR.joinpath("fonts")
 
 
 class FontWeight(StrEnum):
-  NORMAL = "Inter-Regular.fnt" if BIG_UI else "Inter-Medium.fnt"
-  MEDIUM = "Inter-Medium.fnt"
-  BOLD = "Inter-Bold.fnt"
-  SEMI_BOLD = "Inter-SemiBold.fnt"
+  NORMAL = "Figtree-Regular.fnt" if BIG_UI else "Figtree-Medium.fnt"
+  MEDIUM = "Figtree-Medium.fnt"
+  BOLD = "Figtree-Bold.fnt"
+  SEMI_BOLD = "Figtree-SemiBold.fnt"
   UNIFONT = "unifont.fnt"
   BRAND = "como-heavy.fnt"
 
   # Small UI fonts
-  DISPLAY_REGULAR = "Inter-Regular.fnt"
-  ROMAN = "Inter-Regular.fnt"
-  DISPLAY = "Inter-Bold.fnt"
+  DISPLAY_REGULAR = "Figtree-Regular.fnt"
+  ROMAN = "Figtree-Regular.fnt"
+  DISPLAY = "Figtree-Bold.fnt"
 
 
 def font_fallback(font: rl.Font) -> rl.Font:
