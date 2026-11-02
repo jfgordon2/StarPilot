@@ -28,7 +28,7 @@ from openpilot.selfdrive.ui.tandem.layout import Align, column, inset, place
 WORKER = Path(__file__).resolve().parent / "speech.py"
 BARS = 22                                    # the level meter's bars, newest on the right
 MESSAGE_S = 3.0                              # how long a "didn't catch that" stays before the keys come back
-UNSEEN_S = 1.0                               # the panel went off screen (the page closed): stop listening
+UNSEEN_S = 3.0                               # the panel went off screen (the page closed): stop listening
 
 ERRORS = {
   "no_speech": "Didn't catch that. Tap the mic to try again.",
@@ -81,8 +81,11 @@ class VoiceTyping:
     if os.path.isfile("/TICI"):
       env.setdefault("DEV", "QCOM")          # the device's GPU, free while parked
     try:
-      self._process = subprocess.Popen(self._command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                       text=True, bufsize=1, env=env)
+      log = speech.model_dir() / "worker.log"   # the last run's errors, for a bug report
+      log.parent.mkdir(parents=True, exist_ok=True)
+      with open(log, "w") as err:
+        self._process = subprocess.Popen(self._command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=err, text=True, bufsize=1,
+                                         env=env, preexec_fn=speech.relax_priority)
     except OSError:
       self._show("failed")
       return

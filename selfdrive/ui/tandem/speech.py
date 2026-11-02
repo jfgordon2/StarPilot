@@ -33,6 +33,30 @@ import time
 import urllib.request
 from pathlib import Path
 
+
+
+def relax_priority() -> None:
+  """Run as an ordinary background job. Started from the UI, this process inherits the UI's real-time priority and its
+  one CPU core, and loading the model would then stop the UI drawing until it finished."""
+  if not sys.platform.startswith("linux"):
+    return
+  try:
+    os.sched_setscheduler(0, os.SCHED_OTHER, os.sched_param(0))
+  except (OSError, AttributeError):
+    pass
+  try:
+    os.sched_setaffinity(0, range(os.cpu_count() or 1))
+  except (OSError, AttributeError):
+    pass
+  try:
+    os.setpriority(os.PRIO_PROCESS, 0, 10)
+  except (OSError, AttributeError):
+    pass
+
+
+if __name__ == "__main__":
+  relax_priority()                        # before numpy and tinygrad load
+
 import numpy as np
 
 RATE = 16000

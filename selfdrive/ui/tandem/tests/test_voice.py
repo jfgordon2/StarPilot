@@ -217,3 +217,19 @@ def test_mic_key_starts_voice_typing_and_words_land_after_the_text(keyboard):
   assert keyboard[-1] is kb._voice and kb.text == ""
   assert kb._voice._command[-2:] == ["--style", "text"]
   assert K.KeyPad(lambda: None, "Search", voice_style="address")._voice._command[-2:] == ["--style", "address"]
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux scheduling")
+def test_worker_runs_as_a_background_job_not_at_the_uis_priority(ready, tmp_path, monkeypatch):
+  """The UI is SCHED_FIFO on one core; a worker that kept that would freeze it while the model loads."""
+  import os
+  monkeypatch.setenv("TANDEM_SPEECH_DIR", str(tmp_path))
+  probe = "\n".join(["import os, json", "print(json.dumps({'policy': os.sched_getscheduler(0), 'nice': os.getpriority(os.PRIO_PROCESS, 0),",
+                     "  'cpus': len(os.sched_getaffinity(0))}), flush=True)"])
+  seen = []
+  session = voice.VoiceTyping(lambda text: None, [sys.executable, "-c", probe])
+  monkeypatch.setattr(session, "_handle", lambda line: seen.append(json.loads(line)))
+  session.start()
+  assert _until(session, lambda: seen)
+  assert seen[0]["policy"] == os.SCHED_OTHER and seen[0]["nice"] >= 10 and seen[0]["cpus"] == os.cpu_count()
+  assert (tmp_path / "worker.log").exists()                       # the worker's errors land here
