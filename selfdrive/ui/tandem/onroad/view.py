@@ -27,7 +27,7 @@ from openpilot.selfdrive.ui.onroad.augmented_road_view import CAMERA_VIEW_DRIVER
 from openpilot.selfdrive.ui.lib.starpilot_visuals import get_border_roundness
 from openpilot.selfdrive.ui.onroad.starpilot import starpilot_border, starpilot_onroad_view
 from openpilot.selfdrive.ui.onroad.starpilot.compass import get_compass_text
-from openpilot.selfdrive.ui.tandem.onroad.streets import short_street
+from openpilot.selfdrive.ui.tandem.onroad.streets import short_street, short_streets_in
 from openpilot.selfdrive.ui.onroad.starpilot.starpilot_onroad_view import StarPilotOnroadView
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import MousePos
@@ -60,7 +60,7 @@ class EssentialsTurnCard(NavigationCardRenderer):
     self.box = None
     if not self._valid:
       return
-    text = " ".join(t for t in (self._primary_text, self._secondary_text) if t)
+    text = short_streets_in(" ".join(t for t in (self._primary_text, self._secondary_text) if t))
     self.box = draw_turn_card(rect, self._distance, text, self._maneuver_type, self._modifier, self._top())
 
 
