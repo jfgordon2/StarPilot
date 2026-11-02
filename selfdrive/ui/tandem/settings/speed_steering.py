@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.tandem.blocks import Card, Grid, Icon, InfoCard, Lab
 from openpilot.selfdrive.ui.tandem.controls import TILE_CARDS, Button, ChoiceCards, Segmented, Stepper, Switch
 from openpilot.selfdrive.ui.tandem.rows import ListPanel, Padded, SectionHeader, SettingRow
 from openpilot.selfdrive.ui.tandem.settings.store import SettingsStore
+from openpilot.selfdrive.ui.tandem.prefs import MAX_FOLLOWS_LIMIT
 
 STYLES = ["Relaxed", "Standard", "Sport"]
 SPEED_LIMITS = ["Off", "Show", "Match"]
@@ -98,10 +99,10 @@ class SpeedSteering:
 
   @property
   def max_follows(self) -> bool:
-    return self._store.get_bool("TandemMaxFollowsLimit")
+    return MAX_FOLLOWS_LIMIT.get()
 
   def set_max_follows(self, on: bool) -> None:
-    self._store.write({"TandemMaxFollowsLimit": on})
+    MAX_FOLLOWS_LIMIT.set(on)
 
   @property
   def lane_changes(self) -> int:

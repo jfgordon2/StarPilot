@@ -41,6 +41,7 @@ from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, B
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, LimitWatch, chips_for, snapshot
 from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState
+from openpilot.selfdrive.ui.tandem.prefs import MAX_FOLLOWS_LIMIT
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
 PREVIEW_SECONDS = 2.5
@@ -542,7 +543,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     set_speed = v_cruise * CV.KPH_TO_MS if 0 < v_cruise < V_CRUISE_UNSET else 0.0
     target = self._follower.update(float(plan.slcSpeedLimit), str(plan.slcSpeedLimitSource), float(plan.slcSpeedLimitOffset),
                                    set_speed, bool(ui_state.engaged))
-    if target is not None and self._params.get_bool("TandemMaxFollowsLimit"):
+    if target is not None and MAX_FOLLOWS_LIMIT.get():
       self._memory.put_float("SLCForceCruiseSpeed", target)
 
   def _offer(self) -> LimitOffer | None:

@@ -135,12 +135,16 @@ def test_higher_and_lower_limits_ask_separately():
   assert not cache.values["SLCConfirmation"] and (model.higher_limits, model.lower_limits) == (0, 0)
 
 
-def test_max_follows_limits_is_its_own_switch():
+def test_max_follows_limits_is_a_marker_file_not_a_param(tandem_prefs):
+  """No new param key: the device's compiled registry wouldn't know it, and writing it would crash the UI."""
   model, cache, _ = _model()
-  model.set_max_follows(True)
-  assert cache.values["TandemMaxFollowsLimit"] and model.max_follows
+  before = dict(cache.values)
+  assert model.max_follows                                  # on by default, with no file
   model.set_max_follows(False)
-  assert not model.max_follows and "SLCConfirmation" not in cache.values
+  assert not model.max_follows and list(tandem_prefs.iterdir())
+  model.set_max_follows(True)
+  assert model.max_follows and not list(tandem_prefs.iterdir())
+  assert cache.values == before                             # no param written
 
 
 def test_grouped_switches_and_summaries():

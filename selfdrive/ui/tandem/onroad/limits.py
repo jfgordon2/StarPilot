@@ -39,7 +39,7 @@ class LimitOfferState:
 
 @dataclass
 class LimitFollower:
-  """MAX follows the speed limit (TandemMaxFollowsLimit): when StarPilot adopts a new limit, MAX becomes it plus the
+  """MAX follows the speed limit (prefs.MAX_FOLLOWS_LIMIT): when StarPilot adopts a new limit, MAX becomes it plus the
   offset. StarPilot otherwise coasts down to a lower limit under an unchanged MAX, which can take a minute or more;
   with MAX at the limit it slows as it does for a lower MAX. A higher limit raises MAX once StarPilot has adopted it
   (after Match when it asks). Only a change moves MAX, so a MAX the driver sets afterwards stays until the next limit.
