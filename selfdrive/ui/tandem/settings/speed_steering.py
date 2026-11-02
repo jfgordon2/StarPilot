@@ -87,6 +87,13 @@ class SpeedSteering:
     self._store.write(values)
 
   @property
+  def max_follows(self) -> bool:
+    return self._store.get_bool("TandemMaxFollowsLimit")
+
+  def set_max_follows(self, on: bool) -> None:
+    self._store.write({"TandemMaxFollowsLimit": on})
+
+  @property
   def lane_changes(self) -> int:
     return 1 if self._store.get_bool("NudgelessLaneChange") else 0
 
@@ -129,7 +136,9 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
   higher = SettingRow("Higher limits", "Lower limits always apply on their own", indent=True,
                       control=Segmented(HIGHER_LIMITS, lambda: model.higher_limits, model.set_higher_limits,
                                         height=T.px(42), font_size=T.font_px(15)))
-  for row in (offset, higher):
+  follows = SettingRow("MAX follows limits", "Each new limit sets MAX, so it slows promptly for lower ones", indent=True,
+                       control=Switch(lambda: model.max_follows, model.set_max_follows))
+  for row in (offset, higher, follows):
     row.set_visible(lambda: model.matching)
 
   rows = [
@@ -138,6 +147,7 @@ def everyday_panel(model: SpeedSteering) -> ListPanel:
                Segmented(SPEED_LIMITS, lambda: model.speed_limits, model.set_speed_limits)),
     offset,
     higher,
+    follows,
     SettingRow("Lane Changes", lambda: f"Auto starts one change per signal, above {model.lane_change_speed} {model.unit}",
                Segmented(LANE_CHANGES, lambda: model.lane_changes, model.set_lane_changes)),
     SettingRow("Smart Slowdowns", "Slows for curves, stop lights and stopped traffic on its own",

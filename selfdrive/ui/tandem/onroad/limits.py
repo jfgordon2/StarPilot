@@ -35,3 +35,26 @@ class LimitOfferState:
 
   def ignore(self) -> None:
     self.ignored_limit = self.pending_limit
+
+
+@dataclass
+class LimitFollower:
+  """MAX follows the speed limit (TandemMaxFollowsLimit): when StarPilot adopts a new limit, MAX becomes it plus the
+  offset. StarPilot otherwise coasts down to a lower limit under an unchanged MAX, which can take a minute or more;
+  with MAX at the limit it slows as it does for a lower MAX. A higher limit raises MAX once StarPilot has adopted it
+  (after Match when it asks). Only a change moves MAX, so a MAX the driver sets afterwards stays until the next limit.
+
+  Everything here is in m/s; update() returns the MAX to set, or None.
+  """
+  limit: float = 0.0
+
+  def update(self, limit: float, source: str, offset: float, set_speed: float, engaged: bool) -> float | None:
+    if limit <= 1 or source not in LIVE_SOURCES:
+      return None                         # no posted limit, or StarPilot's fallback: nothing to follow
+    previous, self.limit = self.limit, limit
+    if previous <= 1 or LimitOfferState.same(limit, previous) or not engaged or set_speed <= 0:
+      return None                         # the first limit seen, the same limit, or no MAX to move
+    target = limit + offset
+    if limit < previous:
+      return target if set_speed > target + 0.3 else None    # only ever lowers for a lower limit
+    return target if set_speed < target - 0.3 else None      # only ever raises for a higher one (a higher MAX stays)

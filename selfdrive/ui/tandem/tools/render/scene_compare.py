@@ -12,7 +12,7 @@ from openpilot.selfdrive.ui.tandem.tests.fakes import (FakeBluetooth, FakeBootLo
                                                        FakeWheel, FakeWifi)
 
 VALUES = {
-  "NudgelessLaneChange": True, "SpeedLimitController": True, "ShowSpeedLimits": True, "SLCConfirmation": True, "Offset1": 3.0,
+  "NudgelessLaneChange": True, "SpeedLimitController": True, "ShowSpeedLimits": True, "SLCConfirmation": True, "TandemMaxFollowsLimit": True, "Offset1": 3.0,
   "WeatherPresets": True, "CarModelName": "RAV4 Hybrid 2019-21", "CarMake": "Toyota", "OpenpilotEnabledToggle": True,
   "IsLdwEnabled": True, "ConditionalExperimental": True, "CurveSpeedController": True, "AlwaysOnLateral": True,
   "FavoriteDestinations": [{"name": "12 Elm St", "is_home": True}, {"name": "Gym"}], "ClearNavOnOffroad": True,

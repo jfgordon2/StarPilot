@@ -70,6 +70,8 @@ ENTRIES: list[Entry] = [
   Entry("Speed Limits", "Match sets cruise to the posted limit", 0, S, 0, "slc speed limit controller"),
   Entry("Offset", "Added to every matched limit", 0, S, 0, "speed limit offset"),
   Entry("Higher limits", "Lower limits always apply on their own", 0, S, 0, "confirm speed limit"),
+  Entry("MAX follows limits", "Each new limit sets MAX, so it slows promptly for lower ones", 0, S, 0,
+        "set speed cruise max follow speed limit lower slow down"),
   Entry("Lane Changes", "Nudge or Auto", 0, S, 0, "nudgeless lane change blinker signal"),
   Entry("Smart Slowdowns", "Slows for curves, stop lights and stopped traffic on its own", 0, S, 0, "conditional experimental curve"),
   Entry("Always-On Steering", "Keeps steering with cruise off", 0, S, 0, "always on lateral aol"),

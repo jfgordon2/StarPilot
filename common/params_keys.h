@@ -669,6 +669,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SLCConfirmation", {PERSISTENT, BOOL, "0", "0", 0}},
     {"SLCConfirmationHigher", {PERSISTENT, BOOL, "0", "0", 0}},
     {"SLCConfirmationLower", {PERSISTENT, BOOL, "0", "0", 0}},
+    {"TandemMaxFollowsLimit", {PERSISTENT, BOOL, "1", "0", 0}},
     {"SLCFallback", {PERSISTENT, INT, "2", "0", 1}},
     {"SLCLookaheadHigher", {PERSISTENT, INT, "0", "0", 2}},
     {"SLCLookaheadLower", {PERSISTENT, INT, "0", "0", 2}},
