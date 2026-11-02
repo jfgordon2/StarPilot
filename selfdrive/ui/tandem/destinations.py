@@ -314,7 +314,8 @@ class DestinationsScreen(Component):
     self._intent: str | None = None      # "home" or "work" when a tile is setting one
     self._awaiting = False               # a picked result is resolving
     self._typed, self._typed_at, self._searched = "", 0.0, ""
-    self._keys = KeyPad(self._search_now, "Search", MIN_QUERY)
+    self._keys = KeyPad(self._search_now, "Search", MIN_QUERY,
+                        voice_hint="Say a place or an address. Tap the mic when you're done.")
 
     # List
     self._search_pill = self._child(SearchPill(lambda: self._go(SEARCH)))
@@ -502,6 +503,11 @@ class DestinationsScreen(Component):
       self._clear.render(place(clear, T.px(36), T.px(36)))
 
   def _render_search(self, rect: rl.Rectangle) -> None:
+    if self._keys.voice_active:           # design/voicelistening.html: the field, then voice typing below it
+      top, panel = column(rect, [T.px(80), FILL])
+      self._render_field(inset(top, left=T.px(16), right=T.px(16), top=T.px(14), bottom=T.px(10)))
+      self._keys.render_keys(panel)
+      return
     top, keys = column(rect, [T.px(146), FILL])
     body = inset(top, left=T.px(16), right=T.px(16), top=T.px(14), bottom=T.px(10))
     field, strip = column(body, [T.px(56), FILL], T.px(8))

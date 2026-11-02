@@ -15,7 +15,7 @@
   {
    "mock": "search",
    "title": "Settings search",
-   "note": "Matches the layout. The results are the build's real ones for \"gas\", best first; Search lists them all without the keyboard.",
+   "note": "Matches the layout. The results are the build's real ones for \"gas\", best first; Search lists them all without the keyboard. The mic key sits beside 123, as on destination search.",
    "match": true
   },
   {
@@ -365,7 +365,25 @@
   {
    "mock": "navsearch",
    "title": "Destination search",
-   "note": "Matches: the field and two results above the Essentials keyboard. Results update as you type; Search lists them all.",
+   "note": "Matches: the field and two results above the Essentials keyboard, with the mic key beside 123 while parked. Results update as you type; Search lists them all.",
+   "match": true
+  },
+  {
+   "mock": "voicelistening",
+   "title": "Voice typing: listening",
+   "note": "Matches: the mic (tap to stop), the page's hint and a live level meter, with Type instead. Listening also stops after a 1.5 s pause. The empty field has no placeholder, as when typing.",
+   "match": true
+  },
+  {
+   "mock": "voicetranscribing",
+   "title": "Voice typing: writing it down",
+   "note": "Matches: a spinner while Whisper works. The words land in the field for editing.",
+   "match": true
+  },
+  {
+   "mock": "voicedownload",
+   "title": "Voice typing: first use",
+   "note": "Matches: the one-time model download with its progress; listening starts when it's done.",
    "match": true
   },
   {

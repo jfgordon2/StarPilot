@@ -251,7 +251,8 @@ class SettingsSearch(Component):
     super().__init__()
     self._tuner = tuner
     self._on_pick = on_pick
-    self._keys = KeyPad(self._show_all, "Search", MIN_QUERY)
+    self._keys = KeyPad(self._show_all, "Search", MIN_QUERY,
+                        voice_hint="Say a setting, like speed limit. Tap the mic when you're done.")
     self._typing = True
     back_glyph = lambda r, c, s: draw.chevron(r, c, T.px(26), "left")  # noqa: E731
     self._back = self._child(Button(on_click=self._back_or_close(on_close), style=ButtonStyle.NAV, height=T.px(56), width=T.px(56),
@@ -321,6 +322,11 @@ class SettingsSearch(Component):
       field, panel = column(body, [T.px(56), FILL], T.px(12))
       self._render_field(field)
       self._results_list().render(panel)
+      return
+    if self._keys.voice_active:           # as design/voicelistening.html: the field, then voice typing below it
+      top, panel = column(rect, [T.px(80), FILL])
+      self._render_field(inset(top, left=T.px(16), right=T.px(16), top=T.px(14), bottom=T.px(10)))
+      self._keys.render_keys(panel)
       return
     top, keys = column(rect, [T.px(206), FILL])
     body = inset(top, left=T.px(16), right=T.px(16), top=T.px(14), bottom=T.px(10))

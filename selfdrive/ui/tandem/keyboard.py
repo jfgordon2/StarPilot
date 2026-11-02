@@ -14,13 +14,14 @@ import pyray as rl
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets import keyboard as upstream
 from openpilot.system.ui.widgets.inputbox import InputBox
-from openpilot.selfdrive.ui.tandem import draw, tokens as T
+from openpilot.selfdrive.ui.tandem import draw, tokens as T, voice
 from openpilot.selfdrive.ui.tandem.controls import Button, ButtonStyle
 from openpilot.selfdrive.ui.tandem.layout import FILL, Align, column, inset, place, row
 
 BACKSPACE, ENTER, SPACE = upstream.BACKSPACE_KEY, upstream.ENTER_KEY, upstream.SPACE_KEY
 SHIFT_OFF, SHIFT_ON, CAPS = upstream.SHIFT_INACTIVE_KEY, upstream.SHIFT_ACTIVE_KEY, upstream.CAPS_LOCK_KEY
 NUMBERS, SYMBOLS, LETTERS = upstream.NUMERIC_KEY, upstream.SYMBOL_KEY, upstream.ABC_KEY
+MIC = "tandem-mic"                                # voice typing (voice.py); not one of upstream's keys
 
 # The mock's rows: ten keys, then nine and backspace (inset), then shift, seven and two marks, then 123, space and the
 # action. The number and symbol layers keep upstream's characters in the same shape.
@@ -33,8 +34,9 @@ LAYOUTS = {
                [NUMBERS, "•", "'", "\"", "?", "!", "@", "-", ",", "."], [LETTERS, SPACE, ENTER]],
 }
 BOTTOM_ROW = [1.4, 6.0, 2.6]                     # 123, space, action, as wide as in the mock
-FUNCTION_KEYS = {BACKSPACE, SHIFT_OFF, SHIFT_ON, CAPS, NUMBERS, SYMBOLS, LETTERS}
-ICONS = {BACKSPACE: "backspace", SHIFT_OFF: "shift", SHIFT_ON: "shift", CAPS: "shift"}
+BOTTOM_ROW_MIC = [1.4, 1.2, 4.8, 2.6]            # 123, mic, space, action (design/navsearch.html)
+FUNCTION_KEYS = {BACKSPACE, SHIFT_OFF, SHIFT_ON, CAPS, NUMBERS, SYMBOLS, LETTERS, MIC}
+ICONS = {BACKSPACE: "backspace", SHIFT_OFF: "shift", SHIFT_ON: "shift", CAPS: "shift", MIC: "mic"}
 LABELS = {NUMBERS: "123", SYMBOLS: "#+=", LETTERS: "ABC", SPACE: "space"}
 
 KEY_FILL = T._hex("262A31")
@@ -108,16 +110,46 @@ class EssentialsKeyboard(upstream.Keyboard):
   """Upstream's keyboard drawn as design/keyboard.html. action names what the blue key does (e.g. "Set up", "Save")."""
 
   def __init__(self, max_text_size: int = 255, min_text_size: int = 0, password_mode: bool = False, show_password_toggle: bool = False,
-               callback=None, action: str = "Done"):
+               callback=None, action: str = "Done", voice_hint: str = "Speak now. Tap the mic when you're done."):
     super().__init__(max_text_size, min_text_size, password_mode, show_password_toggle, callback)
     self.action = action
     self._title_text, self._subtitle_text = "", ""
     self._input_box = _Field(max_text_size)
     self._cancel = Button("Cancel", self._cancel_button_callback, ButtonStyle.SECONDARY, height=T.px(56), font_size=T.font_px(17),
                           radius=T.px(14), weight=T.FONT_BOLD, padding=T.px(24))
-    keys = {k for rows in LAYOUTS.values() for keys in rows for k in keys} | {CAPS}
+    keys = {k for rows in LAYOUTS.values() for keys in rows for k in keys} | {CAPS, MIC}
     self._all_keys = {k: _Key(k, partial(self._key_callback, k), self) for k in keys}
     self._eye = _Eye(self)
+    self._voice = voice.VoiceTyping(self._insert_spoken)
+    self._voice_panel = voice.VoicePanel(self._voice, voice_hint)
+
+  @property
+  def voice_active(self) -> bool:
+    """Voice typing has the key panel; a page can give it the room its results took, as the voice mocks do."""
+    return self._voice.active
+
+  def voice_offered(self) -> bool:
+    """The mic key: never for passwords (spoken aloud, and Whisper would guess at them), and only while parked."""
+    return not (self._password_mode or self._show_password_toggle) and voice.available()
+
+  def _insert_spoken(self, words: str) -> None:
+    """The spoken words go after what's typed, for editing; the action key still decides when to use them."""
+    typed = self._input_box.text.rstrip()
+    self._input_box.text = (f"{typed} {words}" if typed else words)[:self._max_text_size]
+
+  def _key_callback(self, k):
+    if k == MIC:
+      self._voice.start()
+    else:
+      super()._key_callback(k)
+
+  def clear(self):
+    self._voice.cancel()
+    super().clear()
+
+  def hide_event(self):
+    self._voice.cancel()
+    super().hide_event()
 
   def set_title(self, title: str, sub_title: str = ""):
     self._title_text, self._subtitle_text = title, sub_title
@@ -133,6 +165,9 @@ class EssentialsKeyboard(upstream.Keyboard):
 
   def render_keys(self, rect: rl.Rectangle) -> None:
     """The key panel: its darker fill and top edge, then the four rows."""
+    if self._voice.active:
+      self._voice_panel.render(rect)
+      return
     draw.fill(rect, PANEL_FILL)
     draw.hline(rect.x, rect.y, rect.width, DIVIDER)
     self._repeat_backspace()
@@ -182,12 +217,16 @@ class EssentialsKeyboard(upstream.Keyboard):
     gap = T.px(8)
     rows = column(rect, [FILL] * 4, gap)
     unit = (rect.width - 9 * gap) / 10
+    mic = self.voice_offered()
     for index, (keys, area) in enumerate(zip(LAYOUTS[self._layout_name], rows, strict=True)):
       if index == 1:
         area = inset(area, x=unit / 3)              # the second row sits in a little, as on the mock
       if index == 3:
+        weights = BOTTOM_ROW
+        if mic:
+          keys, weights = [keys[0], MIC, *keys[1:]], BOTTOM_ROW_MIC
         spare = area.width - gap * (len(keys) - 1)
-        widths = [spare * w / sum(BOTTOM_ROW) for w in BOTTOM_ROW]
+        widths = [spare * w / sum(weights) for w in weights]
       else:
         widths = [FILL] * len(keys)
       for key, cell in zip(keys, row(area, widths, gap), strict=True):
@@ -203,12 +242,14 @@ class KeyPad(EssentialsKeyboard):
   """The keyboard as part of a page rather than a screen of its own (destination search): the page draws the field and
   calls render_text and render_keys; the blue key calls on_enter instead of closing anything."""
 
-  def __init__(self, on_enter, action: str, min_text_size: int = 0, max_text_size: int = 255):
-    super().__init__(max_text_size, min_text_size, action=action)
+  def __init__(self, on_enter, action: str, min_text_size: int = 0, max_text_size: int = 255, voice_hint: str | None = None):
+    super().__init__(max_text_size, min_text_size, action=action, **({"voice_hint": voice_hint} if voice_hint else {}))
     self._on_enter = on_enter
 
   def _key_callback(self, k):
     if k == ENTER:
       self._on_enter()
+    elif k == MIC:
+      self._voice.start()
     else:
       self.handle_key_press(k)

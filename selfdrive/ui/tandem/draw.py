@@ -201,3 +201,16 @@ def minus(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
 
 def check(rect: rl.Rectangle, color: rl.Color, size: float) -> None:
   icon(rect, "check", color, size)
+
+
+def disc(center: rl.Vector2, radius: float, color: rl.Color) -> None:
+  """A filled circle, e.g. the voice typing mic and its halo."""
+  rl.draw_circle_v(center, radius, color)
+
+
+def arc(center: rl.Vector2, radius: float, width: float, start: float, end: float, color: rl.Color) -> None:
+  """A ring segment of the given stroke width, angles in degrees clockwise from 3 o'clock, with round ends (a spinner)."""
+  rl.draw_ring(center, radius - width / 2, radius + width / 2, start, end, 48, color)
+  for angle in (start, end):
+    a = math.radians(angle)
+    rl.draw_circle_v(rl.Vector2(center.x + radius * math.cos(a), center.y + radius * math.sin(a)), width / 2, color)

@@ -21,6 +21,16 @@ def main(frame, save, out, tap, gui_app):
   screen._searched = "hardware sto"
   screen._typed = "hardware sto"
   shot("navsearch")
+  # Voice typing's three states, set directly: no worker or microphone here.
+  session = screen._keys._voice
+  screen._keys.set_text("")
+  session.levels.extend([0.12, 0.2, 0.3, 0.42, 0.57, 0.5, 0.72, 0.9, 0.8, 0.62, 1.0, 0.85, 0.68, 0.55, 0.75, 0.48, 0.35, 0.45, 0.28,
+                         0.2, 0.15, 0.12])
+  for state, name in (("listening", "voicelistening"), ("transcribing", "voicetranscribing"), ("download", "voicedownload")):
+    session.state, session.progress = state, 0.42
+    shot(name)
+  session.state = "idle"
+  screen._keys.set_text("hardware sto")
   screen._view = D.RESULTS
   shot("navresults")
   screen._pick_result(0)
