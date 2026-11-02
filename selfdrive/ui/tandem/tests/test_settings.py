@@ -317,6 +317,9 @@ class FakeDevice:
   def ids(self):
     return "abc123 · serial"
 
+  def imei(self):
+    return "351234567890123"
+
   def show_regulatory(self):
     return False
 
@@ -1361,3 +1364,28 @@ def test_download_tiles_show_codes_in_a_steady_order():
   again = region_tiles([("us_state.IA", 9, 9), ("us_state.IL", 2, 9)])   # mapd's next update, in another order
   assert [r.code for r in first] == [r.code for r in again] == ["IA", "IL"]
 
+
+
+def test_imei_is_read_once_from_the_modem_in_the_background(monkeypatch):
+  import time
+  from openpilot.system import hardware
+  from openpilot.selfdrive.ui.tandem.settings.device import UpstreamDevice
+  calls = []
+  monkeypatch.setattr(hardware.HARDWARE, "get_imei", lambda slot: calls.append(slot) or "351234567890123", raising=False)
+  device = UpstreamDevice.__new__(UpstreamDevice)
+  device._tici, device._imei, device._imei_reading = True, "", False
+  assert device.imei() == "Not available"
+  device._read_imei()
+  end = time.monotonic() + 5
+  while device._imei_reading and time.monotonic() < end:
+    time.sleep(0.01)
+  device._read_imei()                                # already known: the modem isn't asked again
+  assert device.imei() == "351234567890123" and calls == [0]
+
+  failing = UpstreamDevice.__new__(UpstreamDevice)
+  failing._tici, failing._imei, failing._imei_reading = True, "", False
+  monkeypatch.setattr(hardware.HARDWARE, "get_imei", lambda slot: (_ for _ in ()).throw(RuntimeError("modem busy")), raising=False)
+  failing._read_imei()
+  while failing._imei_reading and time.monotonic() < end:
+    time.sleep(0.01)
+  assert failing.imei() == "Not available" and not failing._imei_reading   # it can try again next time

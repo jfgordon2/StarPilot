@@ -35,6 +35,7 @@ class Device(Protocol):
   def calibration(self) -> str: ...
   def remote_access_label(self) -> str: ...
   def ids(self) -> str: ...
+  def imei(self) -> str: ...   # the modem's IMEI, or "Not available"
   def show_regulatory(self) -> bool: ...
   def refresh(self) -> None: ...
   def pair(self) -> None: ...
@@ -109,6 +110,7 @@ class ThisDevicePanel(ListPanel):
       SectionHeader("MORE"),
       regulatory := SettingRow("Regulatory", None, action("View", open_regulatory or device.regulatory, offroad_only=True)),
       SettingRow("Device ID and Serial", device.ids),
+      SettingRow("IMEI", device.imei),
     ], title="This Device", footer=ButtonRow([restart, power_off]))
     regulatory.set_visible(device.show_regulatory)
 
@@ -272,6 +274,8 @@ class UpstreamDevice:
     self._tici = TICI
     self._calibration = Calibration.UNKNOWN
     self._ids = ""
+    self._imei = ""          # read once from the modem, in the background
+    self._imei_reading = False
     self._pairing = None   # upstream PairingDialog, made on first use
     self._camera = None    # our driver camera, made on first use
     self._galaxy_qr = None   # (link, upstream GalaxyQRDialog) for the current link
@@ -283,6 +287,26 @@ class UpstreamDevice:
     dongle = self._params.get("DongleId") or "N/A"
     serial = self._params.get("HardwareSerial") or "N/A"
     self._ids = f"{dongle} · {serial}"
+    self._read_imei()
+
+  def _read_imei(self) -> None:
+    """Asking the modem goes over D-Bus and can be slow or fail while it starts up, so it's read off the UI thread, once
+    it succeeds; until then the row says Not available, and opening the screen again tries again."""
+    if self._imei or self._imei_reading or not self._tici:
+      return
+    import threading
+
+    def read():
+      try:
+        from openpilot.system.hardware import HARDWARE
+        self._imei = str(HARDWARE.get_imei(0) or "").strip()
+      except Exception:
+        pass
+      finally:
+        self._imei_reading = False
+
+    self._imei_reading = True
+    threading.Thread(target=read, daemon=True).start()
 
   def _read_calibration(self) -> str:
     from cereal import log, messaging
@@ -311,6 +335,9 @@ class UpstreamDevice:
 
   def ids(self) -> str:
     return self._ids
+
+  def imei(self) -> str:
+    return self._imei or "Not available"
 
   def show_regulatory(self) -> bool:
     return self._tici

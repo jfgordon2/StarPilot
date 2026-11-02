@@ -165,7 +165,7 @@
   {
    "mock": "devicetab",
    "title": "This Device",
-   "note": "Adds a More section: remote access, driver monitoring reset, language, regulatory, device ID and serial.",
+   "note": "Adds a More section: remote access, driver monitoring reset, language, regulatory, device ID and serial, and the modem IMEI (read once in the background).",
    "match": false
   },
   {

@@ -153,6 +153,7 @@ ENTRIES: list[Entry] = [
   Entry("How It Works", "Rules, features and limits", 1, section=0, words="training guide"),
   Entry("Regulatory", "Regulatory information", 1, section=0),
   Entry("Device ID and Serial", "This device's IDs", 1, section=0, words="dongle"),
+  Entry("IMEI", "The cellular modem's ID", 1, section=0, words="imei modem cellular sim lte"),
   _place("Restart", "Restart the device", 1, section=0, words="reboot"),
   _place("Power Off", "Turn the device off until the car starts", 1, section=0, words="shut down"),
   _place("General", "Units, language, brightness and standby", 1, section=1),
