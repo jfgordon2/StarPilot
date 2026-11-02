@@ -12,6 +12,10 @@ from openpilot.selfdrive.ui.tandem.onroad.streets import short_street, short_str
   ("Pacific Coast Highway", "Pacific Coast Hwy"),
   ("North Avenue", "North Ave"),                 # the direction is the name
   ("East Street", "East St"),
+  ("Northwest Blvd", "Northwest Blvd"),           # already short: Northwest is still the name
+  ("North St.", "North St."),
+  ("West Ave South", "West Ave S"),
+  ("North Way", "North Way"),
   ("Avenue of the Americas", "Avenue of the Americas"),   # the type isn't last
   ("Broadway", "Broadway"),
   ("Interstate 5", "Interstate 5"),

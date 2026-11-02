@@ -15,6 +15,7 @@ TYPES = {
   "square": "Sq", "crossing": "Xing", "turnpike": "Tpke", "heights": "Hts", "center": "Ctr", "plaza": "Plz", "point": "Pt",
   "mountain": "Mtn", "junction": "Jct", "crescent": "Cres", "alley": "Aly", "causeway": "Cswy", "bypass": "Byp",
 }
+TYPE_WORDS = set(TYPES) | {short.lower() for short in TYPES.values()} | {"way"}   # a type spelled out or already short
 
 
 def short_street(name: str) -> str:
@@ -27,7 +28,7 @@ def short_street(name: str) -> str:
     words[-1], end = DIRECTIONS[words[-1].lower()], end - 1
   # A leading direction, when at least a name and maybe a type follow ("North Main Street", not "North Avenue").
   rest = words[1:end]
-  if DIRECTIONS.get(words[0].lower()) and any(w.lower() not in TYPES for w in rest):
+  if DIRECTIONS.get(words[0].lower()) and any(w.lower().rstrip(".") not in TYPE_WORDS for w in rest):
     words[0], start = DIRECTIONS[words[0].lower()], 1
   # The street type: the last word before any trailing direction, after a name.
   last = end - 1
