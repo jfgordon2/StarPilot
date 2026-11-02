@@ -1,6 +1,6 @@
 """MAX follows the speed limit: only a change StarPilot has adopted moves MAX, toward the limit plus the offset."""
 from openpilot.common.constants import CV
-from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower
+from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, OfferChime
 
 MPH = CV.MPH_TO_MS
 OFFSET = 3 * MPH
@@ -44,3 +44,11 @@ def test_disengaged_or_fallback_limits_do_not_move_max():
   assert _follow(f, 45, 58, source="None") is None
   assert _follow(f, 0, 58) is None
   assert _follow(f, 45, 58) == 48
+
+
+def test_the_offer_chime_sounds_once_per_card():
+  chime = OfferChime()
+  assert chime.update((55, 1.0)) and not chime.update((55, 1.0))
+  assert not chime.update(None)                  # no card: nothing
+  assert chime.update((65, 9.0))                 # a new card
+  assert chime.update((55, 12.0))                # the same limit offered again later is a new card

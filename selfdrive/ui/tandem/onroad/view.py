@@ -40,7 +40,7 @@ from openpilot.selfdrive.ui.tandem.onroad.layers import (AT_LIMIT, BAR_HEIGHT, B
                                                          dm_tile, draw_driver_monitor, draw_speed, draw_speed_limit,
                                                          draw_turn_card, sign_tile, TURN_BELOW_SIGN, TURN_CARD_TOP)
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, LimitWatch, chips_for, snapshot
-from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState
+from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState, OfferChime
 from openpilot.selfdrive.ui.tandem.prefs import MAX_FOLLOWS_LIMIT
 
 CONFIRM_TIMEOUT = 30.0      # StarPilot rejects an unanswered higher limit after 30 s
@@ -162,6 +162,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._headroom_chimed = False
     self._limit_offer = LimitOfferState()
     self._follower = LimitFollower()
+    self._offer_chime = OfferChime()
     self._bar = OnroadBar(self._bar_state, self._open_menu, self._step_speed, self._toggle_engaged, self._end_route)
     self._chip_view = StatusChip(lambda: self._chip_list)
     self._arc = HeadroomArc(lambda: self._arc_state, lambda: DEV_ARC if self._dev is not None else ARC,   # each mock's curve
@@ -443,7 +444,8 @@ class EssentialsOnroadView(StarPilotOnroadView):
     extras.draw_stopping_point(ends, label)
 
   def _render_layers(self) -> None:
-    self._offer()   # observe limit changes even when an alert is covering the card
+    offer = self._offer()   # observe limit changes even when an alert is covering the card
+    self._chime_for(offer)
     self._follow_limit()
     alert, _ = self.alert_renderer.will_render()
     # Help steer is a Warning alert drawn by us: like StarPilot's alerts, it takes the bar's place at the bottom.
@@ -533,6 +535,13 @@ class EssentialsOnroadView(StarPilotOnroadView):
     max_lat = ui_state.CP.maxLateralAccel if ui_state.CP and ui_state.CP.maxLateralAccel else 3.0
     return float(yaw_rates[index]) * float(ui_state.sm["carState"].vEgo) / max_lat
 
+  def _chime_for(self, offer: LimitOffer | None) -> None:
+    """The pre-alert chime as a new-limit card appears, through soundd's TestAlert (as StarPilot's sound previews play
+    onroad). Skipped when StarPilot's own Speed limit changed chime is on, which already sounds for the change."""
+    identity = None if offer is None else (round(offer.limit), self._limit_offer.since)
+    if self._offer_chime.update(identity) and not ui_state.ui_params.get_bool("SpeedLimitChangedAlert"):
+      self._memory.put_nonblocking("TestAlert", "preAlert")
+
   def _follow_limit(self) -> None:
     """MAX follows each limit StarPilot adopts (limits.LimitFollower), through the same request the bar's − and + use."""
     sm = ui_state.sm
@@ -572,6 +581,7 @@ class EssentialsOnroadView(StarPilotOnroadView):
     self._limit_offer = LimitOfferState()
     self._limits = LimitWatch()
     self._follower = LimitFollower()
+    self._offer_chime = OfferChime()
 
   # Actions
 

@@ -58,3 +58,17 @@ class LimitFollower:
     if limit < previous:
       return target if set_speed > target + 0.3 else None    # only ever lowers for a lower limit
     return target if set_speed < target - 0.3 else None      # only ever raises for a higher one (a higher MAX stays)
+
+
+@dataclass
+class OfferChime:
+  """One soft chime as each new-limit card appears: openpilot's pre-alert (pre_alert.wav, the first "Pay Attention"
+  chime, at the Driver attention volume). Not again while the same offer stays up, nor for an offer the driver ignored
+  (its card isn't shown)."""
+  shown: tuple | None = None
+
+  def update(self, offer: tuple | None) -> bool:
+    """offer identifies the card on screen (its limit and when it was first offered), or None. True: chime now."""
+    chime = offer is not None and offer != self.shown
+    self.shown = offer
+    return chime

@@ -6,7 +6,7 @@ from cereal import custom
 
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.tandem.onroad import view as onroad
-from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState
+from openpilot.selfdrive.ui.tandem.onroad.limits import LimitFollower, LimitOfferState, OfferChime
 from openpilot.selfdrive.ui.tandem.onroad.status import ChipStack, Snapshot
 
 
@@ -28,6 +28,9 @@ def limit_view(monkeypatch):
   view._closed = True  # state-only view: no camera or GPU resources to clean up
   view._limit_offer = LimitOfferState()
   view._follower = LimitFollower()
+  view._offer_chime = OfferChime()
+  view.chimes = []
+  view._memory = SimpleNamespace(put_nonblocking=lambda key, value: view.chimes.append((key, value)))
 
   def update(current=55, pending=65, source="None"):
     plan.slcSpeedLimit = current * CV.MPH_TO_MS
@@ -67,6 +70,17 @@ def test_a_lower_limit_asks_to_slow_down(limit_view):
   offer = update(current=65, pending=55)
   assert offer.limit == pytest.approx(55) and offer.lower
   assert not update(current=55, pending=65).lower
+
+
+def test_each_new_card_chimes_once_with_the_pre_alert(limit_view):
+  view, update, _, _ = limit_view
+  for _ in range(3):
+    view._chime_for(update())
+  assert view.chimes == [("TestAlert", "preAlert")]
+  view._ignore_limit()
+  view._chime_for(update())
+  view._chime_for(update(pending=70))
+  assert view.chimes == [("TestAlert", "preAlert")] * 2
 
 
 def test_unit_changes_do_not_clear_a_dismissal(limit_view):
