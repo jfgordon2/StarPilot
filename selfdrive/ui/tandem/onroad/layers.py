@@ -104,8 +104,13 @@ class OnroadBar(Component):
       if state.street and x + T.px(80) < body.x + body.width:
         rl.draw_rectangle_rec(rl.Rectangle(x, body.y + body.height * 0.25, T.DIVIDER, body.height * 0.5), T.CONTROL)
         self._street(rl.Rectangle(x + T.px(22), body.y, body.x + body.width - x - T.px(22), body.height), state.street, Align.START)
-    elif state.street or state.heading:
-      self._street(inset(center, x=T.px(16)), state.street, Align.CENTER, state.heading)
+    else:
+      # The compass tag sits where it does while navigating (first, at the start); the street centers in what's left.
+      body = inset(center, x=T.px(22))
+      if state.heading:
+        body = inset(body, left=heading_tag(body, state.heading) + T.px(20))
+      if state.street:
+        self._street(body, state.street, Align.CENTER)
 
     engage = r["engage"]
     draw.fill(engage, ENGAGED if state.engaged else CONTROL_FILL, T.RADIUS_CARD)
@@ -114,16 +119,12 @@ class OnroadBar(Component):
 
 
   @staticmethod
-  def _street(rect: rl.Rectangle, street: str, h: Align, heading: str = "") -> None:
-    """The road icon, the compass tag when on, and the street name, centered (or at the start) in rect, elided to fit."""
-    tag_w = heading_width(heading) + T.px(12) if heading else 0
-    text_w = min(rect.width - T.px(40) - tag_w, draw.text_width(street, STREET_SIZE, T.FONT_BOLD)) if street else 0
-    block = place(rect, T.px(40) + tag_w + text_w, rect.height, h)
+  def _street(rect: rl.Rectangle, street: str, h: Align) -> None:
+    """The road icon and the street name, centered (or at the start) in rect, elided to fit."""
+    text_w = min(rect.width - T.px(40), draw.text_width(street, STREET_SIZE, T.FONT_BOLD))
+    block = place(rect, T.px(40) + text_w, rect.height, h)
     draw.icon(rl.Rectangle(block.x, block.y, T.px(28), block.height), "road", T.ACCENT_TEXT, T.px(22))
-    if heading:
-      heading_tag(rl.Rectangle(block.x + T.px(40), block.y, tag_w, block.height), heading)
-    if street:
-      draw.text(inset(block, left=T.px(40) + tag_w), street, STREET_SIZE, T.TEXT, T.FONT_BOLD)
+    draw.text(inset(block, left=T.px(40)), draw.fit(street, STREET_SIZE, T.FONT_BOLD, text_w), STREET_SIZE, T.TEXT, T.FONT_BOLD)
 
 
 STREET_SIZE = T.font_px(22)   # the street name, and the compass tag beside it at the same size
