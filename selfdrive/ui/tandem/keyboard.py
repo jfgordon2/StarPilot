@@ -110,7 +110,8 @@ class EssentialsKeyboard(upstream.Keyboard):
   """Upstream's keyboard drawn as design/keyboard.html. action names what the blue key does (e.g. "Set up", "Save")."""
 
   def __init__(self, max_text_size: int = 255, min_text_size: int = 0, password_mode: bool = False, show_password_toggle: bool = False,
-               callback=None, action: str = "Done", voice_hint: str = "Speak now. Tap the mic when you're done."):
+               callback=None, action: str = "Done", voice_hint: str = "Speak now. Tap the mic when you're done.",
+               voice_style: str = "text"):
     super().__init__(max_text_size, min_text_size, password_mode, show_password_toggle, callback)
     self.action = action
     self._title_text, self._subtitle_text = "", ""
@@ -120,7 +121,7 @@ class EssentialsKeyboard(upstream.Keyboard):
     keys = {k for rows in LAYOUTS.values() for keys in rows for k in keys} | {CAPS, MIC}
     self._all_keys = {k: _Key(k, partial(self._key_callback, k), self) for k in keys}
     self._eye = _Eye(self)
-    self._voice = voice.VoiceTyping(self._insert_spoken)
+    self._voice = voice.VoiceTyping(self._insert_spoken, style=voice_style)
     self._voice_panel = voice.VoicePanel(self._voice, voice_hint)
 
   @property
@@ -242,8 +243,10 @@ class KeyPad(EssentialsKeyboard):
   """The keyboard as part of a page rather than a screen of its own (destination search): the page draws the field and
   calls render_text and render_keys; the blue key calls on_enter instead of closing anything."""
 
-  def __init__(self, on_enter, action: str, min_text_size: int = 0, max_text_size: int = 255, voice_hint: str | None = None):
-    super().__init__(max_text_size, min_text_size, action=action, **({"voice_hint": voice_hint} if voice_hint else {}))
+  def __init__(self, on_enter, action: str, min_text_size: int = 0, max_text_size: int = 255, voice_hint: str | None = None,
+               voice_style: str = "text"):
+    super().__init__(max_text_size, min_text_size, action=action, voice_style=voice_style,
+                     **({"voice_hint": voice_hint} if voice_hint else {}))
     self._on_enter = on_enter
 
   def _key_callback(self, k):

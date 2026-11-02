@@ -315,7 +315,7 @@ class DestinationsScreen(Component):
     self._awaiting = False               # a picked result is resolving
     self._typed, self._typed_at, self._searched = "", 0.0, ""
     self._keys = KeyPad(self._search_now, "Search", MIN_QUERY,
-                        voice_hint="Say a place or an address. Tap the mic when you're done.")
+                        voice_hint="Say a place or an address. Tap the mic when you're done.", voice_style="address")
 
     # List
     self._search_pill = self._child(SearchPill(lambda: self._go(SEARCH)))

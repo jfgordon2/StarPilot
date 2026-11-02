@@ -55,6 +55,7 @@ def test_vocab_decodes_bytes_and_finds_the_special_tokens(tmp_path):
   vocab = speech.Vocab(tmp_path / "v.tiktoken")
   assert (vocab.eot, vocab.sot) == (4, 5)
   assert vocab.no_timestamps == 4 + 106                           # 50362 with GPT-2's 50256 pieces
+  assert vocab.start_of_prev == 4 + 104                           # 50360
   assert vocab.decode([0, 1, 2, vocab.eot, vocab.sot]) == "hardware store"
   assert vocab.decode([3]) == "é"
 
@@ -64,6 +65,26 @@ def test_clean_drops_whisper_habits():
   assert speech.clean("Thank you.") == ""
   assert speech.clean("you") == ""
   assert speech.clean("1 Main St. Springfield") == "1 Main St. Springfield"
+
+
+@pytest.mark.parametrize("spoken, typed", [
+  ("1, 2, 3 First Street, New York, New York", "123 1st Street, New York, New York"),
+  ("one two three first street new york new york", "123 1st street new york new york"),
+  ("One oh five Main St", "105 Main St"),
+  ("1-2-3 Second Avenue", "123 2nd Avenue"),
+  ("123 First Street, New York, NY", "123 1st Street, New York, NY"),
+  ("Twelfth Street", "12th Street"),
+  ("2 Broadway", "2 Broadway"),                                   # one digit is already a number
+  ("5-10 Main", "5-10 Main"),                                     # not single digits
+  ("Oh my burger", "Oh my burger"),                               # "oh" is zero only inside a number
+  ("First Watch", "First Watch"),                                 # a name, not a street
+])
+def test_addresses_read_as_typed(spoken, typed):
+  assert speech.address_text(spoken) == typed
+
+
+def test_address_prompt_is_plain_gpt2_tokens():
+  assert 0 < len(speech.ADDRESS_PROMPT) < 64 and all(0 <= t < 50256 for t in speech.ADDRESS_PROMPT)
 
 
 def test_record_stops_on_a_pause_and_on_stop(capsys):
@@ -194,3 +215,5 @@ def test_mic_key_starts_voice_typing_and_words_land_after_the_text(keyboard):
   kb = K.EssentialsKeyboard()
   kb._all_keys[K.MIC]._click_callback()
   assert keyboard[-1] is kb._voice and kb.text == ""
+  assert kb._voice._command[-2:] == ["--style", "text"]
+  assert K.KeyPad(lambda: None, "Search", voice_style="address")._voice._command[-2:] == ["--style", "address"]

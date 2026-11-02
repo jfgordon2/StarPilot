@@ -54,9 +54,10 @@ class VoiceTyping:
   words when they arrive.
   """
 
-  def __init__(self, on_text: Callable[[str], None], command: list[str] | None = None):
+  def __init__(self, on_text: Callable[[str], None], command: list[str] | None = None, style: str = "text"):
+    """style "address" writes the words as an address: digits for a house number, "1st Street" (speech.address_text)."""
     self._on_text = on_text
-    self._command = command or [sys.executable, str(WORKER)]
+    self._command = command or [sys.executable, str(WORKER), "--style", style]
     self._process: subprocess.Popen | None = None
     self._lines: queue.Queue = queue.Queue()
     self.state = "idle"

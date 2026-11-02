@@ -11,7 +11,8 @@ line:
   {"text": "hardware store"}                 the words, then it exits
   {"error": "no_speech" | "no_mic" | "download" | "failed"}
 
-A line "stop" on its stdin ends listening early. Listening also ends after a pause once someone has spoken, after
+"--style address" (the destination field) primes Whisper with an example address and tidies house numbers and
+street ordinals (address_text). A line "stop" on its stdin ends listening early. Listening also ends after a pause once someone has spoken, after
 NO_SPEECH_S of quiet, or at MAX_S. The model loads while the person speaks.
 
 The model is the network from tinygrad's examples/whisper.py (MIT, after openai/whisper), kept here because release
@@ -25,6 +26,7 @@ import hashlib
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -148,6 +150,7 @@ class Vocab:
     self.sot = self.eot + 1
     # after the languages: translate, transcribe, startoflm, startofprev, nospeech, then notimestamps (50362 for English)
     self.no_timestamps = self.sot + 1 + N_LANGUAGES + 5
+    self.start_of_prev = self.sot + 1 + N_LANGUAGES + 3     # the text before, to prime the words (50360 for English)
 
   def decode(self, tokens) -> str:
     return b"".join(self.pieces.get(int(t), b"") for t in tokens if int(t) < self.eot).decode("utf-8", errors="replace").strip()
@@ -161,6 +164,44 @@ def clean(text: str) -> str:
   if text.endswith(".") and not text.endswith("..") and text.count(".") == 1:
     text = text[:-1]
   return text
+
+
+# Addresses (the destination field). Whisper already writes "one twenty three" as 123; these fix what it leaves.
+# ADDRESS_PROMPT is GPT-2's tokens for " 123 First Street, New York, NY 10003. 4500 Main St, Des Moines, IA.", made
+# once with tiktoken: given as the text before, it nudges Whisper toward digits, commas and state codes.
+ADDRESS_PROMPT = [17031, 3274, 3530, 11, 968, 1971, 11, 6645, 8576, 18, 13, 604, 4059, 8774, 520, 11, 2935, 36576, 11, 35229, 13]
+DIGITS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8",
+          "nine": "9"}
+ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth",
+            "thirteenth", "fourteenth", "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth", "twentieth"]
+STREET_TYPES = {"street", "st", "avenue", "ave", "road", "rd", "boulevard", "blvd", "drive", "dr", "lane", "ln", "place", "pl", "court",
+                "ct", "way", "terrace", "parkway", "pkwy"}
+
+
+def _ordinal(n: int) -> str:
+  return f"{n}{'th' if 11 <= n % 100 <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def address_text(text: str) -> str:
+  """A spoken address as people type it: a house number said digit by digit ("1, 2, 3" or "one two three", with "oh"
+  for zero after the first digit) becomes 123, and "First Street" becomes "1st Street"."""
+  words = [part for word in text.split()             # "1-2-3" is three digits
+           for part in (word.strip(",.").split("-") if re.fullmatch(r"\d(-\d)+[,.]?", word) else [word])]
+  digits, used = "", 0
+  for word in words:
+    bare = word.strip(",.-").lower()
+    digit = bare if len(bare) == 1 and bare.isdigit() else DIGITS.get(bare, "0" if bare == "oh" and digits else None)
+    if digit is None:
+      break
+    digits += digit
+    used += 1
+  if used >= 2:                                    # the commas or hyphens between the digits go too
+    words = [digits, *words[used:]]
+  for i in range(len(words) - 1):
+    bare = words[i].strip(",.").lower()
+    if bare in ORDINALS and words[i + 1].strip(",.").lower() in STREET_TYPES:
+      words[i] = _ordinal(ORDINALS.index(bare) + 1) + words[i][len(words[i].rstrip(",.")):]
+  return " ".join(words)
 
 
 # ---- model (tinygrad examples/whisper.py) ----
@@ -265,10 +306,13 @@ def load(folder: Path):
   return build_model(torch_load(str(folder / "tiny.en.pt"))), Vocab(folder / "gpt2.tiktoken")
 
 
-def transcribe(model, vocab: Vocab, samples: np.ndarray, max_tokens: int = 64) -> str:
+def transcribe(model, vocab: Vocab, samples: np.ndarray, max_tokens: int = 64, style: str = "text") -> str:
+  """style "address" primes Whisper with ADDRESS_PROMPT and tidies the result with address_text()."""
   from tinygrad import Tensor, dtypes
   audio = model.encoder(Tensor(log_mel(samples)))
-  tokens = [vocab.sot, vocab.no_timestamps]
+  prompt = [vocab.start_of_prev, *ADDRESS_PROMPT] if style == "address" else []
+  tokens = [*prompt, vocab.sot, vocab.no_timestamps]
+  start = len(tokens)
   ctx, pos = np.array([tokens], dtype=np.int32), 0
   for _ in range(max_tokens):
     logits = model.decoder(Tensor(ctx[:, pos:], dtype=dtypes.int32), pos, audio)[0, -1].numpy()
@@ -278,7 +322,8 @@ def transcribe(model, vocab: Vocab, samples: np.ndarray, max_tokens: int = 64) -
     tokens.append(nxt)
     pos = ctx.shape[1]
     ctx = np.array([tokens], dtype=np.int32)
-  return clean(vocab.decode(tokens[2:]))
+  text = clean(vocab.decode(tokens[start:]))
+  return address_text(text) if style == "address" else text
 
 
 # ---- first use ----
@@ -353,7 +398,7 @@ def record(stop: threading.Event, open_stream=None) -> np.ndarray | None:
   return np.concatenate(heard) if heard and ends.heard else np.zeros(0, dtype=np.float32)
 
 
-def main() -> int:
+def main(style: str = "text") -> int:
   folder = model_dir()
   if not model_ready(folder):
     try:
@@ -395,7 +440,7 @@ def main() -> int:
     say(error="failed", detail=str(loaded["error"])[:200])
     return 1
   try:
-    text = transcribe(*loaded["model"], samples)
+    text = transcribe(*loaded["model"], samples, style=style)
   except Exception as e:
     say(error="failed", detail=str(e)[:200])
     return 1
@@ -409,6 +454,7 @@ if __name__ == "__main__":
     folder = model_dir()
     if not model_ready(folder):
       fetch_model(folder)
-    print(transcribe(*load(folder), np.load(sys.argv[2])), f"({time.monotonic() - t0:.1f} s)")
+    style = sys.argv[3] if len(sys.argv) > 3 else "text"   # e.g. --file clip.npy address
+    print(transcribe(*load(folder), np.load(sys.argv[2]), style=style), f"({time.monotonic() - t0:.1f} s)")
     sys.exit(0)
-  sys.exit(main())
+  sys.exit(main(sys.argv[2] if len(sys.argv) > 2 and sys.argv[1] == "--style" else "text"))
